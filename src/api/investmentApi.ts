@@ -1,4 +1,5 @@
 import type { Investment } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const INVESTMENT_API_URL = "http://localhost:3001/investment";
 
@@ -31,7 +32,10 @@ function mapInvestment(item: unknown): Investment | null {
 }
 
 export async function getInvestments(): Promise<Investment[]> {
-  const response = await fetch(INVESTMENT_API_URL);
+  const userId = getRequiredUserId();
+  const response = await fetch(`${INVESTMENT_API_URL}/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -49,7 +53,7 @@ export async function getInvestments(): Promise<Investment[]> {
 export async function createInvestment(payload: InvestmentPayload): Promise<Investment> {
   const response = await fetch(INVESTMENT_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       date: toIsoDate(payload.date),
@@ -82,14 +86,14 @@ export async function updateInvestment(id: string, payload: InvestmentPayload): 
   });
   let response = await fetch(`${INVESTMENT_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${INVESTMENT_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -108,7 +112,10 @@ export async function updateInvestment(id: string, payload: InvestmentPayload): 
 }
 
 export async function deleteInvestment(id: string): Promise<void> {
-  const response = await fetch(`${INVESTMENT_API_URL}/${id}`, { method: "DELETE" });
+  const response = await fetch(`${INVESTMENT_API_URL}/${id}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

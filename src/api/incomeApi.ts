@@ -1,8 +1,8 @@
 import type { Income, PaymentType } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const INCOME_API_URL = "http://localhost:3001/income";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface IncomePayload {
   amount: number;
@@ -155,8 +155,10 @@ function mapIncomeStatistics(item: unknown): IncomeStatistics | null {
   };
 }
 
-export async function getIncomes(userId: string = TEMP_USER_ID): Promise<Income[]> {
-  const response = await fetch(`${INCOME_API_URL}/user/${userId}`);
+export async function getIncomes(userId: string = getRequiredUserId()): Promise<Income[]> {
+  const response = await fetch(`${INCOME_API_URL}/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -171,9 +173,11 @@ export async function getIncomes(userId: string = TEMP_USER_ID): Promise<Income[
     .filter((item): item is Income => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
 }
 
-export async function getIncomeStatistics(userId: string = TEMP_USER_ID, year?: number): Promise<IncomeStatistics> {
+export async function getIncomeStatistics(userId: string = getRequiredUserId(), year?: number): Promise<IncomeStatistics> {
   const suffix = typeof year === "number" ? `?year=${year}` : "";
-  const response = await fetch(`${STATISTICS_API_URL}/incomes/user/${userId}${suffix}`);
+  const response = await fetch(`${STATISTICS_API_URL}/incomes/user/${userId}${suffix}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -188,16 +192,17 @@ export async function getIncomeStatistics(userId: string = TEMP_USER_ID, year?: 
 }
 
 export async function createIncome(payload: IncomePayload): Promise<Income> {
+  const userId = getRequiredUserId();
   const response = await fetch(INCOME_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       paymentType: payload.paymentType,
       date: toIsoDate(payload.date),
       description: payload.description || undefined,
       activityId: payload.activityId || undefined,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -215,9 +220,10 @@ export async function createIncome(payload: IncomePayload): Promise<Income> {
 }
 
 export async function createRecurringIncome(payload: RecurringIncomePayload): Promise<{ createdOccurrences: number }> {
+  const userId = getRequiredUserId();
   const response = await fetch(`${INCOME_API_URL}/recurring`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       paymentType: payload.paymentType,
@@ -226,7 +232,7 @@ export async function createRecurringIncome(payload: RecurringIncomePayload): Pr
       frequency: payload.frequency,
       description: payload.description || undefined,
       activityId: payload.activityId || undefined,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -243,8 +249,10 @@ export async function createRecurringIncome(payload: RecurringIncomePayload): Pr
   };
 }
 
-export async function getRecurringIncomes(userId: string = TEMP_USER_ID): Promise<RecurringIncome[]> {
-  const response = await fetch(`${INCOME_API_URL}/recurring/user/${userId}`);
+export async function getRecurringIncomes(userId: string = getRequiredUserId()): Promise<RecurringIncome[]> {
+  const response = await fetch(`${INCOME_API_URL}/recurring/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -258,9 +266,10 @@ export async function getRecurringIncomes(userId: string = TEMP_USER_ID): Promis
 }
 
 export async function updateRecurringIncome(id: string, payload: UpdateRecurringIncomePayload): Promise<RecurringIncome> {
+  const userId = getRequiredUserId();
   const response = await fetch(`${INCOME_API_URL}/recurring/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       paymentType: payload.paymentType || null,
@@ -270,7 +279,7 @@ export async function updateRecurringIncome(id: string, payload: UpdateRecurring
       description: payload.description || null,
       activityId: payload.activityId || null,
       isActive: payload.isActive,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -288,31 +297,36 @@ export async function updateRecurringIncome(id: string, payload: UpdateRecurring
 }
 
 export async function deleteRecurringIncome(id: string): Promise<void> {
-  const response = await fetch(`${INCOME_API_URL}/recurring/${id}?userId=${TEMP_USER_ID}`, { method: "DELETE" });
+  const userId = getRequiredUserId();
+  const response = await fetch(`${INCOME_API_URL}/recurring/${id}?userId=${userId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
 }
 
 export async function updateIncome(id: string, payload: IncomePayload): Promise<Income> {
+  const userId = getRequiredUserId();
   const body = JSON.stringify({
     amount: payload.amount,
     paymentType: payload.paymentType,
     date: toIsoDate(payload.date),
     description: payload.description || undefined,
     activityId: payload.activityId || undefined,
-    userId: TEMP_USER_ID,
+    userId,
   });
   let response = await fetch(`${INCOME_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${INCOME_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -331,7 +345,10 @@ export async function updateIncome(id: string, payload: IncomePayload): Promise<
 }
 
 export async function deleteIncome(id: string): Promise<void> {
-  const response = await fetch(`${INCOME_API_URL}/${id}`, { method: "DELETE" });
+  const response = await fetch(`${INCOME_API_URL}/${id}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

@@ -1,8 +1,8 @@
 import type { Category } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const CATEGORY_API_URL = "http://localhost:3001/category";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-export const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface CategoryPayload {
   name: string;
@@ -83,7 +83,10 @@ function mapCategoryStatistics(item: unknown): CategoryStatistics | null {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const response = await fetch(CATEGORY_API_URL);
+  const userId = getRequiredUserId();
+  const response = await fetch(`${CATEGORY_API_URL}/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -98,8 +101,10 @@ export async function getCategories(): Promise<Category[]> {
     .filter((item): item is Category => Boolean(item && item.id && item.name && item.userId));
 }
 
-export async function getCategoryStatistics(userId: string = TEMP_USER_ID): Promise<CategoryStatistics> {
-  const response = await fetch(`${STATISTICS_API_URL}/categories/user/${userId}`);
+export async function getCategoryStatistics(userId: string = getRequiredUserId()): Promise<CategoryStatistics> {
+  const response = await fetch(`${STATISTICS_API_URL}/categories/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -114,14 +119,15 @@ export async function getCategoryStatistics(userId: string = TEMP_USER_ID): Prom
 }
 
 export async function createCategory(payload: CategoryPayload): Promise<Category> {
+  const userId = getRequiredUserId();
   const response = await fetch(CATEGORY_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       name: payload.name,
       icon: payload.icon || undefined,
       color: payload.color || undefined,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -139,22 +145,23 @@ export async function createCategory(payload: CategoryPayload): Promise<Category
 }
 
 export async function updateCategory(id: string, payload: CategoryPayload): Promise<Category> {
+  const userId = getRequiredUserId();
   const body = JSON.stringify({
     name: payload.name,
     icon: payload.icon || undefined,
     color: payload.color || undefined,
-    userId: TEMP_USER_ID,
+    userId,
   });
   let response = await fetch(`${CATEGORY_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${CATEGORY_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -173,7 +180,10 @@ export async function updateCategory(id: string, payload: CategoryPayload): Prom
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  const response = await fetch(`${CATEGORY_API_URL}/${id}`, { method: "DELETE" });
+  const response = await fetch(`${CATEGORY_API_URL}/${id}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

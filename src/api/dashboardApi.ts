@@ -1,5 +1,5 @@
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface DashboardStats {
   totals: {
@@ -163,8 +163,10 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
   };
 }
 
-export async function getDashboardStats(userId: string = TEMP_USER_ID): Promise<DashboardStats> {
-  const response = await fetch(`${STATISTICS_API_URL}/dashboard/user/${userId}`);
+export async function getDashboardStats(userId: string = getRequiredUserId()): Promise<DashboardStats> {
+  const response = await fetch(`${STATISTICS_API_URL}/dashboard/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

@@ -1,8 +1,8 @@
 import type { Loan, LoanPayment, LoanStatus, LoanType } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const LOAN_API_URL = "http://localhost:3001/loan";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-export const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface LoanPayload {
   totalAmount: number;
@@ -106,7 +106,10 @@ function mapLoanPaymentHistory(item: unknown): LoanPaymentHistory | null {
 }
 
 export async function getLoans(): Promise<Loan[]> {
-  const response = await fetch(LOAN_API_URL);
+  const userId = getRequiredUserId();
+  const response = await fetch(LOAN_API_URL, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -118,11 +121,14 @@ export async function getLoans(): Promise<Loan[]> {
 
   return data
     .map((item): Loan | null => mapLoan(item))
-    .filter((item): item is Loan => Boolean(item && item.id && Number.isFinite(item.totalAmount) && Number.isFinite(item.remainingAmount) && item.lenderName && item.startDate && item.userId));
+    .filter((item): item is Loan => Boolean(item && item.id && Number.isFinite(item.totalAmount) && Number.isFinite(item.remainingAmount) && item.lenderName && item.startDate && item.userId))
+    .filter((item) => item.userId === userId);
 }
 
-export async function getLoanPaymentHistory(userId: string = TEMP_USER_ID): Promise<LoanPaymentHistory[]> {
-  const response = await fetch(`${STATISTICS_API_URL}/loans/payments/user/${userId}`);
+export async function getLoanPaymentHistory(userId: string = getRequiredUserId()): Promise<LoanPaymentHistory[]> {
+  const response = await fetch(`${STATISTICS_API_URL}/loans/payments/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -143,6 +149,7 @@ export async function getLoanPaymentHistory(userId: string = TEMP_USER_ID): Prom
 }
 
 function buildLoanBody(payload: LoanPayload): string {
+  const userId = getRequiredUserId();
   return JSON.stringify({
     totalAmount: payload.totalAmount,
     remainingAmount: payload.remainingAmount,
@@ -153,14 +160,14 @@ function buildLoanBody(payload: LoanPayload): string {
     endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
     status: payload.status ?? (payload.remainingAmount <= 0 ? "PAID" : "ACTIVE"),
     activityId: payload.activityId || undefined,
-    userId: TEMP_USER_ID,
+    userId,
   });
 }
 
 export async function createLoan(payload: LoanPayload): Promise<Loan> {
   const response = await fetch(LOAN_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: buildLoanBody(payload),
   });
 
@@ -181,14 +188,14 @@ export async function updateLoan(id: string, payload: LoanPayload): Promise<Loan
   const body = buildLoanBody(payload);
   let response = await fetch(`${LOAN_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${LOAN_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -207,7 +214,10 @@ export async function updateLoan(id: string, payload: LoanPayload): Promise<Loan
 }
 
 export async function deleteLoan(id: string): Promise<void> {
-  const response = await fetch(`${LOAN_API_URL}/${id}`, { method: "DELETE" });
+  const response = await fetch(`${LOAN_API_URL}/${id}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

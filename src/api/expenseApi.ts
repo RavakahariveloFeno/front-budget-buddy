@@ -1,8 +1,8 @@
 import type { Expense } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const EXPENSE_API_URL = "http://localhost:3001/expense";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-export const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface ExpensePayload {
   amount: number;
@@ -164,8 +164,10 @@ function mapExpenseStatistics(item: unknown): ExpenseStatistics | null {
   };
 }
 
-export async function getExpenses(userId: string = TEMP_USER_ID): Promise<Expense[]> {
-  const response = await fetch(`${EXPENSE_API_URL}/user/${userId}`);
+export async function getExpenses(userId: string = getRequiredUserId()): Promise<Expense[]> {
+  const response = await fetch(`${EXPENSE_API_URL}/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -180,8 +182,10 @@ export async function getExpenses(userId: string = TEMP_USER_ID): Promise<Expens
     .filter((item): item is Expense => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
 }
 
-export async function getExpenseStatistics(userId: string = TEMP_USER_ID): Promise<ExpenseStatistics> {
-  const response = await fetch(`${STATISTICS_API_URL}/expenses/user/${userId}`);
+export async function getExpenseStatistics(userId: string = getRequiredUserId()): Promise<ExpenseStatistics> {
+  const response = await fetch(`${STATISTICS_API_URL}/expenses/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -196,16 +200,17 @@ export async function getExpenseStatistics(userId: string = TEMP_USER_ID): Promi
 }
 
 export async function createExpense(payload: ExpensePayload): Promise<Expense> {
+  const userId = getRequiredUserId();
   const response = await fetch(EXPENSE_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       date: toIsoDate(payload.date),
       description: payload.description || undefined,
       categoryId: payload.categoryId || undefined,
       activityId: payload.activityId || undefined,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -223,9 +228,10 @@ export async function createExpense(payload: ExpensePayload): Promise<Expense> {
 }
 
 export async function createRecurringExpense(payload: RecurringExpensePayload): Promise<{ createdOccurrences: number }> {
+  const userId = getRequiredUserId();
   const response = await fetch(`${EXPENSE_API_URL}/recurring`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       startDate: toIsoDate(payload.startDate),
@@ -234,7 +240,7 @@ export async function createRecurringExpense(payload: RecurringExpensePayload): 
       description: payload.description || undefined,
       categoryId: payload.categoryId || undefined,
       activityId: payload.activityId || undefined,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -251,8 +257,10 @@ export async function createRecurringExpense(payload: RecurringExpensePayload): 
   };
 }
 
-export async function getRecurringExpenses(userId: string = TEMP_USER_ID): Promise<RecurringExpense[]> {
-  const response = await fetch(`${EXPENSE_API_URL}/recurring/user/${userId}`);
+export async function getRecurringExpenses(userId: string = getRequiredUserId()): Promise<RecurringExpense[]> {
+  const response = await fetch(`${EXPENSE_API_URL}/recurring/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -266,9 +274,10 @@ export async function getRecurringExpenses(userId: string = TEMP_USER_ID): Promi
 }
 
 export async function updateRecurringExpense(id: string, payload: UpdateRecurringExpensePayload): Promise<RecurringExpense> {
+  const userId = getRequiredUserId();
   const response = await fetch(`${EXPENSE_API_URL}/recurring/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       startDate: payload.startDate ? toIsoDate(payload.startDate) : undefined,
@@ -278,7 +287,7 @@ export async function updateRecurringExpense(id: string, payload: UpdateRecurrin
       categoryId: payload.categoryId || null,
       activityId: payload.activityId || null,
       isActive: payload.isActive,
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -296,31 +305,36 @@ export async function updateRecurringExpense(id: string, payload: UpdateRecurrin
 }
 
 export async function deleteRecurringExpense(id: string): Promise<void> {
-  const response = await fetch(`${EXPENSE_API_URL}/recurring/${id}?userId=${TEMP_USER_ID}`, { method: "DELETE" });
+  const userId = getRequiredUserId();
+  const response = await fetch(`${EXPENSE_API_URL}/recurring/${id}?userId=${userId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
 }
 
 export async function updateExpense(id: string, payload: ExpensePayload): Promise<Expense> {
+  const userId = getRequiredUserId();
   const body = JSON.stringify({
     amount: payload.amount,
     date: toIsoDate(payload.date),
     description: payload.description || undefined,
     categoryId: payload.categoryId || undefined,
     activityId: payload.activityId || undefined,
-    userId: TEMP_USER_ID,
+    userId,
   });
   let response = await fetch(`${EXPENSE_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${EXPENSE_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -339,7 +353,10 @@ export async function updateExpense(id: string, payload: ExpensePayload): Promis
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  const response = await fetch(`${EXPENSE_API_URL}/${id}`, { method: "DELETE" });
+  const response = await fetch(`${EXPENSE_API_URL}/${id}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

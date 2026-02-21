@@ -1,8 +1,8 @@
 import type { Budget, BudgetPeriod } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const BUDGET_API_URL = "http://localhost:3001/budget";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-export const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface BudgetPayload {
   amount: number;
@@ -68,7 +68,10 @@ function mapBudgetStatistics(item: unknown): BudgetStatistics | null {
 }
 
 export async function getBudgets(): Promise<Budget[]> {
-  const response = await fetch(BUDGET_API_URL);
+  const userId = getRequiredUserId();
+  const response = await fetch(BUDGET_API_URL, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -80,11 +83,14 @@ export async function getBudgets(): Promise<Budget[]> {
 
   return data
     .map((item): Budget | null => mapBudget(item))
-    .filter((item): item is Budget => Boolean(item && item.id && Number.isFinite(item.amount) && item.startDate && item.userId));
+    .filter((item): item is Budget => Boolean(item && item.id && Number.isFinite(item.amount) && item.startDate && item.userId))
+    .filter((item) => item.userId === userId);
 }
 
-export async function getBudgetStatistics(userId: string = TEMP_USER_ID): Promise<BudgetStatistics> {
-  const response = await fetch(`${STATISTICS_API_URL}/budgets/user/${userId}`);
+export async function getBudgetStatistics(userId: string = getRequiredUserId()): Promise<BudgetStatistics> {
+  const response = await fetch(`${STATISTICS_API_URL}/budgets/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -99,14 +105,15 @@ export async function getBudgetStatistics(userId: string = TEMP_USER_ID): Promis
 }
 
 export async function createBudget(payload: BudgetPayload): Promise<Budget> {
+  const userId = getRequiredUserId();
   const response = await fetch(BUDGET_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       period: payload.period,
       startDate: toIsoDate(payload.startDate),
-      userId: TEMP_USER_ID,
+      userId,
     }),
   });
 
@@ -124,22 +131,23 @@ export async function createBudget(payload: BudgetPayload): Promise<Budget> {
 }
 
 export async function updateBudget(id: string, payload: BudgetPayload): Promise<Budget> {
+  const userId = getRequiredUserId();
   const body = JSON.stringify({
     amount: payload.amount,
     period: payload.period,
     startDate: toIsoDate(payload.startDate),
-    userId: TEMP_USER_ID,
+    userId,
   });
   let response = await fetch(`${BUDGET_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${BUDGET_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -158,7 +166,10 @@ export async function updateBudget(id: string, payload: BudgetPayload): Promise<
 }
 
 export async function deleteBudget(id: string): Promise<void> {
-  const response = await fetch(`${BUDGET_API_URL}/${id}`, { method: "DELETE" });
+  const response = await fetch(`${BUDGET_API_URL}/${id}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

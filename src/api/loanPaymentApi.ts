@@ -1,4 +1,5 @@
 import type { LoanPayment } from "@/data/staticData";
+import { buildAuthHeaders } from "./authApi";
 
 const LOAN_PAYMENT_API_URL = "http://localhost:3001/loan-payment";
 
@@ -29,7 +30,9 @@ function mapLoanPayment(item: unknown): LoanPayment | null {
 }
 
 export async function getLoanPayments(): Promise<LoanPayment[]> {
-  const response = await fetch(LOAN_PAYMENT_API_URL);
+  const response = await fetch(LOAN_PAYMENT_API_URL, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -47,7 +50,7 @@ export async function getLoanPayments(): Promise<LoanPayment[]> {
 export async function createLoanPayment(payload: LoanPaymentPayload): Promise<LoanPayment> {
   const response = await fetch(LOAN_PAYMENT_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
       date: toIsoDate(payload.date),

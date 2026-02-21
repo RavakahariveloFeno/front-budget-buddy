@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
@@ -13,6 +13,7 @@ import {
   ChevronRight,
   LogOut,
 } from "lucide-react";
+import { clearSessionToken, getCurrentUser } from "@/api/authApi";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -28,9 +29,18 @@ const navItems = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const userName = "Mon compte";
-  const userEmail = "-";
-  const userInitials = "MC";
+  const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+  const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
+  const userEmail = currentUser?.email ?? "-";
+  const userInitials = currentUser
+    ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.toUpperCase()
+    : "MC";
+
+  const handleLogout = () => {
+    clearSessionToken();
+    navigate("/signin", { replace: true });
+  };
 
   return (
     <aside
@@ -92,7 +102,9 @@ export default function Sidebar() {
             </div>
           )}
           {!collapsed && (
-            <LogOut size={14} className="flex-shrink-0 cursor-pointer opacity-50 hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--sidebar-foreground))" }} />
+            <button onClick={handleLogout} className="p-1 rounded-md hover:bg-secondary/30 transition-colors" title="Se deconnecter">
+              <LogOut size={14} className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--sidebar-foreground))" }} />
+            </button>
           )}
         </div>
       </div>

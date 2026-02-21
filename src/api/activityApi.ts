@@ -1,8 +1,8 @@
 import type { Activity, ActivityType } from "@/data/staticData";
+import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const ACTIVITY_API_URL = "http://localhost:3001/activity";
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
-export const TEMP_ACTIVITY_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface ActivityPayload {
   name: string;
@@ -76,7 +76,10 @@ function mapActivityStats(item: unknown): ActivityStats | null {
 }
 
 export async function getActivities(): Promise<Activity[]> {
-  const response = await fetch(ACTIVITY_API_URL);
+  const userId = getRequiredUserId();
+  const response = await fetch(`${ACTIVITY_API_URL}/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -91,8 +94,10 @@ export async function getActivities(): Promise<Activity[]> {
     .filter((item): item is Activity => Boolean(item && item.id && item.name && item.startDate && item.userId));
 }
 
-export async function getActivityStatsByUser(userId: string = TEMP_ACTIVITY_USER_ID): Promise<ActivityStats[]> {
-  const response = await fetch(`${STATISTICS_API_URL}/activity/user/${userId}`);
+export async function getActivityStatsByUser(userId: string = getRequiredUserId()): Promise<ActivityStats[]> {
+  const response = await fetch(`${STATISTICS_API_URL}/activity/user/${userId}`, {
+    headers: buildAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -108,15 +113,16 @@ export async function getActivityStatsByUser(userId: string = TEMP_ACTIVITY_USER
 }
 
 export async function createActivity(payload: ActivityPayload): Promise<Activity> {
+  const userId = getRequiredUserId();
   const response = await fetch(ACTIVITY_API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body: JSON.stringify({
       name: payload.name,
       type: payload.type,
       description: payload.description || undefined,
       startDate: toIsoDate(payload.startDate),
-      userId: TEMP_ACTIVITY_USER_ID,
+      userId,
     }),
   });
 
@@ -134,23 +140,24 @@ export async function createActivity(payload: ActivityPayload): Promise<Activity
 }
 
 export async function updateActivity(id: string, payload: ActivityPayload): Promise<Activity> {
+  const userId = getRequiredUserId();
   const body = JSON.stringify({
     name: payload.name,
     type: payload.type,
     description: payload.description || undefined,
     startDate: toIsoDate(payload.startDate),
-    userId: TEMP_ACTIVITY_USER_ID,
+    userId,
   });
   let response = await fetch(`${ACTIVITY_API_URL}/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildAuthHeaders(true),
     body,
   });
 
   if (response.status === 404 || response.status === 405) {
     response = await fetch(`${ACTIVITY_API_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(true),
       body,
     });
   }
@@ -171,6 +178,7 @@ export async function updateActivity(id: string, payload: ActivityPayload): Prom
 export async function deleteActivity(id: string): Promise<void> {
   const response = await fetch(`${ACTIVITY_API_URL}/${id}`, {
     method: "DELETE",
+    headers: buildAuthHeaders(),
   });
 
   if (!response.ok) {

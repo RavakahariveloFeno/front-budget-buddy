@@ -1,0 +1,153 @@
+const AUTH_API_URL = "http://localhost:3001/auth";
+const TOKEN_STORAGE_KEY = "bb_access_token";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface LoginResponse {
+  access_token?: string;
+}
+
+interface SignupPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
+interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+type JwtPayload = {
+  sub?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  exp?: number;
+};
+
+function decodeJwtPayload(token: string): JwtPayload | null {
+  const [, payload] = token.split(".");
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSessionToken(token: string): void {
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+export function getSessionToken(): string | null {
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function clearSessionToken(): void {
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+export function getCurrentUser(): AuthUser | null {
+  const token = getSessionToken();
+  if (!token) {
+    return null;
+  }
+
+  const payload = decodeJwtPayload(token);
+  if (!payload?.sub || !payload.email || !payload.firstName || !payload.lastName) {
+    return null;
+  }
+
+  return {
+    id: payload.sub,
+    email: payload.email,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+  };
+}
+
+export function getCurrentUserId(): string | null {
+  return getCurrentUser()?.id ?? null;
+}
+
+export function getRequiredUserId(): string {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    throw new Error("Missing authenticated user id");
+  }
+  return userId;
+}
+
+export function buildAuthHeaders(contentType = false): HeadersInit {
+  const token = getSessionToken();
+  return {
+    ...(contentType ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export function isSessionAuthenticated(): boolean {
+  const token = getSessionToken();
+  if (!token) {
+    return false;
+  }
+
+  const payload = decodeJwtPayload(token);
+  if (!payload?.sub) {
+    return false;
+  }
+
+  if (typeof payload.exp === "number") {
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    if (payload.exp <= nowEpoch) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export async function signUp(payload: SignupPayload): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+}
+
+export async function signIn(payload: LoginPayload): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: LoginResponse = await response.json();
+  const token = data.access_token;
+  if (!token || typeof token !== "string") {
+    throw new Error("Missing access token");
+  }
+
+  saveSessionToken(token);
+}
