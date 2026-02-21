@@ -1,11 +1,219 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, LogOut, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Bell, CalendarClock, LogOut, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser } from "@/api/authApi";
+import { getRecurringIncomes } from "@/api/incomeApi";
+import type { RecurringIncome } from "@/api/incomeApi";
+import { getRecurringExpenses } from "@/api/expenseApi";
+import type { RecurringExpense } from "@/api/expenseApi";
+import { getBudgets, getBudgetStatistics } from "@/api/budgetApi";
+import { getLoans } from "@/api/loanApi";
+import type { Budget, Loan } from "@/data/staticData";
+import { formatCurrency } from "@/data/staticData";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
+}
+
+type NotificationLevel = "high" | "medium" | "low";
+
+interface AppNotification {
+  id: string;
+  title: string;
+  description: string;
+  level: NotificationLevel;
+  to: string;
+  timestamp: number;
+}
+
+type RecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
+const NOTIFICATION_POLL_INTERVAL_MS = 15000;
+
+function getDayStart(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function parseDateOnly(value?: string): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return getDayStart(parsed);
+}
+
+function addFrequency(date: Date, frequency: RecurrenceFrequency): Date {
+  const next = new Date(date);
+  if (frequency === "DAY") {
+    next.setDate(next.getDate() + 1);
+    return next;
+  }
+  if (frequency === "WEEK") {
+    next.setDate(next.getDate() + 7);
+    return next;
+  }
+  next.setMonth(next.getMonth() + 1);
+  return next;
+}
+
+function daysDiff(from: Date, to: Date): number {
+  const oneDay = 24 * 60 * 60 * 1000;
+  return Math.round((to.getTime() - from.getTime()) / oneDay);
+}
+
+function nextOccurrence(startDate: string, endDate: string | undefined, frequency: RecurrenceFrequency, today: Date): Date | null {
+  const start = parseDateOnly(startDate);
+  if (!start) {
+    return null;
+  }
+
+  const end = parseDateOnly(endDate);
+  if (end && start > end) {
+    return null;
+  }
+
+  let current = start;
+  let guard = 0;
+  while (current < today && guard < 500) {
+    current = addFrequency(current, frequency);
+    guard += 1;
+  }
+
+  if (end && current > end) {
+    return null;
+  }
+
+  return current;
+}
+
+function buildRecurringIncomeAlerts(items: RecurringIncome[], today: Date): AppNotification[] {
+  return items
+    .filter((item) => item.isActive)
+    .map((item) => {
+      const next = nextOccurrence(item.startDate, item.endDate, item.frequency, today);
+      if (!next) {
+        return null;
+      }
+
+      const days = daysDiff(today, next);
+      if (days < 0 || days > 3) {
+        return null;
+      }
+
+      return {
+        id: `rec-income-${item.id}`,
+        title: days === 0 ? "Revenu recurrent attendu aujourd'hui" : "Revenu recurrent imminent",
+        description: `${item.description || "Revenu automatique"} - ${formatCurrency(item.amount)}`,
+        level: days === 0 ? "high" : "medium",
+        to: "/incomes",
+        timestamp: next.getTime(),
+      } satisfies AppNotification;
+    })
+    .filter((item): item is AppNotification => Boolean(item));
+}
+
+function buildRecurringExpenseAlerts(items: RecurringExpense[], today: Date): AppNotification[] {
+  return items
+    .filter((item) => item.isActive)
+    .map((item) => {
+      const next = nextOccurrence(item.startDate, item.endDate, item.frequency, today);
+      if (!next) {
+        return null;
+      }
+
+      const days = daysDiff(today, next);
+      if (days < 0 || days > 3) {
+        return null;
+      }
+
+      return {
+        id: `rec-expense-${item.id}`,
+        title: days === 0 ? "Depense recurrente a traiter aujourd'hui" : "Depense recurrente imminente",
+        description: `${item.description || "Depense automatique"} - ${formatCurrency(item.amount)}`,
+        level: days === 0 ? "high" : "medium",
+        to: "/expenses",
+        timestamp: next.getTime(),
+      } satisfies AppNotification;
+    })
+    .filter((item): item is AppNotification => Boolean(item));
+}
+
+function buildBudgetAlerts(budgets: Budget[], spentByPeriod: { DAY: number; WEEK: number; MONTH: number }): AppNotification[] {
+  return budgets
+    .map((budget) => {
+      if (!Number.isFinite(budget.amount) || budget.amount <= 0) {
+        return null;
+      }
+
+      const spent = spentByPeriod[budget.period] ?? 0;
+      const ratio = spent / budget.amount;
+      if (ratio >= 1) {
+        return {
+          id: `budget-over-${budget.id}`,
+          title: "Budget depasse",
+          description: `${budget.period} - ${formatCurrency(spent)} / ${formatCurrency(budget.amount)}`,
+          level: "high",
+          to: "/budgets",
+          timestamp: Date.now(),
+        } satisfies AppNotification;
+      }
+
+      if (ratio >= 0.85) {
+        return {
+          id: `budget-near-${budget.id}`,
+          title: "Budget presque atteint",
+          description: `${budget.period} - ${Math.round(ratio * 100)}% utilise`,
+          level: "medium",
+          to: "/budgets",
+          timestamp: Date.now(),
+        } satisfies AppNotification;
+      }
+
+      return null;
+    })
+    .filter((item): item is AppNotification => Boolean(item));
+}
+
+function buildLoanAlerts(loans: Loan[], today: Date): AppNotification[] {
+  return loans
+    .filter((loan) => loan.status === "ACTIVE" && loan.remainingAmount > 0)
+    .map((loan) => {
+      const due = parseDateOnly(loan.endDate);
+      if (!due) {
+        return null;
+      }
+
+      const days = daysDiff(today, due);
+      if (days < 0) {
+        return {
+          id: `loan-overdue-${loan.id}`,
+          title: "Pret en retard",
+          description: `${loan.lenderName} - retard de ${Math.abs(days)} jour(s)`,
+          level: "high",
+          to: "/loans",
+          timestamp: due.getTime(),
+        } satisfies AppNotification;
+      }
+
+      if (days <= 7) {
+        return {
+          id: `loan-due-${loan.id}`,
+          title: "Echeance de pret proche",
+          description: `${loan.lenderName} - dans ${days} jour(s)`,
+          level: "medium",
+          to: "/loans",
+          timestamp: due.getTime(),
+        } satisfies AppNotification;
+      }
+
+      return null;
+    })
+    .filter((item): item is AppNotification => Boolean(item));
 }
 
 export default function Header({ title, subtitle }: HeaderProps) {
@@ -14,9 +222,15 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const notificationMenuRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+  const seenNotificationMapRef = useRef<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(0);
   const currentUser = getCurrentUser();
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
@@ -51,6 +265,14 @@ export default function Header({ title, subtitle }: HeaderProps) {
     });
   }, [query, searchItems]);
 
+  const notificationStorageKey = currentUser ? `bb.notifications.read.${currentUser.id}` : "bb.notifications.read";
+  const notificationSeenStorageKey = currentUser ? `bb.notifications.seen.${currentUser.id}` : "bb.notifications.seen";
+  const unreadNotifications = useMemo(
+    () => notifications.filter((item) => !readNotificationIds.includes(item.id)),
+    [notifications, readNotificationIds],
+  );
+  const hasUnreadNotifications = unreadNotifications.length > 0;
+
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
@@ -62,6 +284,9 @@ export default function Header({ title, subtitle }: HeaderProps) {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (notificationMenuRef.current && !notificationMenuRef.current.contains(event.target as Node)) {
+        setNotificationOpen(false);
       }
     };
 
@@ -81,6 +306,181 @@ export default function Header({ title, subtitle }: HeaderProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const raw = localStorage.getItem(notificationStorageKey);
+    if (!raw) {
+      setReadNotificationIds([]);
+      return;
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        setReadNotificationIds([]);
+        return;
+      }
+
+      const ids = parsed.filter((entry): entry is string => typeof entry === "string");
+      setReadNotificationIds(ids);
+    } catch {
+      setReadNotificationIds([]);
+    }
+  }, [notificationStorageKey]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(notificationSeenStorageKey);
+    if (!raw) {
+      seenNotificationMapRef.current = {};
+      return;
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        seenNotificationMapRef.current = {};
+        return;
+      }
+
+      const entries = Object.entries(parsed as Record<string, unknown>).filter(
+        (entry): entry is [string, number] => typeof entry[0] === "string" && Number.isFinite(entry[1]),
+      );
+      const map = Object.fromEntries(entries);
+      seenNotificationMapRef.current = map;
+    } catch {
+      seenNotificationMapRef.current = {};
+    }
+  }, [notificationSeenStorageKey]);
+
+  const markNotificationsAsRead = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) {
+        return;
+      }
+
+      setReadNotificationIds((prev) => {
+        const next = Array.from(new Set([...prev, ...ids]));
+        localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+        return next;
+      });
+    },
+    [notificationStorageKey],
+  );
+
+  const trackSeenNotifications = useCallback(
+    (items: AppNotification[]) => {
+      if (items.length === 0) {
+        return;
+      }
+
+      const current = seenNotificationMapRef.current;
+      let changed = false;
+      const next = { ...current };
+      const now = Date.now();
+
+      items.forEach((item, index) => {
+        if (!next[item.id]) {
+          next[item.id] = now + index;
+          changed = true;
+        }
+      });
+
+      if (!changed) {
+        return;
+      }
+
+      seenNotificationMapRef.current = next;
+      localStorage.setItem(notificationSeenStorageKey, JSON.stringify(next));
+    },
+    [notificationSeenStorageKey],
+  );
+
+  const loadNotifications = useCallback(async (withLoading: boolean) => {
+    if (withLoading) {
+      setNotificationsLoading(true);
+    }
+
+    const [recIncomeResult, recExpenseResult, budgetsResult, budgetStatsResult, loansResult] = await Promise.allSettled([
+      getRecurringIncomes(),
+      getRecurringExpenses(),
+      getBudgets(),
+      getBudgetStatistics(),
+      getLoans(),
+    ]);
+
+    const today = getDayStart(new Date());
+    const nextNotifications: AppNotification[] = [];
+
+    if (recIncomeResult.status === "fulfilled") {
+      nextNotifications.push(...buildRecurringIncomeAlerts(recIncomeResult.value, today));
+    }
+
+    if (recExpenseResult.status === "fulfilled") {
+      nextNotifications.push(...buildRecurringExpenseAlerts(recExpenseResult.value, today));
+    }
+
+    if (budgetsResult.status === "fulfilled" && budgetStatsResult.status === "fulfilled") {
+      nextNotifications.push(...buildBudgetAlerts(budgetsResult.value, budgetStatsResult.value.spentByPeriod));
+    }
+
+    if (loansResult.status === "fulfilled") {
+      nextNotifications.push(...buildLoanAlerts(loansResult.value, today));
+    }
+
+    const failedCount = [recIncomeResult, recExpenseResult, budgetsResult, budgetStatsResult, loansResult].filter((result) => result.status === "rejected").length;
+    if (failedCount > 0) {
+      nextNotifications.push({
+        id: "notif-sync-warning",
+        title: "Synchronisation partielle",
+        description: "Certaines alertes n'ont pas pu etre chargees.",
+        level: "low",
+        to: "/",
+        timestamp: Date.now(),
+      });
+    }
+
+    trackSeenNotifications(nextNotifications);
+    const severityOrder: Record<NotificationLevel, number> = { high: 0, medium: 1, low: 2 };
+    nextNotifications.sort((a, b) => {
+      const seenA = seenNotificationMapRef.current[a.id] ?? a.timestamp;
+      const seenB = seenNotificationMapRef.current[b.id] ?? b.timestamp;
+      if (seenB !== seenA) {
+        return seenB - seenA;
+      }
+      return severityOrder[a.level] - severityOrder[b.level];
+    });
+    setNotifications(nextNotifications.slice(0, 8));
+    setNotificationsLoading(false);
+  }, [trackSeenNotifications]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async (withLoading: boolean) => {
+      if (cancelled) {
+        return;
+      }
+      await loadNotifications(withLoading);
+    };
+
+    void run(true);
+    const intervalId = window.setInterval(() => {
+      void run(false);
+    }, NOTIFICATION_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [loadNotifications, location.pathname]);
+
+  useEffect(() => {
+    if (!notificationOpen) {
+      return;
+    }
+
+    markNotificationsAsRead(notifications.map((item) => item.id));
+  }, [notificationOpen, notifications, markNotificationsAsRead]);
+
   const goTo = (path: string) => {
     navigate(path);
     setOpen(false);
@@ -91,6 +491,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
     clearSessionToken();
     navigate("/signin", { replace: true });
     setUserMenuOpen(false);
+  };
+
+  const handleNotificationClick = (to: string) => {
+    markNotificationsAsRead(notifications.map((item) => item.id));
+    setNotificationOpen(false);
+    navigate(to);
   };
 
   const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -199,19 +605,75 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </div>
           )}
         </div>
-        <button
-          className="relative flex items-center justify-center w-9 h-9 rounded-lg border transition-colors hover:bg-secondary"
-          style={{ borderColor: "hsl(var(--border))" }}
-        >
-          <Bell size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-            style={{ background: "hsl(var(--destructive))" }}
-          />
-        </button>
+        <div ref={notificationMenuRef} className="relative">
+          <button
+            onClick={() => {
+              setNotificationOpen((prev) => !prev);
+              setUserMenuOpen(false);
+            }}
+            className="relative flex items-center justify-center w-9 h-9 rounded-lg border transition-colors hover:bg-secondary"
+            style={{ borderColor: "hsl(var(--border))" }}
+            title="Notifications"
+          >
+            <Bell size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
+            {hasUnreadNotifications && (
+              <span
+                className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+                style={{ background: "hsl(var(--destructive))" }}
+              />
+            )}
+          </button>
+          {notificationOpen && (
+            <div
+              className="absolute right-0 mt-2 w-[320px] rounded-lg border overflow-hidden z-30"
+              style={{ background: "hsl(var(--popover))", borderColor: "hsl(var(--border))" }}
+            >
+              <div className="px-3 py-2 border-b" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
+                <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>Notifications</p>
+                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  {notificationsLoading ? "Chargement..." : `${unreadNotifications.length} non lue(s)`}
+                </p>
+              </div>
+              <div className="max-h-[320px] overflow-y-auto">
+                {!notificationsLoading && notifications.length === 0 && (
+                  <div className="px-3 py-4 text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Aucune alerte importante pour le moment.
+                  </div>
+                )}
+                {notifications.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNotificationClick(item.to)}
+                    className="w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors hover:bg-secondary/60"
+                    style={{ borderColor: "hsl(var(--border) / 0.5)" }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5">
+                        {item.level === "high" ? (
+                          <AlertTriangle size={14} style={{ color: "hsl(var(--destructive))" }} />
+                        ) : item.level === "medium" ? (
+                          <CalendarClock size={14} style={{ color: "hsl(var(--warning))" }} />
+                        ) : (
+                          <Bell size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{item.title}</p>
+                        <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{item.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         <div ref={userMenuRef} className="relative pl-1">
           <button
-            onClick={() => setUserMenuOpen((prev) => !prev)}
+            onClick={() => {
+              setUserMenuOpen((prev) => !prev);
+              setNotificationOpen(false);
+            }}
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
             style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
             title="Mon compte"
@@ -245,3 +707,4 @@ export default function Header({ title, subtitle }: HeaderProps) {
     </header>
   );
 }
+
