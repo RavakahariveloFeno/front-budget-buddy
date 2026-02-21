@@ -161,6 +161,8 @@ export default function Activities() {
             const actExpenses = stats?.expense ?? 0;
             const sentInv = stats?.sentInvestment ?? 0;
             const recvInv = stats?.receivedInvestment ?? 0;
+            const netAvailable = actIncome - actExpenses - sentInv + recvInv;
+            const netPositive = netAvailable >= 0;
 
             return (
               <div key={act.id} className="stat-card hover:border-primary/40 transition-colors group">
@@ -226,6 +228,15 @@ export default function Activities() {
                       {formatCurrency(recvInv)}
                     </p>
                   </div>
+                </div>
+
+                <div className="rounded-lg p-3 mt-3" style={{ background: netPositive ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}>
+                  <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Solde net dispo
+                  </p>
+                  <p className="font-semibold" style={{ color: netPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                    {formatCurrency(netAvailable)}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
