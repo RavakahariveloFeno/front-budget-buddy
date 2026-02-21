@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, PiggyBank, Calendar, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { budgets, formatCurrency, formatDate } from "@/data/staticData";
+import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Budget } from "@/data/staticData";
 import {
   createBudget,
@@ -29,7 +29,7 @@ const EMPTY_BUDGET_STATS: BudgetStatistics = {
 };
 
 export default function Budgets() {
-  const [budgetList, setBudgetList] = useState<Budget[]>(budgets);
+  const [budgetList, setBudgetList] = useState<Budget[]>([]);
   const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Budget | null>(null);
@@ -50,10 +50,10 @@ export default function Budgets() {
     const loadBudgets = async () => {
       try {
         const remoteBudgets = await getBudgets();
-        setBudgetList(remoteBudgets.length ? remoteBudgets : budgets);
+        setBudgetList(remoteBudgets);
       } catch (error) {
-        console.error("Impossible de charger les budgets depuis l'API, fallback static.", error);
-        setBudgetList(budgets);
+        console.error("Impossible de charger les budgets depuis l'API.", error);
+        setBudgetList([]);
       }
     };
 

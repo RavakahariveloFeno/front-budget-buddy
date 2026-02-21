@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Briefcase, Calendar, Pencil, Plus, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import {
-  activities,
-  investments,
   formatCurrency,
   formatDate,
   type Activity,
@@ -51,8 +49,8 @@ function buildStatsMap(stats: ActivityStats[]): Record<string, ActivityStats> {
 }
 
 export default function Activities() {
-  const [activityList, setActivityList] = useState<Activity[]>(activities);
-  const [investmentList, setInvestmentList] = useState<Investment[]>(investments);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
@@ -73,20 +71,20 @@ export default function Activities() {
     const loadActivities = async () => {
       try {
         const remoteActivities = await getActivities();
-        setActivityList(remoteActivities.length ? remoteActivities : activities);
+        setActivityList(remoteActivities);
       } catch (error) {
-        console.error("Impossible de charger les activites depuis l'API, fallback static.", error);
-        setActivityList(activities);
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
       }
     };
 
     const loadInvestments = async () => {
       try {
         const remoteInvestments = await getInvestments();
-        setInvestmentList(remoteInvestments.length ? remoteInvestments : investments);
+        setInvestmentList(remoteInvestments);
       } catch (error) {
-        console.error("Impossible de charger les investissements depuis l'API, fallback static.", error);
-        setInvestmentList(investments);
+        console.error("Impossible de charger les investissements depuis l'API.", error);
+        setInvestmentList([]);
       }
     };
 
@@ -162,7 +160,7 @@ export default function Activities() {
             const sentInv = stats?.sentInvestment ?? 0;
             const recvInv = stats?.receivedInvestment ?? 0;
             const remainingLoan = stats?.remainingLoan ?? 0;
-            const netAvailable = actIncome - actExpenses - sentInv + recvInv + remainingLoan;
+            const netAvailable = actIncome - actExpenses - sentInv + recvInv;
             const netPositive = netAvailable >= 0;
 
             return (

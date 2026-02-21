@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Tag, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { categories, formatCurrency } from "@/data/staticData";
+import { formatCurrency } from "@/data/staticData";
 import type { Category } from "@/data/staticData";
 import {
   createCategory,
@@ -24,7 +24,7 @@ const EMPTY_CATEGORY_STATS: CategoryStatistics = {
 };
 
 export default function Categories() {
-  const [categoryList, setCategoryList] = useState<Category[]>(categories);
+  const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStatistics>(EMPTY_CATEGORY_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Category | null>(null);
@@ -49,10 +49,10 @@ export default function Categories() {
     const loadCategories = async () => {
       try {
         const remoteCategories = await getCategories();
-        setCategoryList(remoteCategories.length ? remoteCategories : categories);
+        setCategoryList(remoteCategories);
       } catch (error) {
-        console.error("Impossible de charger les categories depuis l'API, fallback static.", error);
-        setCategoryList(categories);
+        console.error("Impossible de charger les categories depuis l'API.", error);
+        setCategoryList([]);
       }
     };
 

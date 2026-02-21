@@ -1,5 +1,4 @@
 import { Bell, Search } from "lucide-react";
-import { currentUser } from "@/data/staticData";
 
 interface HeaderProps {
   title: string;
@@ -7,6 +6,8 @@ interface HeaderProps {
 }
 
 export default function Header({ title, subtitle }: HeaderProps) {
+  const userInitials = "U";
+
   return (
     <header
       className="flex items-center justify-between px-6 py-4 border-b"
@@ -42,7 +43,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
           style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
         >
-          {currentUser.firstName[0]}{currentUser.lastName[0]}
+          {userInitials}
         </div>
       </div>
     </header>

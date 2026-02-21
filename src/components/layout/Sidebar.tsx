@@ -13,7 +13,6 @@ import {
   ChevronRight,
   LogOut,
 } from "lucide-react";
-import { currentUser } from "@/data/staticData";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -29,6 +28,9 @@ const navItems = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const userName = "Mon compte";
+  const userEmail = "-";
+  const userInitials = "MC";
 
   return (
     <aside
@@ -77,15 +79,15 @@ export default function Sidebar() {
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
             style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
           >
-            {currentUser.firstName[0]}{currentUser.lastName[0]}
+            {userInitials}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0 animate-fade-in">
               <p className="text-xs font-medium truncate" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
-                {currentUser.firstName} {currentUser.lastName}
+                {userName}
               </p>
               <p className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
-                {currentUser.email}
+                {userEmail}
               </p>
             </div>
           )}

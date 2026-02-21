@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
-import { activities, investments, formatCurrency, formatDate, totalInvestments } from "@/data/staticData";
+import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Investment } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import { createInvestment, deleteInvestment, getInvestments, updateInvestment } from "@/api/investmentApi";
@@ -16,8 +16,8 @@ const CustomTooltipStyle = {
 };
 
 export default function Investments() {
-  const [investmentList, setInvestmentList] = useState<Investment[]>(investments);
-  const [activityList, setActivityList] = useState<Activity[]>(activities);
+  const [investmentList, setInvestmentList] = useState<Investment[]>([]);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Investment | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -27,20 +27,20 @@ export default function Investments() {
     const loadInvestments = async () => {
       try {
         const remoteInvestments = await getInvestments();
-        setInvestmentList(remoteInvestments.length ? remoteInvestments : investments);
+        setInvestmentList(remoteInvestments);
       } catch (error) {
-        console.error("Impossible de charger les investissements depuis l'API, fallback static.", error);
-        setInvestmentList(investments);
+        console.error("Impossible de charger les investissements depuis l'API.", error);
+        setInvestmentList([]);
       }
     };
 
     const loadActivities = async () => {
       try {
         const remoteActivities = await getActivities();
-        setActivityList(remoteActivities.length ? remoteActivities : activities);
+        setActivityList(remoteActivities);
       } catch (error) {
-        console.error("Impossible de charger les activites depuis l'API, fallback static.", error);
-        setActivityList(activities);
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
       }
     };
 
@@ -99,6 +99,7 @@ export default function Investments() {
     envoye: investmentList.filter((investment) => investment.fromActivityId === activity.id).reduce((sum, investment) => sum + investment.amount, 0),
     recu: investmentList.filter((investment) => investment.toActivityId === activity.id).reduce((sum, investment) => sum + investment.amount, 0),
   }));
+  const totalInvestments = investmentList.reduce((sum, investment) => sum + investment.amount, 0);
 
   return (
     <div className="animate-fade-in">
