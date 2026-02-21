@@ -1,21 +1,28 @@
-import { Plus, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
-import { incomes, getActivityById, formatCurrency, formatDate, totalIncome, monthlyData } from "@/data/staticData";
+import { incomes, getActivityById, formatCurrency, formatDate, totalIncome, monthlyData, Income } from "@/data/staticData";
+import IncomeForm from "@/components/forms/IncomeForm";
+import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { toast } from "@/hooks/use-toast";
 
 const CustomTooltipStyle = {
-  contentStyle: {
-    background: "hsl(225, 27%, 12%)",
-    border: "1px solid hsl(224, 22%, 18%)",
-    borderRadius: "8px",
-    fontSize: "12px",
-    color: "hsl(213, 31%, 93%)",
-  },
+  contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
 };
 
 export default function Incomes() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Income | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Income | null>(null);
+
   const cashTotal = incomes.filter((i) => i.paymentType === "CASH").reduce((s, i) => s + i.amount, 0);
   const cardTotal = incomes.filter((i) => i.paymentType === "CARD").reduce((s, i) => s + i.amount, 0);
+
+  const handleEdit = (inc: Income) => { setEditItem(inc); setFormOpen(true); };
+  const handleDelete = (inc: Income) => { setDeleteTarget(inc); setDeleteOpen(true); };
+  const confirmDelete = () => { toast({ title: "Revenu supprimé" }); setDeleteOpen(false); };
 
   return (
     <div className="animate-fade-in">
@@ -41,11 +48,8 @@ export default function Incomes() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Bar chart */}
           <div className="stat-card lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>Revenus mensuels</p>
-            </div>
+            <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Revenus mensuels</p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(224,22%,18%)" />
@@ -57,13 +61,12 @@ export default function Incomes() {
             </ResponsiveContainer>
           </div>
 
-          {/* By payment type */}
           <div className="stat-card">
             <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Par mode de paiement</p>
             <div className="space-y-4">
               {[
-                { label: "Virement / Carte", value: cardTotal, pct: Math.round((cardTotal / totalIncome) * 100), color: "hsl(var(--info))", bg: "hsl(var(--info-dim))" },
-                { label: "Espèces", value: cashTotal, pct: Math.round((cashTotal / totalIncome) * 100), color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
+                { label: "Virement / Carte", value: cardTotal, pct: Math.round((cardTotal / totalIncome) * 100), color: "hsl(var(--info))" },
+                { label: "Espèces", value: cashTotal, pct: Math.round((cashTotal / totalIncome) * 100), color: "hsl(var(--warning))" },
               ].map((p) => (
                 <div key={p.label}>
                   <div className="flex justify-between mb-1.5">
@@ -86,10 +89,7 @@ export default function Incomes() {
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Tous les revenus <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>({incomes.length})</span>
             </p>
-            <button
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-            >
+            <button onClick={() => { setEditItem(null); setFormOpen(true); }} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
               <Plus size={13} /> Ajouter
             </button>
           </div>
@@ -102,6 +102,7 @@ export default function Incomes() {
                   <th className="text-left">Activité</th>
                   <th className="text-left">Paiement</th>
                   <th className="text-right">Montant</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,8 +118,16 @@ export default function Incomes() {
                           {inc.paymentType === "CARD" ? "💳 Carte" : "💵 Cash"}
                         </span>
                       </td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>
-                        +{formatCurrency(inc.amount)}
+                      <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>+{formatCurrency(inc.amount)}</td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleEdit(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                            <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                          </button>
+                          <button onClick={() => handleDelete(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                            <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -128,6 +137,9 @@ export default function Incomes() {
           </div>
         </div>
       </div>
+
+      <IncomeForm open={formOpen} onOpenChange={setFormOpen} income={editItem} />
+      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer le revenu" description={`Supprimer "${deleteTarget?.description || "ce revenu"}" de ${deleteTarget ? formatCurrency(deleteTarget.amount) : ""} ?`} onConfirm={confirmDelete} />
     </div>
   );
 }

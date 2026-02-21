@@ -1,72 +1,61 @@
+import { useState } from "react";
 import { Plus, Tag, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { categories, expenses, formatCurrency } from "@/data/staticData";
+import { categories, expenses, formatCurrency, Category } from "@/data/staticData";
+import CategoryForm from "@/components/forms/CategoryForm";
+import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { toast } from "@/hooks/use-toast";
 
 export default function Categories() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Category | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+
+  const handleEdit = (cat: Category) => { setEditItem(cat); setFormOpen(true); };
+  const handleDelete = (cat: Category) => { setDeleteTarget(cat); setDeleteOpen(true); };
+  const confirmDelete = () => { toast({ title: "Catégorie supprimée", description: deleteTarget?.name }); setDeleteOpen(false); };
+
   return (
     <div className="animate-fade-in">
       <Header title="Catégories" subtitle="Gérez vos catégories de dépenses" />
       <div className="p-6 space-y-6">
-        {/* Action bar */}
         <div className="flex justify-end">
-          <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-          >
+          <button onClick={() => { setEditItem(null); setFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
             <Plus size={16} /> Nouvelle catégorie
           </button>
         </div>
 
-        {/* Category grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.map((cat) => {
             const catExpenses = expenses.filter((e) => e.categoryId === cat.id);
             const total = catExpenses.reduce((s, e) => s + e.amount, 0);
             return (
-              <div
-                key={cat.id}
-                className="stat-card group cursor-pointer hover:scale-[1.02] transition-transform"
-              >
+              <div key={cat.id} className="stat-card group cursor-pointer hover:scale-[1.02] transition-transform">
                 <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
-                    style={{ background: (cat.color || "#8b5cf6") + "25" }}
-                  >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl" style={{ background: (cat.color || "#8b5cf6") + "25" }}>
                     {cat.icon}
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                    <button onClick={() => handleEdit(cat)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
                       <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
                     </button>
-                    <button className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                    <button onClick={() => handleDelete(cat)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
                       <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
                     </button>
                   </div>
                 </div>
                 <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>{cat.name}</p>
-                <p className="text-xl font-bold mt-1" style={{ color: cat.color || "hsl(var(--primary))" }}>
-                  {formatCurrency(total)}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {catExpenses.length} transaction{catExpenses.length > 1 ? "s" : ""}
-                </p>
-
-                {/* Color bar */}
+                <p className="text-xl font-bold mt-1" style={{ color: cat.color || "hsl(var(--primary))" }}>{formatCurrency(total)}</p>
+                <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{catExpenses.length} transaction{catExpenses.length > 1 ? "s" : ""}</p>
                 <div className="mt-3 h-1 rounded-full" style={{ background: "hsl(var(--border))" }}>
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      background: cat.color || "hsl(var(--primary))",
-                      width: `${Math.min(100, (total / 900) * 100)}%`,
-                    }}
-                  />
+                  <div className="h-full rounded-full" style={{ background: cat.color || "hsl(var(--primary))", width: `${Math.min(100, (total / 900) * 100)}%` }} />
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Table */}
         <div className="stat-card">
           <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Vue d'ensemble</p>
           <div className="overflow-x-auto">
@@ -101,15 +90,13 @@ export default function Categories() {
                         </div>
                       </td>
                       <td className="text-right" style={{ color: "hsl(var(--muted-foreground))" }}>{count}</td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
-                        {formatCurrency(catTotal)}
-                      </td>
+                      <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>{formatCurrency(catTotal)}</td>
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                          <button onClick={() => handleEdit(cat)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
                             <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
                           </button>
-                          <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                          <button onClick={() => handleDelete(cat)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
                             <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
                           </button>
                         </div>
@@ -122,6 +109,9 @@ export default function Categories() {
           </div>
         </div>
       </div>
+
+      <CategoryForm open={formOpen} onOpenChange={setFormOpen} category={editItem} />
+      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer la catégorie" description={`Supprimer la catégorie "${deleteTarget?.name}" ? Les dépenses associées ne seront pas supprimées.`} onConfirm={confirmDelete} />
     </div>
   );
 }
