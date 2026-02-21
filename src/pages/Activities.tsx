@@ -4,15 +4,19 @@ import Header from "@/components/layout/Header";
 import {
   activities,
   investments,
-  incomes,
-  expenses,
   formatCurrency,
   formatDate,
   type Activity,
   type Investment,
 } from "@/data/staticData";
-import { createActivity, deleteActivity, getActivities, updateActivity } from "@/api/activityApi";
-import type { ActivityPayload } from "@/api/activityApi";
+import {
+  createActivity,
+  deleteActivity,
+  getActivities,
+  getActivityStatsByUser,
+  updateActivity,
+} from "@/api/activityApi";
+import type { ActivityPayload, ActivityStats } from "@/api/activityApi";
 import { getInvestments } from "@/api/investmentApi";
 import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
@@ -39,13 +43,31 @@ const typeGradients: Record<string, string> = {
   OTHER: "var(--gradient-warning)",
 };
 
+function buildStatsMap(stats: ActivityStats[]): Record<string, ActivityStats> {
+  return stats.reduce<Record<string, ActivityStats>>((acc, item) => {
+    acc[item.activityId] = item;
+    return acc;
+  }, {});
+}
+
 export default function Activities() {
   const [activityList, setActivityList] = useState<Activity[]>(activities);
   const [investmentList, setInvestmentList] = useState<Investment[]>(investments);
+  const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
+
+  const refreshActivityStats = async () => {
+    try {
+      const remoteStats = await getActivityStatsByUser();
+      setStatsByActivity(buildStatsMap(remoteStats));
+    } catch (error) {
+      console.error("Impossible de charger les statistiques activite depuis l'API.", error);
+      setStatsByActivity({});
+    }
+  };
 
   useEffect(() => {
     const loadActivities = async () => {
@@ -70,6 +92,7 @@ export default function Activities() {
 
     loadActivities();
     loadInvestments();
+    refreshActivityStats();
   }, []);
 
   const handleEdit = (act: Activity) => {
@@ -85,12 +108,14 @@ export default function Activities() {
   const handleCreate = async (payload: ActivityPayload) => {
     const created = await createActivity(payload);
     setActivityList((prev) => [created, ...prev]);
+    await refreshActivityStats();
     toast({ title: "Activite ajoutee", description: created.name });
   };
 
   const handleUpdate = async (id: string, payload: ActivityPayload) => {
     const updated = await updateActivity(id, payload);
     setActivityList((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
+    await refreshActivityStats();
     toast({ title: "Activite modifiee", description: updated.name });
   };
 
@@ -102,6 +127,7 @@ export default function Activities() {
     try {
       await deleteActivity(deleteTarget.id);
       setActivityList((prev) => prev.filter((activity) => activity.id !== deleteTarget.id));
+      await refreshActivityStats();
       toast({ title: "Activite supprimee", description: deleteTarget.name });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -130,10 +156,11 @@ export default function Activities() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activityList.map((act) => {
-            const actIncome = incomes.filter((i) => i.activityId === act.id).reduce((s, i) => s + i.amount, 0);
-            const actExpenses = expenses.filter((e) => e.activityId === act.id).reduce((s, e) => s + e.amount, 0);
-            const sentInv = investments.filter((i) => i.fromActivityId === act.id).reduce((s, i) => s + i.amount, 0);
-            const recvInv = investments.filter((i) => i.toActivityId === act.id).reduce((s, i) => s + i.amount, 0);
+            const stats = statsByActivity[act.id];
+            const actIncome = stats?.income ?? 0;
+            const actExpenses = stats?.expense ?? 0;
+            const sentInv = stats?.sentInvestment ?? 0;
+            const recvInv = stats?.receivedInvestment ?? 0;
 
             return (
               <div key={act.id} className="stat-card hover:border-primary/40 transition-colors group">
