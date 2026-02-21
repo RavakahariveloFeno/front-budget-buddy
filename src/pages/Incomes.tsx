@@ -8,15 +8,23 @@ import { getActivities } from "@/api/activityApi";
 import {
   createRecurringIncome,
   createIncome,
+  deleteRecurringIncome,
   deleteIncome,
   getIncomeStatistics,
+  getRecurringIncomes,
   getIncomes,
+  updateRecurringIncome,
   updateIncome,
 } from "@/api/incomeApi";
-import type { IncomePayload, IncomeStatistics, RecurringIncomePayload } from "@/api/incomeApi";
+import type { IncomePayload, IncomeStatistics, RecurringIncome, RecurringIncomePayload } from "@/api/incomeApi";
 import IncomeForm from "@/components/forms/IncomeForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import FormDialog from "@/components/dialogs/FormDialog";
+import FormFieldInput from "@/components/dialogs/FormField";
+import SelectField from "@/components/dialogs/SelectField";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const CustomTooltipStyle = {
   contentStyle: {
@@ -44,6 +52,20 @@ export default function Incomes() {
   const [editItem, setEditItem] = useState<Income | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Income | null>(null);
+  const [recurringList, setRecurringList] = useState<RecurringIncome[]>([]);
+  const [recurringEditOpen, setRecurringEditOpen] = useState(false);
+  const [recurringEditItem, setRecurringEditItem] = useState<RecurringIncome | null>(null);
+  const [recurringDeleteOpen, setRecurringDeleteOpen] = useState(false);
+  const [recurringDeleteTarget, setRecurringDeleteTarget] = useState<RecurringIncome | null>(null);
+  const [recurringAmount, setRecurringAmount] = useState("");
+  const [recurringDescription, setRecurringDescription] = useState("");
+  const [recurringStartDate, setRecurringStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [recurringEndDate, setRecurringEndDate] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
+  const [recurringPaymentType, setRecurringPaymentType] = useState<"CARD" | "CASH">("CARD");
+  const [recurringActivityId, setRecurringActivityId] = useState("none");
+  const [recurringActive, setRecurringActive] = useState(true);
+  const [isRecurringSubmitting, setIsRecurringSubmitting] = useState(false);
 
   const loadIncomes = async () => {
     try {
@@ -52,6 +74,16 @@ export default function Incomes() {
     } catch (error) {
       console.error("Impossible de charger les revenus depuis l'API.", error);
       setIncomeList([]);
+    }
+  };
+
+  const loadRecurringIncomes = async () => {
+    try {
+      const data = await getRecurringIncomes();
+      setRecurringList(data);
+    } catch (error) {
+      console.error("Impossible de charger les revenus automatiques.", error);
+      setRecurringList([]);
     }
   };
 
@@ -77,6 +109,7 @@ export default function Incomes() {
     };
 
     loadIncomes();
+    loadRecurringIncomes();
     loadActivities();
     refreshIncomeStats();
   }, []);
@@ -108,6 +141,7 @@ export default function Incomes() {
   const handleCreateRecurring = async (payload: RecurringIncomePayload) => {
     const result = await createRecurringIncome(payload);
     await loadIncomes();
+    await loadRecurringIncomes();
     await refreshIncomeStats();
     toast({
       title: "Revenu automatique ajoute",
@@ -136,6 +170,81 @@ export default function Incomes() {
       setDeleteTarget(null);
     } catch (error) {
       console.error("Impossible de supprimer le revenu.", error);
+      toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
+    }
+  };
+
+  const frequencyOptions = [
+    { value: "DAY", label: "Chaque jour" },
+    { value: "WEEK", label: "Chaque semaine" },
+    { value: "MONTH", label: "Chaque mois" },
+  ];
+  const paymentOptions = [
+    { value: "CARD", label: "Carte" },
+    { value: "CASH", label: "Especes" },
+  ];
+
+  const handleEditRecurring = (item: RecurringIncome) => {
+    setRecurringEditItem(item);
+    setRecurringAmount(String(item.amount));
+    setRecurringDescription(item.description || "");
+    setRecurringStartDate(item.startDate.split("T")[0]);
+    setRecurringEndDate(item.endDate ? item.endDate.split("T")[0] : "");
+    setRecurringFrequency(item.frequency);
+    setRecurringPaymentType(item.paymentType || "CARD");
+    setRecurringActivityId(item.activityId || "none");
+    setRecurringActive(item.isActive);
+    setRecurringEditOpen(true);
+  };
+
+  const submitRecurringUpdate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!recurringEditItem) return;
+    const amount = Number(recurringAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
+      return;
+    }
+    if (recurringEndDate && recurringEndDate < recurringStartDate) {
+      toast({ title: "Date invalide", description: "La date de fin doit etre apres la date de debut." });
+      return;
+    }
+
+    try {
+      setIsRecurringSubmitting(true);
+      await updateRecurringIncome(recurringEditItem.id, {
+        amount,
+        paymentType: recurringPaymentType,
+        description: recurringDescription.trim() || undefined,
+        startDate: recurringStartDate,
+        endDate: recurringEndDate || undefined,
+        frequency: recurringFrequency,
+        activityId: recurringActivityId === "none" ? undefined : recurringActivityId,
+        isActive: recurringActive,
+      });
+      await loadRecurringIncomes();
+      await loadIncomes();
+      await refreshIncomeStats();
+      setRecurringEditOpen(false);
+      toast({ title: "Revenu automatique modifie" });
+    } catch (error) {
+      console.error("Impossible de modifier le revenu automatique.", error);
+      toast({ title: "Erreur", description: "Modification impossible pour le moment." });
+    } finally {
+      setIsRecurringSubmitting(false);
+    }
+  };
+
+  const confirmDeleteRecurring = async () => {
+    if (!recurringDeleteTarget) return;
+    try {
+      await deleteRecurringIncome(recurringDeleteTarget.id);
+      await loadRecurringIncomes();
+      toast({ title: "Revenu automatique supprime" });
+      setRecurringDeleteOpen(false);
+      setRecurringDeleteTarget(null);
+    } catch (error) {
+      console.error("Impossible de supprimer le revenu automatique.", error);
       toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     }
   };
@@ -239,6 +348,7 @@ export default function Incomes() {
                   <th className="text-left">Description</th>
                   <th className="text-left">Activite</th>
                   <th className="text-left">Paiement</th>
+                  <th className="text-left">Type</th>
                   <th className="text-right">Montant</th>
                   <th className="text-right">Actions</th>
                 </tr>
@@ -254,6 +364,11 @@ export default function Incomes() {
                       <td>
                         <span className={inc.paymentType === "CARD" ? "badge-info" : "badge-warning"}>{inc.paymentType === "CARD" ? "Carte" : "Cash"}</span>
                       </td>
+                      <td>
+                        <span className={inc.recurringIncomeId ? "badge-warning text-xs" : "badge-info text-xs"}>
+                          {inc.recurringIncomeId ? "Automatique" : "Manuel"}
+                        </span>
+                      </td>
                       <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>
                         +{formatCurrency(inc.amount)}
                       </td>
@@ -263,6 +378,71 @@ export default function Incomes() {
                             <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
                           </button>
                           <button onClick={() => handleDelete(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                            <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-4">
+            <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+              Revenus automatiques{" "}
+              <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                ({recurringList.length})
+              </span>
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full data-table">
+              <thead>
+                <tr>
+                  <th className="text-left">Debut</th>
+                  <th className="text-left">Frequence</th>
+                  <th className="text-left">Description</th>
+                  <th className="text-left">Paiement</th>
+                  <th className="text-left">Activite</th>
+                  <th className="text-left">Statut</th>
+                  <th className="text-right">Montant</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recurringList.map((item) => {
+                  const activity = item.activityId ? activityList.find((a) => a.id === item.activityId) : undefined;
+                  return (
+                    <tr key={item.id}>
+                      <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(item.startDate)}</td>
+                      <td style={{ color: "hsl(var(--foreground))" }}>{item.frequency === "DAY" ? "Jour" : item.frequency === "WEEK" ? "Semaine" : "Mois"}</td>
+                      <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
+                      <td>
+                        <span className={item.paymentType === "CARD" ? "badge-info" : "badge-warning"}>{item.paymentType === "CARD" ? "Carte" : "Cash"}</span>
+                      </td>
+                      <td>{activity ? <span className="badge-income">{activity.name}</span> : "-"}</td>
+                      <td>
+                        <span className={item.isActive ? "badge-income" : "badge-warning"}>{item.isActive ? "Active" : "Pause"}</span>
+                      </td>
+                      <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>
+                        +{formatCurrency(item.amount)}
+                      </td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleEditRecurring(item)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                            <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRecurringDeleteTarget(item);
+                              setRecurringDeleteOpen(true);
+                            }}
+                            className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                          >
                             <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
                           </button>
                         </div>
@@ -292,6 +472,43 @@ export default function Incomes() {
         description={`Supprimer "${deleteTarget?.description || "ce revenu"}" de ${deleteTarget ? formatCurrency(deleteTarget.amount) : ""} ?`}
         onConfirm={confirmDelete}
       />
+      <DeleteConfirmDialog
+        open={recurringDeleteOpen}
+        onOpenChange={setRecurringDeleteOpen}
+        title="Supprimer le revenu automatique"
+        description={`Supprimer "${recurringDeleteTarget?.description || "cette regle"}" ?`}
+        onConfirm={confirmDeleteRecurring}
+      />
+      <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier le revenu automatique">
+        <form onSubmit={submitRecurringUpdate} className="space-y-4">
+          <FormFieldInput label="Montant (EUR)" id="rec-inc-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Description" id="rec-inc-desc" value={recurringDescription} onChange={setRecurringDescription} />
+          <FormFieldInput label="Date de debut" id="rec-inc-start" type="date" value={recurringStartDate} onChange={setRecurringStartDate} required />
+          <FormFieldInput label="Date de fin (optionnel)" id="rec-inc-end" type="date" value={recurringEndDate} onChange={setRecurringEndDate} />
+          <SelectField label="Frequence" value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as "DAY" | "WEEK" | "MONTH")} options={frequencyOptions} />
+          <SelectField label="Mode de paiement" value={recurringPaymentType} onValueChange={(v) => setRecurringPaymentType(v as "CARD" | "CASH")} options={paymentOptions} />
+          <SelectField
+            label="Activite"
+            value={recurringActivityId}
+            onValueChange={setRecurringActivityId}
+            options={[{ value: "none", label: "Aucune" }, ...activityList.map((activity) => ({ value: activity.id, label: activity.name }))]}
+          />
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <Label className="text-sm" style={{ color: "hsl(var(--foreground))" }}>
+              Regle active
+            </Label>
+            <Switch checked={recurringActive} onCheckedChange={setRecurringActive} />
+          </div>
+          <button
+            type="submit"
+            disabled={isRecurringSubmitting}
+            className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+          >
+            {isRecurringSubmitting ? "En cours..." : "Enregistrer"}
+          </button>
+        </form>
+      </FormDialog>
     </div>
   );
 }

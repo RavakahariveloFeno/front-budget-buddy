@@ -24,6 +24,30 @@ export interface RecurringIncomePayload {
   activityId?: string;
 }
 
+export interface RecurringIncome {
+  id: string;
+  amount: number;
+  paymentType?: PaymentType;
+  startDate: string;
+  endDate?: string;
+  frequency: IncomeRecurrenceFrequency;
+  description?: string;
+  activityId?: string;
+  isActive: boolean;
+  userId: string;
+}
+
+export interface UpdateRecurringIncomePayload {
+  amount?: number;
+  paymentType?: PaymentType;
+  startDate?: string;
+  endDate?: string;
+  frequency?: IncomeRecurrenceFrequency;
+  description?: string;
+  activityId?: string;
+  isActive?: boolean;
+}
+
 export interface IncomeMonthlyPoint {
   month: string;
   revenus: number;
@@ -60,6 +84,37 @@ function mapIncome(item: unknown): Income | null {
     date: String(record.date ?? ""),
     userId: String(record.userId ?? ""),
     ...(paymentType ? { paymentType } : {}),
+    ...(record.description ? { description: String(record.description) } : {}),
+    ...(record.activityId ? { activityId: String(record.activityId) } : {}),
+    ...(record.recurringIncomeId ? { recurringIncomeId: String(record.recurringIncomeId) } : {}),
+  };
+}
+
+function mapRecurringIncome(item: unknown): RecurringIncome | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const id = String(record.id ?? "");
+  const amount = Number(record.amount ?? 0);
+  const startDate = String(record.startDate ?? "");
+  const frequency = String(record.frequency ?? "") as IncomeRecurrenceFrequency;
+  const paymentType = isValidPaymentType(record.paymentType) ? record.paymentType : undefined;
+
+  if (!id || !Number.isFinite(amount) || !startDate || !["DAY", "WEEK", "MONTH"].includes(frequency)) {
+    return null;
+  }
+
+  return {
+    id,
+    amount,
+    startDate,
+    frequency,
+    isActive: Boolean(record.isActive),
+    userId: String(record.userId ?? ""),
+    ...(paymentType ? { paymentType } : {}),
+    ...(record.endDate ? { endDate: String(record.endDate) } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
     ...(record.activityId ? { activityId: String(record.activityId) } : {}),
   };
@@ -186,6 +241,57 @@ export async function createRecurringIncome(payload: RecurringIncomePayload): Pr
   return {
     createdOccurrences: Number.isFinite(createdOccurrences) ? createdOccurrences : 0,
   };
+}
+
+export async function getRecurringIncomes(userId: string = TEMP_USER_ID): Promise<RecurringIncome[]> {
+  const response = await fetch(`${INCOME_API_URL}/recurring/user/${userId}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map((item) => mapRecurringIncome(item)).filter((item): item is RecurringIncome => Boolean(item));
+}
+
+export async function updateRecurringIncome(id: string, payload: UpdateRecurringIncomePayload): Promise<RecurringIncome> {
+  const response = await fetch(`${INCOME_API_URL}/recurring/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: payload.amount,
+      paymentType: payload.paymentType || null,
+      startDate: payload.startDate ? toIsoDate(payload.startDate) : undefined,
+      endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
+      frequency: payload.frequency,
+      description: payload.description || null,
+      activityId: payload.activityId || null,
+      isActive: payload.isActive,
+      userId: TEMP_USER_ID,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const recurring = mapRecurringIncome(data);
+  if (!recurring) {
+    throw new Error("Invalid recurring income response");
+  }
+
+  return recurring;
+}
+
+export async function deleteRecurringIncome(id: string): Promise<void> {
+  const response = await fetch(`${INCOME_API_URL}/recurring/${id}?userId=${TEMP_USER_ID}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 }
 
 export async function updateIncome(id: string, payload: IncomePayload): Promise<Income> {

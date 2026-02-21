@@ -24,6 +24,30 @@ export interface RecurringExpensePayload {
   activityId?: string;
 }
 
+export interface RecurringExpense {
+  id: string;
+  amount: number;
+  startDate: string;
+  endDate?: string;
+  frequency: ExpenseRecurrenceFrequency;
+  description?: string;
+  categoryId?: string;
+  activityId?: string;
+  isActive: boolean;
+  userId: string;
+}
+
+export interface UpdateRecurringExpensePayload {
+  amount?: number;
+  startDate?: string;
+  endDate?: string;
+  frequency?: ExpenseRecurrenceFrequency;
+  description?: string;
+  categoryId?: string;
+  activityId?: string;
+  isActive?: boolean;
+}
+
 export interface ExpenseCategoryStat {
   id: string;
   name: string;
@@ -55,6 +79,36 @@ function mapExpense(item: unknown): Expense | null {
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     userId: String(record.userId ?? ""),
+    ...(record.description ? { description: String(record.description) } : {}),
+    ...(record.categoryId ? { categoryId: String(record.categoryId) } : {}),
+    ...(record.activityId ? { activityId: String(record.activityId) } : {}),
+    ...(record.recurringExpenseId ? { recurringExpenseId: String(record.recurringExpenseId) } : {}),
+  };
+}
+
+function mapRecurringExpense(item: unknown): RecurringExpense | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const id = String(record.id ?? "");
+  const amount = Number(record.amount ?? 0);
+  const startDate = String(record.startDate ?? "");
+  const frequency = String(record.frequency ?? "") as ExpenseRecurrenceFrequency;
+
+  if (!id || !Number.isFinite(amount) || !startDate || !["DAY", "WEEK", "MONTH"].includes(frequency)) {
+    return null;
+  }
+
+  return {
+    id,
+    amount,
+    startDate,
+    frequency,
+    isActive: Boolean(record.isActive),
+    userId: String(record.userId ?? ""),
+    ...(record.endDate ? { endDate: String(record.endDate) } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
     ...(record.categoryId ? { categoryId: String(record.categoryId) } : {}),
     ...(record.activityId ? { activityId: String(record.activityId) } : {}),
@@ -195,6 +249,57 @@ export async function createRecurringExpense(payload: RecurringExpensePayload): 
   return {
     createdOccurrences: Number.isFinite(createdOccurrences) ? createdOccurrences : 0,
   };
+}
+
+export async function getRecurringExpenses(userId: string = TEMP_USER_ID): Promise<RecurringExpense[]> {
+  const response = await fetch(`${EXPENSE_API_URL}/recurring/user/${userId}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map((item) => mapRecurringExpense(item)).filter((item): item is RecurringExpense => Boolean(item));
+}
+
+export async function updateRecurringExpense(id: string, payload: UpdateRecurringExpensePayload): Promise<RecurringExpense> {
+  const response = await fetch(`${EXPENSE_API_URL}/recurring/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: payload.amount,
+      startDate: payload.startDate ? toIsoDate(payload.startDate) : undefined,
+      endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
+      frequency: payload.frequency,
+      description: payload.description || null,
+      categoryId: payload.categoryId || null,
+      activityId: payload.activityId || null,
+      isActive: payload.isActive,
+      userId: TEMP_USER_ID,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const recurring = mapRecurringExpense(data);
+  if (!recurring) {
+    throw new Error("Invalid recurring expense response");
+  }
+
+  return recurring;
+}
+
+export async function deleteRecurringExpense(id: string): Promise<void> {
+  const response = await fetch(`${EXPENSE_API_URL}/recurring/${id}?userId=${TEMP_USER_ID}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 }
 
 export async function updateExpense(id: string, payload: ExpensePayload): Promise<Expense> {

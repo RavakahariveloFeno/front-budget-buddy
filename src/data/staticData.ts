@@ -31,6 +31,7 @@ export interface Income {
   date: string;
   description?: string;
   activityId?: string;
+  recurringIncomeId?: string;
   userId: string;
 }
 
@@ -49,6 +50,7 @@ export interface Expense {
   description?: string;
   categoryId?: string;
   activityId?: string;
+  recurringExpenseId?: string;
   userId: string;
 }
 
