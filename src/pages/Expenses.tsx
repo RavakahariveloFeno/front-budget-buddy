@@ -7,13 +7,14 @@ import type { Activity, Category, Expense } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import { getCategories } from "@/api/categoryApi";
 import {
+  createRecurringExpense,
   createExpense,
   deleteExpense,
   getExpenseStatistics,
   getExpenses,
   updateExpense,
 } from "@/api/expenseApi";
-import type { ExpensePayload, ExpenseStatistics } from "@/api/expenseApi";
+import type { ExpensePayload, ExpenseStatistics, RecurringExpensePayload } from "@/api/expenseApi";
 import ExpenseForm from "@/components/forms/ExpenseForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -39,6 +40,16 @@ export default function Expenses() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
 
+  const loadExpenses = async () => {
+    try {
+      const remoteExpenses = await getExpenses();
+      setExpenseList(remoteExpenses);
+    } catch (error) {
+      console.error("Impossible de charger les depenses depuis l'API.", error);
+      setExpenseList([]);
+    }
+  };
+
   const refreshExpenseStats = async () => {
     try {
       const stats = await getExpenseStatistics();
@@ -50,16 +61,6 @@ export default function Expenses() {
   };
 
   useEffect(() => {
-    const loadExpenses = async () => {
-      try {
-        const remoteExpenses = await getExpenses();
-        setExpenseList(remoteExpenses);
-      } catch (error) {
-        console.error("Impossible de charger les depenses depuis l'API.", error);
-        setExpenseList([]);
-      }
-    };
-
     const loadActivities = async () => {
       try {
         const remoteActivities = await getActivities();
@@ -120,6 +121,16 @@ export default function Expenses() {
     setExpenseList((prev) => [created, ...prev]);
     await refreshExpenseStats();
     toast({ title: "Depense ajoutee", description: `-${formatCurrency(created.amount)}` });
+  };
+
+  const handleCreateRecurring = async (payload: RecurringExpensePayload) => {
+    const result = await createRecurringExpense(payload);
+    await loadExpenses();
+    await refreshExpenseStats();
+    toast({
+      title: "Depense automatique ajoutee",
+      description: `${result.createdOccurrences} occurrence(s) generee(s).`,
+    });
   };
 
   const handleUpdate = async (id: string, payload: ExpensePayload) => {
@@ -278,7 +289,16 @@ export default function Expenses() {
         </div>
       </div>
 
-      <ExpenseForm open={formOpen} onOpenChange={setFormOpen} expense={editItem} activities={activityList} categories={categoryList} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <ExpenseForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        expense={editItem}
+        activities={activityList}
+        categories={categoryList}
+        onCreate={handleCreate}
+        onCreateRecurring={handleCreateRecurring}
+        onUpdate={handleUpdate}
+      />
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

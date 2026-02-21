@@ -12,6 +12,18 @@ export interface ExpensePayload {
   activityId?: string;
 }
 
+export type ExpenseRecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
+
+export interface RecurringExpensePayload {
+  amount: number;
+  startDate: string;
+  endDate?: string;
+  frequency: ExpenseRecurrenceFrequency;
+  description?: string;
+  categoryId?: string;
+  activityId?: string;
+}
+
 export interface ExpenseCategoryStat {
   id: string;
   name: string;
@@ -98,8 +110,8 @@ function mapExpenseStatistics(item: unknown): ExpenseStatistics | null {
   };
 }
 
-export async function getExpenses(): Promise<Expense[]> {
-  const response = await fetch(EXPENSE_API_URL);
+export async function getExpenses(userId: string = TEMP_USER_ID): Promise<Expense[]> {
+  const response = await fetch(`${EXPENSE_API_URL}/user/${userId}`);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -154,6 +166,35 @@ export async function createExpense(payload: ExpensePayload): Promise<Expense> {
   }
 
   return expense;
+}
+
+export async function createRecurringExpense(payload: RecurringExpensePayload): Promise<{ createdOccurrences: number }> {
+  const response = await fetch(`${EXPENSE_API_URL}/recurring`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: payload.amount,
+      startDate: toIsoDate(payload.startDate),
+      endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
+      frequency: payload.frequency,
+      description: payload.description || undefined,
+      categoryId: payload.categoryId || undefined,
+      activityId: payload.activityId || undefined,
+      userId: TEMP_USER_ID,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const record = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  const createdOccurrences = Number(record.createdOccurrences ?? 0);
+
+  return {
+    createdOccurrences: Number.isFinite(createdOccurrences) ? createdOccurrences : 0,
+  };
 }
 
 export async function updateExpense(id: string, payload: ExpensePayload): Promise<Expense> {
