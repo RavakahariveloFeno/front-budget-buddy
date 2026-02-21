@@ -6,13 +6,14 @@ import {
   investments,
   incomes,
   expenses,
-  getActivityById,
   formatCurrency,
   formatDate,
   type Activity,
+  type Investment,
 } from "@/data/staticData";
 import { createActivity, deleteActivity, getActivities, updateActivity } from "@/api/activityApi";
 import type { ActivityPayload } from "@/api/activityApi";
+import { getInvestments } from "@/api/investmentApi";
 import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -40,6 +41,7 @@ const typeGradients: Record<string, string> = {
 
 export default function Activities() {
   const [activityList, setActivityList] = useState<Activity[]>(activities);
+  const [investmentList, setInvestmentList] = useState<Investment[]>(investments);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -56,7 +58,18 @@ export default function Activities() {
       }
     };
 
+    const loadInvestments = async () => {
+      try {
+        const remoteInvestments = await getInvestments();
+        setInvestmentList(remoteInvestments.length ? remoteInvestments : investments);
+      } catch (error) {
+        console.error("Impossible de charger les investissements depuis l'API, fallback static.", error);
+        setInvestmentList(investments);
+      }
+    };
+
     loadActivities();
+    loadInvestments();
   }, []);
 
   const handleEdit = (act: Activity) => {
@@ -215,9 +228,9 @@ export default function Activities() {
                 </tr>
               </thead>
               <tbody>
-                {investments.map((inv) => {
-                  const from = getActivityById(inv.fromActivityId);
-                  const to = getActivityById(inv.toActivityId);
+                {investmentList.map((inv) => {
+                  const from = activityList.find((activity) => activity.id === inv.fromActivityId);
+                  const to = activityList.find((activity) => activity.id === inv.toActivityId);
                   return (
                     <tr key={inv.id}>
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(inv.date)}</td>
