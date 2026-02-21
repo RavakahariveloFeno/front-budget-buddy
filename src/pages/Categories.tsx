@@ -1,20 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Tag, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { categories, expenses, formatCurrency } from "@/data/staticData";
+import { categories, formatCurrency } from "@/data/staticData";
 import type { Category } from "@/data/staticData";
-import { createCategory, deleteCategory, getCategories, updateCategory } from "@/api/categoryApi";
-import type { CategoryPayload } from "@/api/categoryApi";
+import {
+  createCategory,
+  deleteCategory,
+  getCategories,
+  getCategoryStatistics,
+  updateCategory,
+} from "@/api/categoryApi";
+import type { CategoryPayload, CategoryStatistics } from "@/api/categoryApi";
 import CategoryForm from "@/components/forms/CategoryForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 
+const EMPTY_CATEGORY_STATS: CategoryStatistics = {
+  totalCategories: 0,
+  totalExpenses: 0,
+  totalTransactions: 0,
+  maxCategoryTotal: 0,
+  items: [],
+};
+
 export default function Categories() {
   const [categoryList, setCategoryList] = useState<Category[]>(categories);
+  const [categoryStats, setCategoryStats] = useState<CategoryStatistics>(EMPTY_CATEGORY_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Category | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+
+  const statsByCategoryId = useMemo(() => {
+    return new Map(categoryStats.items.map((item) => [item.categoryId, item]));
+  }, [categoryStats.items]);
+
+  const refreshCategoryStats = async () => {
+    try {
+      const stats = await getCategoryStatistics();
+      setCategoryStats(stats);
+    } catch (error) {
+      console.error("Impossible de charger les statistiques categories depuis l'API.", error);
+      setCategoryStats(EMPTY_CATEGORY_STATS);
+    }
+  };
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -28,6 +57,7 @@ export default function Categories() {
     };
 
     loadCategories();
+    refreshCategoryStats();
   }, []);
 
   const handleEdit = (category: Category) => {
@@ -43,6 +73,7 @@ export default function Categories() {
   const handleCreate = async (payload: CategoryPayload) => {
     const created = await createCategory(payload);
     setCategoryList((prev) => [created, ...prev]);
+    await refreshCategoryStats();
     toast({ title: "Categorie ajoutee", description: created.name });
   };
 
@@ -60,6 +91,7 @@ export default function Categories() {
     try {
       await deleteCategory(deleteTarget.id);
       setCategoryList((prev) => prev.filter((category) => category.id !== deleteTarget.id));
+      await refreshCategoryStats();
       toast({ title: "Categorie supprimee", description: deleteTarget.name });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -88,8 +120,11 @@ export default function Categories() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {categoryList.map((category) => {
-            const categoryExpenses = expenses.filter((expense) => expense.categoryId === category.id);
-            const total = categoryExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+            const categoryStat = statsByCategoryId.get(category.id);
+            const total = categoryStat?.total ?? 0;
+            const count = categoryStat?.count ?? 0;
+            const widthPercent = categoryStats.maxCategoryTotal > 0 ? Math.min(100, (total / categoryStats.maxCategoryTotal) * 100) : 0;
+
             return (
               <div key={category.id} className="stat-card group cursor-pointer hover:scale-[1.02] transition-transform">
                 <div className="flex items-start justify-between mb-3">
@@ -112,10 +147,10 @@ export default function Categories() {
                   {formatCurrency(total)}
                 </p>
                 <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {categoryExpenses.length} transaction{categoryExpenses.length > 1 ? "s" : ""}
+                  {count} transaction{count > 1 ? "s" : ""}
                 </p>
                 <div className="mt-3 h-1 rounded-full" style={{ background: "hsl(var(--border))" }}>
-                  <div className="h-full rounded-full" style={{ background: category.color || "hsl(var(--primary))", width: `${Math.min(100, (total / 900) * 100)}%` }} />
+                  <div className="h-full rounded-full" style={{ background: category.color || "hsl(var(--primary))", width: `${widthPercent}%` }} />
                 </div>
               </div>
             );
@@ -140,8 +175,9 @@ export default function Categories() {
               </thead>
               <tbody>
                 {categoryList.map((category) => {
-                  const categoryTotal = expenses.filter((expense) => expense.categoryId === category.id).reduce((sum, expense) => sum + expense.amount, 0);
-                  const count = expenses.filter((expense) => expense.categoryId === category.id).length;
+                  const categoryStat = statsByCategoryId.get(category.id);
+                  const categoryTotal = categoryStat?.total ?? 0;
+                  const count = categoryStat?.count ?? 0;
                   return (
                     <tr key={category.id}>
                       <td>
