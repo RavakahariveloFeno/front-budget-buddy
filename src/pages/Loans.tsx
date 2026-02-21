@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, ChevronDown, ChevronRight, CreditCard, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { activities, loans, formatCurrency, formatDate } from "@/data/staticData";
+import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Loan } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
-import { createLoan, deleteLoan, getLoans, updateLoan } from "@/api/loanApi";
+import { createLoan, deleteLoan, getLoanPaymentHistory, getLoans, updateLoan } from "@/api/loanApi";
 import type { LoanPayload } from "@/api/loanApi";
-import { createLoanPayment, getLoanPayments } from "@/api/loanPaymentApi";
+import { createLoanPayment } from "@/api/loanPaymentApi";
 import type { LoanPaymentPayload } from "@/api/loanPaymentApi";
 import LoanForm from "@/components/forms/LoanForm";
 import LoanPaymentForm from "@/components/forms/LoanPaymentForm";
@@ -17,8 +17,8 @@ const loanTypeLabels: Record<string, string> = { BANK: "Banque", FRIEND: "Ami", 
 const loanTypeColors: Record<string, string> = { BANK: "badge-info", FRIEND: "badge-warning", COMPANY: "badge-purple", OTHER: "badge-income" };
 
 export default function Loans() {
-  const [loanList, setLoanList] = useState<Loan[]>(loans);
-  const [activityList, setActivityList] = useState<Activity[]>(activities);
+  const [loanList, setLoanList] = useState<Loan[]>([]);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Loan | null>(null);
@@ -29,24 +29,25 @@ export default function Loans() {
 
   const loadLoans = async () => {
     try {
-      const [remoteLoans, remotePayments] = await Promise.all([getLoans(), getLoanPayments()]);
-      const paymentsByLoanId = new Map<string, typeof remotePayments>();
+      const [remoteLoans, paymentHistory] = await Promise.all([getLoans(), getLoanPaymentHistory()]);
+      const paymentsByLoanId = new Map(paymentHistory.map((item) => [item.loanId, item.payments]));
 
-      for (const payment of remotePayments) {
-        const current = paymentsByLoanId.get(payment.loanId) || [];
-        current.push(payment);
-        paymentsByLoanId.set(payment.loanId, current);
-      }
+      const mergedLoans = remoteLoans.map((loan) => {
+        const payments = paymentsByLoanId.get(loan.id) || loan.payments || [];
+        const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+        const remainingAmount = Math.max(loan.totalAmount - totalPaid, 0);
+        return {
+          ...loan,
+          remainingAmount,
+          status: remainingAmount === 0 ? "PAID" : "ACTIVE",
+          payments,
+        };
+      });
 
-      const mergedLoans = remoteLoans.map((loan) => ({
-        ...loan,
-        payments: paymentsByLoanId.get(loan.id) || loan.payments || [],
-      }));
-
-      setLoanList(mergedLoans.length ? mergedLoans : loans);
+      setLoanList(mergedLoans);
     } catch (error) {
-      console.error("Impossible de charger les prets depuis l'API, fallback static.", error);
-      setLoanList(loans);
+      console.error("Impossible de charger les prets depuis l'API.", error);
+      setLoanList([]);
     }
   };
 
@@ -54,10 +55,10 @@ export default function Loans() {
     const loadActivities = async () => {
       try {
         const remoteActivities = await getActivities();
-        setActivityList(remoteActivities.length ? remoteActivities : activities);
+        setActivityList(remoteActivities);
       } catch (error) {
-        console.error("Impossible de charger les activites depuis l'API, fallback static.", error);
-        setActivityList(activities);
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
       }
     };
 

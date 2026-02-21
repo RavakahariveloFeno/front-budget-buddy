@@ -1,6 +1,7 @@
 import type { Loan, LoanPayment, LoanStatus, LoanType } from "@/data/staticData";
 
 const LOAN_API_URL = "http://localhost:3001/loan";
+const STATISTICS_API_URL = "http://localhost:3001/statistics";
 export const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface LoanPayload {
@@ -13,6 +14,13 @@ export interface LoanPayload {
   endDate?: string;
   activityId?: string;
   status?: LoanStatus;
+}
+
+export interface LoanPaymentHistory {
+  loanId: string;
+  paymentCount: number;
+  totalPaid: number;
+  payments: LoanPayment[];
 }
 
 function toIsoDate(date: string): string {
@@ -73,6 +81,30 @@ function mapLoan(item: unknown): Loan | null {
   };
 }
 
+function mapLoanPaymentHistory(item: unknown): LoanPaymentHistory | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const loanId = String(record.loanId ?? "");
+  const paymentCount = Number(record.paymentCount ?? 0);
+  const totalPaid = Number(record.totalPaid ?? 0);
+  const paymentsRaw = Array.isArray(record.payments) ? record.payments : [];
+  const payments = paymentsRaw.map((payment): LoanPayment | null => mapLoanPayment(payment)).filter((payment): payment is LoanPayment => Boolean(payment && payment.id && Number.isFinite(payment.amount) && payment.date && payment.loanId));
+
+  if (!loanId) {
+    return null;
+  }
+
+  return {
+    loanId,
+    paymentCount: Number.isFinite(paymentCount) ? paymentCount : 0,
+    totalPaid: Number.isFinite(totalPaid) ? totalPaid : 0,
+    payments,
+  };
+}
+
 export async function getLoans(): Promise<Loan[]> {
   const response = await fetch(LOAN_API_URL);
   if (!response.ok) {
@@ -87,6 +119,27 @@ export async function getLoans(): Promise<Loan[]> {
   return data
     .map((item): Loan | null => mapLoan(item))
     .filter((item): item is Loan => Boolean(item && item.id && Number.isFinite(item.totalAmount) && Number.isFinite(item.remainingAmount) && item.lenderName && item.startDate && item.userId));
+}
+
+export async function getLoanPaymentHistory(userId: string = TEMP_USER_ID): Promise<LoanPaymentHistory[]> {
+  const response = await fetch(`${STATISTICS_API_URL}/loans/payments/user/${userId}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  const record = data as Record<string, unknown>;
+  if (!Array.isArray(record.items)) {
+    return [];
+  }
+
+  return record.items
+    .map((item): LoanPaymentHistory | null => mapLoanPaymentHistory(item))
+    .filter((item): item is LoanPaymentHistory => Boolean(item));
 }
 
 function buildLoanBody(payload: LoanPayload): string {
