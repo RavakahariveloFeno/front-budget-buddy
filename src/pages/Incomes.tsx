@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import { Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
-import { incomes, formatCurrency, formatDate, totalIncome, monthlyData } from "@/data/staticData";
+import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Income } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
-import { createIncome, deleteIncome, getIncomes, updateIncome } from "@/api/incomeApi";
-import type { IncomePayload } from "@/api/incomeApi";
+import {
+  createIncome,
+  deleteIncome,
+  getIncomeStatistics,
+  getIncomes,
+  updateIncome,
+} from "@/api/incomeApi";
+import type { IncomePayload, IncomeStatistics } from "@/api/incomeApi";
 import IncomeForm from "@/components/forms/IncomeForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -21,13 +27,32 @@ const CustomTooltipStyle = {
   },
 };
 
+const EMPTY_INCOME_STATS: IncomeStatistics = {
+  year: new Date().getFullYear(),
+  totalIncome: 0,
+  cardTotal: 0,
+  cashTotal: 0,
+  monthlyData: [],
+};
+
 export default function Incomes() {
   const [incomeList, setIncomeList] = useState<Income[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [incomeStats, setIncomeStats] = useState<IncomeStatistics>(EMPTY_INCOME_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Income | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Income | null>(null);
+
+  const refreshIncomeStats = async () => {
+    try {
+      const stats = await getIncomeStatistics();
+      setIncomeStats(stats);
+    } catch (error) {
+      console.error("Impossible de charger les statistiques revenus depuis l'API.", error);
+      setIncomeStats(EMPTY_INCOME_STATS);
+    }
+  };
 
   useEffect(() => {
     const loadIncomes = async () => {
@@ -52,11 +77,15 @@ export default function Incomes() {
 
     loadIncomes();
     loadActivities();
+    refreshIncomeStats();
   }, []);
 
-  // Stats gardees statiques pour le moment.
-  const cashTotal = incomes.filter((i) => i.paymentType === "CASH").reduce((s, i) => s + i.amount, 0);
-  const cardTotal = incomes.filter((i) => i.paymentType === "CARD").reduce((s, i) => s + i.amount, 0);
+  const totalIncome = incomeStats.totalIncome;
+  const cardTotal = incomeStats.cardTotal;
+  const cashTotal = incomeStats.cashTotal;
+
+  const cardPercent = totalIncome > 0 ? Math.round((cardTotal / totalIncome) * 100) : 0;
+  const cashPercent = totalIncome > 0 ? Math.round((cashTotal / totalIncome) * 100) : 0;
 
   const handleEdit = (inc: Income) => {
     setEditItem(inc);
@@ -71,12 +100,14 @@ export default function Incomes() {
   const handleCreate = async (payload: IncomePayload) => {
     const created = await createIncome(payload);
     setIncomeList((prev) => [created, ...prev]);
+    await refreshIncomeStats();
     toast({ title: "Revenu ajoute", description: `+${formatCurrency(created.amount)}` });
   };
 
   const handleUpdate = async (id: string, payload: IncomePayload) => {
     const updated = await updateIncome(id, payload);
     setIncomeList((prev) => prev.map((income) => (income.id === id ? updated : income)));
+    await refreshIncomeStats();
     toast({ title: "Revenu modifie", description: `+${formatCurrency(updated.amount)}` });
   };
 
@@ -88,6 +119,7 @@ export default function Incomes() {
     try {
       await deleteIncome(deleteTarget.id);
       setIncomeList((prev) => prev.filter((income) => income.id !== deleteTarget.id));
+      await refreshIncomeStats();
       toast({ title: "Revenu supprime" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -129,7 +161,7 @@ export default function Incomes() {
               Revenus mensuels
             </p>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={monthlyData}>
+              <BarChart data={incomeStats.monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(224,22%,18%)" />
                 <XAxis dataKey="month" tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
@@ -145,8 +177,8 @@ export default function Incomes() {
             </p>
             <div className="space-y-4">
               {[
-                { label: "Virement / Carte", value: cardTotal, pct: Math.round((cardTotal / totalIncome) * 100), color: "hsl(var(--info))" },
-                { label: "Especes", value: cashTotal, pct: Math.round((cashTotal / totalIncome) * 100), color: "hsl(var(--warning))" },
+                { label: "Virement / Carte", value: cardTotal, pct: cardPercent, color: "hsl(var(--info))" },
+                { label: "Especes", value: cashTotal, pct: cashPercent, color: "hsl(var(--warning))" },
               ].map((p) => (
                 <div key={p.label}>
                   <div className="flex justify-between mb-1.5">

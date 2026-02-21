@@ -1,6 +1,7 @@
 import type { Activity, ActivityType } from "@/data/staticData";
 
 const ACTIVITY_API_URL = "http://localhost:3001/activity";
+const STATISTICS_API_URL = "http://localhost:3001/statistics";
 export const TEMP_ACTIVITY_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface ActivityPayload {
@@ -88,7 +89,7 @@ export async function getActivities(): Promise<Activity[]> {
 }
 
 export async function getActivityStatsByUser(userId: string = TEMP_ACTIVITY_USER_ID): Promise<ActivityStats[]> {
-  const response = await fetch(`${ACTIVITY_API_URL}/stats/user/${userId}`);
+  const response = await fetch(`${STATISTICS_API_URL}/activity/user/${userId}`);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

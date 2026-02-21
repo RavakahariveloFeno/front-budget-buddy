@@ -1,6 +1,7 @@
 import type { Income, PaymentType } from "@/data/staticData";
 
 const INCOME_API_URL = "http://localhost:3001/income";
+const STATISTICS_API_URL = "http://localhost:3001/statistics";
 const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface IncomePayload {
@@ -9,6 +10,19 @@ export interface IncomePayload {
   date: string;
   description?: string;
   activityId?: string;
+}
+
+export interface IncomeMonthlyPoint {
+  month: string;
+  revenus: number;
+}
+
+export interface IncomeStatistics {
+  year: number;
+  totalIncome: number;
+  cardTotal: number;
+  cashTotal: number;
+  monthlyData: IncomeMonthlyPoint[];
 }
 
 function isValidPaymentType(type: unknown): type is PaymentType {
@@ -39,6 +53,41 @@ function mapIncome(item: unknown): Income | null {
   };
 }
 
+function mapIncomeStatistics(item: unknown): IncomeStatistics | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const monthlyData = Array.isArray(record.monthlyData)
+    ? record.monthlyData
+        .map((point) => {
+          if (!point || typeof point !== "object") {
+            return null;
+          }
+          const pointRecord = point as Record<string, unknown>;
+          const month = String(pointRecord.month ?? "");
+          const revenus = Number(pointRecord.revenus ?? 0);
+          if (!month) {
+            return null;
+          }
+          return {
+            month,
+            revenus: Number.isFinite(revenus) ? revenus : 0,
+          };
+        })
+        .filter((point): point is IncomeMonthlyPoint => Boolean(point))
+    : [];
+
+  return {
+    year: Number(record.year ?? new Date().getFullYear()),
+    totalIncome: Number(record.totalIncome ?? 0),
+    cardTotal: Number(record.cardTotal ?? 0),
+    cashTotal: Number(record.cashTotal ?? 0),
+    monthlyData,
+  };
+}
+
 export async function getIncomes(): Promise<Income[]> {
   const response = await fetch(INCOME_API_URL);
   if (!response.ok) {
@@ -53,6 +102,22 @@ export async function getIncomes(): Promise<Income[]> {
   return data
     .map((item): Income | null => mapIncome(item))
     .filter((item): item is Income => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
+}
+
+export async function getIncomeStatistics(userId: string = TEMP_USER_ID, year?: number): Promise<IncomeStatistics> {
+  const suffix = typeof year === "number" ? `?year=${year}` : "";
+  const response = await fetch(`${STATISTICS_API_URL}/incomes/user/${userId}${suffix}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const statistics = mapIncomeStatistics(data);
+  if (!statistics) {
+    throw new Error("Invalid income statistics response");
+  }
+
+  return statistics;
 }
 
 export async function createIncome(payload: IncomePayload): Promise<Income> {
