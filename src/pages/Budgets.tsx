@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { Plus, PiggyBank, Calendar, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { budgets, expenses, formatCurrency, formatDate } from "@/data/staticData";
+import { budgets, formatCurrency, formatDate } from "@/data/staticData";
 import type { Budget } from "@/data/staticData";
-import { createBudget, deleteBudget, getBudgets, updateBudget } from "@/api/budgetApi";
-import type { BudgetPayload } from "@/api/budgetApi";
+import {
+  createBudget,
+  deleteBudget,
+  getBudgets,
+  getBudgetStatistics,
+  updateBudget,
+} from "@/api/budgetApi";
+import type { BudgetPayload, BudgetStatistics } from "@/api/budgetApi";
 import BudgetForm from "@/components/forms/BudgetForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -14,29 +20,31 @@ const periodGradients: Record<string, string> = { DAY: "var(--gradient-primary)"
 const periodColors: Record<string, string> = { DAY: "hsl(var(--primary))", WEEK: "hsl(var(--warning))", MONTH: "hsl(var(--purple))" };
 const periodDim: Record<string, string> = { DAY: "hsl(var(--primary-dim))", WEEK: "hsl(var(--warning-dim))", MONTH: "hsl(var(--purple-dim))" };
 
-function getSpentForPeriod(period: string): number {
-  const now = new Date();
-  return expenses
-    .filter((expense) => {
-      const date = new Date(expense.date);
-      if (period === "DAY") return date.toDateString() === now.toDateString();
-      if (period === "WEEK") {
-        const start = new Date(now);
-        start.setDate(now.getDate() - now.getDay());
-        return date >= start;
-      }
-      if (period === "MONTH") return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-      return false;
-    })
-    .reduce((sum, expense) => sum + expense.amount, 0);
-}
+const EMPTY_BUDGET_STATS: BudgetStatistics = {
+  spentByPeriod: {
+    DAY: 0,
+    WEEK: 0,
+    MONTH: 0,
+  },
+};
 
 export default function Budgets() {
   const [budgetList, setBudgetList] = useState<Budget[]>(budgets);
+  const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Budget | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
+
+  const refreshBudgetStats = async () => {
+    try {
+      const stats = await getBudgetStatistics();
+      setBudgetStats(stats);
+    } catch (error) {
+      console.error("Impossible de charger les statistiques budget depuis l'API.", error);
+      setBudgetStats(EMPTY_BUDGET_STATS);
+    }
+  };
 
   useEffect(() => {
     const loadBudgets = async () => {
@@ -50,6 +58,7 @@ export default function Budgets() {
     };
 
     loadBudgets();
+    refreshBudgetStats();
   }, []);
 
   const handleEdit = (budget: Budget) => {
@@ -64,12 +73,14 @@ export default function Budgets() {
   const handleCreate = async (payload: BudgetPayload) => {
     const created = await createBudget(payload);
     setBudgetList((prev) => [created, ...prev]);
+    await refreshBudgetStats();
     toast({ title: "Budget ajoute", description: formatCurrency(created.amount) });
   };
 
   const handleUpdate = async (id: string, payload: BudgetPayload) => {
     const updated = await updateBudget(id, payload);
     setBudgetList((prev) => prev.map((budget) => (budget.id === id ? updated : budget)));
+    await refreshBudgetStats();
     toast({ title: "Budget modifie", description: formatCurrency(updated.amount) });
   };
 
@@ -81,6 +92,7 @@ export default function Budgets() {
     try {
       await deleteBudget(deleteTarget.id);
       setBudgetList((prev) => prev.filter((budget) => budget.id !== deleteTarget.id));
+      await refreshBudgetStats();
       toast({ title: "Budget supprime" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -109,8 +121,8 @@ export default function Budgets() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {budgetList.map((budget) => {
-            const spent = getSpentForPeriod(budget.period);
-            const pct = Math.min(100, Math.round((spent / budget.amount) * 100));
+            const spent = budgetStats.spentByPeriod[budget.period] ?? 0;
+            const pct = budget.amount > 0 ? Math.min(100, Math.round((spent / budget.amount) * 100)) : 0;
             const isOver = spent > budget.amount;
             const remaining = budget.amount - spent;
 
@@ -188,9 +200,9 @@ export default function Budgets() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
-              { icon: "🎯", title: "Regle 50/30/20", desc: "50% besoins, 30% envies, 20% epargne" },
-              { icon: "📊", title: "Suivez vos ecarts", desc: "Analysez les depassements chaque semaine" },
-              { icon: "🔔", title: "Alertes preventives", desc: "Soyez alerte a 80% du budget consomme" },
+              { icon: "??", title: "Regle 50/30/20", desc: "50% besoins, 30% envies, 20% epargne" },
+              { icon: "??", title: "Suivez vos ecarts", desc: "Analysez les depassements chaque semaine" },
+              { icon: "??", title: "Alertes preventives", desc: "Soyez alerte a 80% du budget consomme" },
             ].map((tip) => (
               <div key={tip.title} className="flex gap-3">
                 <span className="text-xl">{tip.icon}</span>
