@@ -12,6 +12,18 @@ export interface IncomePayload {
   activityId?: string;
 }
 
+export type IncomeRecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
+
+export interface RecurringIncomePayload {
+  amount: number;
+  paymentType?: PaymentType;
+  startDate: string;
+  endDate?: string;
+  frequency: IncomeRecurrenceFrequency;
+  description?: string;
+  activityId?: string;
+}
+
 export interface IncomeMonthlyPoint {
   month: string;
   revenus: number;
@@ -88,8 +100,8 @@ function mapIncomeStatistics(item: unknown): IncomeStatistics | null {
   };
 }
 
-export async function getIncomes(): Promise<Income[]> {
-  const response = await fetch(INCOME_API_URL);
+export async function getIncomes(userId: string = TEMP_USER_ID): Promise<Income[]> {
+  const response = await fetch(`${INCOME_API_URL}/user/${userId}`);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -145,6 +157,35 @@ export async function createIncome(payload: IncomePayload): Promise<Income> {
   }
 
   return income;
+}
+
+export async function createRecurringIncome(payload: RecurringIncomePayload): Promise<{ createdOccurrences: number }> {
+  const response = await fetch(`${INCOME_API_URL}/recurring`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: payload.amount,
+      paymentType: payload.paymentType,
+      startDate: toIsoDate(payload.startDate),
+      endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
+      frequency: payload.frequency,
+      description: payload.description || undefined,
+      activityId: payload.activityId || undefined,
+      userId: TEMP_USER_ID,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const record = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  const createdOccurrences = Number(record.createdOccurrences ?? 0);
+
+  return {
+    createdOccurrences: Number.isFinite(createdOccurrences) ? createdOccurrences : 0,
+  };
 }
 
 export async function updateIncome(id: string, payload: IncomePayload): Promise<Income> {

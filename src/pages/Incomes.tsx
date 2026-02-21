@@ -6,13 +6,14 @@ import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Income } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import {
+  createRecurringIncome,
   createIncome,
   deleteIncome,
   getIncomeStatistics,
   getIncomes,
   updateIncome,
 } from "@/api/incomeApi";
-import type { IncomePayload, IncomeStatistics } from "@/api/incomeApi";
+import type { IncomePayload, IncomeStatistics, RecurringIncomePayload } from "@/api/incomeApi";
 import IncomeForm from "@/components/forms/IncomeForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +45,16 @@ export default function Incomes() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Income | null>(null);
 
+  const loadIncomes = async () => {
+    try {
+      const remoteIncomes = await getIncomes();
+      setIncomeList(remoteIncomes);
+    } catch (error) {
+      console.error("Impossible de charger les revenus depuis l'API.", error);
+      setIncomeList([]);
+    }
+  };
+
   const refreshIncomeStats = async () => {
     try {
       const stats = await getIncomeStatistics();
@@ -55,16 +66,6 @@ export default function Incomes() {
   };
 
   useEffect(() => {
-    const loadIncomes = async () => {
-      try {
-        const remoteIncomes = await getIncomes();
-        setIncomeList(remoteIncomes);
-      } catch (error) {
-        console.error("Impossible de charger les revenus depuis l'API.", error);
-        setIncomeList([]);
-      }
-    };
-
     const loadActivities = async () => {
       try {
         const remoteActivities = await getActivities();
@@ -102,6 +103,16 @@ export default function Incomes() {
     setIncomeList((prev) => [created, ...prev]);
     await refreshIncomeStats();
     toast({ title: "Revenu ajoute", description: `+${formatCurrency(created.amount)}` });
+  };
+
+  const handleCreateRecurring = async (payload: RecurringIncomePayload) => {
+    const result = await createRecurringIncome(payload);
+    await loadIncomes();
+    await refreshIncomeStats();
+    toast({
+      title: "Revenu automatique ajoute",
+      description: `${result.createdOccurrences} occurrence(s) generee(s).`,
+    });
   };
 
   const handleUpdate = async (id: string, payload: IncomePayload) => {
@@ -265,7 +276,15 @@ export default function Incomes() {
         </div>
       </div>
 
-      <IncomeForm open={formOpen} onOpenChange={setFormOpen} income={editItem} activities={activityList} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <IncomeForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        income={editItem}
+        activities={activityList}
+        onCreate={handleCreate}
+        onCreateRecurring={handleCreateRecurring}
+        onUpdate={handleUpdate}
+      />
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
