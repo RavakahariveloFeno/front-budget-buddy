@@ -1,6 +1,7 @@
 import type { Expense } from "@/data/staticData";
 
 const EXPENSE_API_URL = "http://localhost:3001/expense";
+const STATISTICS_API_URL = "http://localhost:3001/statistics";
 export const TEMP_USER_ID = "ad687a0d-bf8d-4ef0-9cb2-d0fee40cd960";
 
 export interface ExpensePayload {
@@ -9,6 +10,22 @@ export interface ExpensePayload {
   description?: string;
   categoryId?: string;
   activityId?: string;
+}
+
+export interface ExpenseCategoryStat {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  value: number;
+  count: number;
+}
+
+export interface ExpenseStatistics {
+  totalExpenses: number;
+  transactionCount: number;
+  topCategory: ExpenseCategoryStat | null;
+  expensesByCategory: ExpenseCategoryStat[];
 }
 
 function toIsoDate(date: string): string {
@@ -32,6 +49,55 @@ function mapExpense(item: unknown): Expense | null {
   };
 }
 
+function mapExpenseCategoryStat(item: unknown): ExpenseCategoryStat | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const id = String(record.id ?? "");
+  const name = String(record.name ?? "");
+  const value = Number(record.value ?? 0);
+  const count = Number(record.count ?? 0);
+
+  if (!id || !name) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    ...(record.icon ? { icon: String(record.icon) } : {}),
+    ...(record.color ? { color: String(record.color) } : {}),
+    value: Number.isFinite(value) ? value : 0,
+    count: Number.isFinite(count) ? count : 0,
+  };
+}
+
+function mapExpenseStatistics(item: unknown): ExpenseStatistics | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const totalExpenses = Number(record.totalExpenses ?? 0);
+  const transactionCount = Number(record.transactionCount ?? 0);
+  const topCategory = mapExpenseCategoryStat(record.topCategory);
+
+  const expensesByCategory = Array.isArray(record.expensesByCategory)
+    ? record.expensesByCategory
+        .map((entry) => mapExpenseCategoryStat(entry))
+        .filter((entry): entry is ExpenseCategoryStat => Boolean(entry))
+    : [];
+
+  return {
+    totalExpenses: Number.isFinite(totalExpenses) ? totalExpenses : 0,
+    transactionCount: Number.isFinite(transactionCount) ? transactionCount : 0,
+    topCategory,
+    expensesByCategory,
+  };
+}
+
 export async function getExpenses(): Promise<Expense[]> {
   const response = await fetch(EXPENSE_API_URL);
   if (!response.ok) {
@@ -46,6 +112,21 @@ export async function getExpenses(): Promise<Expense[]> {
   return data
     .map((item): Expense | null => mapExpense(item))
     .filter((item): item is Expense => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
+}
+
+export async function getExpenseStatistics(userId: string = TEMP_USER_ID): Promise<ExpenseStatistics> {
+  const response = await fetch(`${STATISTICS_API_URL}/expenses/user/${userId}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const statistics = mapExpenseStatistics(data);
+  if (!statistics) {
+    throw new Error("Invalid expense statistics response");
+  }
+
+  return statistics;
 }
 
 export async function createExpense(payload: ExpensePayload): Promise<Expense> {

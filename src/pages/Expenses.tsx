@@ -2,12 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, TrendingDown, Pencil, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
-import { expenses, formatCurrency, formatDate, totalExpenses, expensesByCategory } from "@/data/staticData";
+import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Category, Expense } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import { getCategories } from "@/api/categoryApi";
-import { createExpense, deleteExpense, getExpenses, updateExpense } from "@/api/expenseApi";
-import type { ExpensePayload } from "@/api/expenseApi";
+import {
+  createExpense,
+  deleteExpense,
+  getExpenseStatistics,
+  getExpenses,
+  updateExpense,
+} from "@/api/expenseApi";
+import type { ExpensePayload, ExpenseStatistics } from "@/api/expenseApi";
 import ExpenseForm from "@/components/forms/ExpenseForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -16,14 +22,32 @@ const CustomTooltipStyle = {
   contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
 };
 
+const EMPTY_EXPENSE_STATS: ExpenseStatistics = {
+  totalExpenses: 0,
+  transactionCount: 0,
+  topCategory: null,
+  expensesByCategory: [],
+};
+
 export default function Expenses() {
   const [expenseList, setExpenseList] = useState<Expense[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [expenseStats, setExpenseStats] = useState<ExpenseStatistics>(EMPTY_EXPENSE_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Expense | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
+
+  const refreshExpenseStats = async () => {
+    try {
+      const stats = await getExpenseStatistics();
+      setExpenseStats(stats);
+    } catch (error) {
+      console.error("Impossible de charger les statistiques depenses depuis l'API.", error);
+      setExpenseStats(EMPTY_EXPENSE_STATS);
+    }
+  };
 
   useEffect(() => {
     const loadExpenses = async () => {
@@ -59,10 +83,12 @@ export default function Expenses() {
     loadExpenses();
     loadActivities();
     loadCategories();
+    refreshExpenseStats();
   }, []);
 
-  // Stats et charts gardes statiques pour le moment.
-  const maxCat = expensesByCategory.reduce((max, category) => (category.value > max.value ? category : max), expensesByCategory[0]);
+  const maxCatLabel = expenseStats.topCategory
+    ? `${expenseStats.topCategory.icon ? `${expenseStats.topCategory.icon} ` : ""}${expenseStats.topCategory.name}`
+    : "-";
 
   const categoryById = useMemo(() => {
     const map = new Map<string, Category>();
@@ -92,12 +118,14 @@ export default function Expenses() {
   const handleCreate = async (payload: ExpensePayload) => {
     const created = await createExpense(payload);
     setExpenseList((prev) => [created, ...prev]);
+    await refreshExpenseStats();
     toast({ title: "Depense ajoutee", description: `-${formatCurrency(created.amount)}` });
   };
 
   const handleUpdate = async (id: string, payload: ExpensePayload) => {
     const updated = await updateExpense(id, payload);
     setExpenseList((prev) => prev.map((expense) => (expense.id === id ? updated : expense)));
+    await refreshExpenseStats();
     toast({ title: "Depense modifiee", description: `-${formatCurrency(updated.amount)}` });
   };
 
@@ -109,6 +137,7 @@ export default function Expenses() {
     try {
       await deleteExpense(deleteTarget.id);
       setExpenseList((prev) => prev.filter((expense) => expense.id !== deleteTarget.id));
+      await refreshExpenseStats();
       toast({ title: "Depense supprimee" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -124,9 +153,9 @@ export default function Expenses() {
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "Total depenses", value: formatCurrency(totalExpenses), color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
-            { label: "Categorie principale", value: maxCat.icon + " " + maxCat.name, color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
-            { label: "Nombre transactions", value: expenses.length.toString(), color: "hsl(var(--info))", bg: "hsl(var(--info-dim))" },
+            { label: "Total depenses", value: formatCurrency(expenseStats.totalExpenses), color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
+            { label: "Categorie principale", value: maxCatLabel, color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
+            { label: "Nombre transactions", value: expenseStats.transactionCount.toString(), color: "hsl(var(--info))", bg: "hsl(var(--info-dim))" },
           ].map((stat) => (
             <div key={stat.label} className="stat-card flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: stat.bg }}>
@@ -151,8 +180,8 @@ export default function Expenses() {
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={expensesByCategory} cx="50%" cy="50%" outerRadius={80} dataKey="value" paddingAngle={2}>
-                  {expensesByCategory.map((entry, index) => (
+                <Pie data={expenseStats.expensesByCategory} cx="50%" cy="50%" outerRadius={80} dataKey="value" paddingAngle={2}>
+                  {expenseStats.expensesByCategory.map((entry, index) => (
                     <Cell key={index} fill={entry.color || "#8b5cf6"} />
                   ))}
                 </Pie>
@@ -160,12 +189,13 @@ export default function Expenses() {
               </PieChart>
             </ResponsiveContainer>
             <div className="space-y-1.5 mt-1">
-              {expensesByCategory.map((category, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
+              {expenseStats.expensesByCategory.map((category) => (
+                <div key={category.id} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: category.color || "#8b5cf6" }} />
                     <span style={{ color: "hsl(var(--muted-foreground))" }}>
-                      {category.icon} {category.name}
+                      {category.icon ? `${category.icon} ` : ""}
+                      {category.name}
                     </span>
                   </div>
                   <span className="font-medium" style={{ color: "hsl(var(--foreground))" }}>
