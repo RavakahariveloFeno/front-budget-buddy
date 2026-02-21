@@ -1,26 +1,32 @@
-import { Plus, TrendingDown } from "lucide-react";
+import { useState } from "react";
+import { Plus, TrendingDown, Pencil, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
-import { expenses, getCategoryById, getActivityById, formatCurrency, formatDate, totalExpenses, expensesByCategory } from "@/data/staticData";
+import { expenses, getCategoryById, getActivityById, formatCurrency, formatDate, totalExpenses, expensesByCategory, Expense } from "@/data/staticData";
+import ExpenseForm from "@/components/forms/ExpenseForm";
+import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { toast } from "@/hooks/use-toast";
 
 const CustomTooltipStyle = {
-  contentStyle: {
-    background: "hsl(225, 27%, 12%)",
-    border: "1px solid hsl(224, 22%, 18%)",
-    borderRadius: "8px",
-    fontSize: "12px",
-    color: "hsl(213, 31%, 93%)",
-  },
+  contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
 };
 
 export default function Expenses() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Expense | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
+
   const maxCat = expensesByCategory.reduce((max, c) => (c.value > max.value ? c : max), expensesByCategory[0]);
+
+  const handleEdit = (exp: Expense) => { setEditItem(exp); setFormOpen(true); };
+  const handleDelete = (exp: Expense) => { setDeleteTarget(exp); setDeleteOpen(true); };
+  const confirmDelete = () => { toast({ title: "Dépense supprimée" }); setDeleteOpen(false); };
 
   return (
     <div className="animate-fade-in">
       <Header title="Dépenses" subtitle="Suivi et analyse de vos dépenses" />
       <div className="p-6 space-y-6">
-        {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: "Total dépenses", value: formatCurrency(totalExpenses), color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
@@ -40,7 +46,6 @@ export default function Expenses() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Pie chart */}
           <div className="stat-card">
             <p className="font-display font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>Par catégorie</p>
             <ResponsiveContainer width="100%" height={200}>
@@ -66,16 +71,12 @@ export default function Expenses() {
             </div>
           </div>
 
-          {/* Table */}
           <div className="stat-card lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
                 Toutes les dépenses <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>({expenses.length})</span>
               </p>
-              <button
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--gradient-danger)", color: "hsl(var(--destructive-foreground))" }}
-              >
+              <button onClick={() => { setEditItem(null); setFormOpen(true); }} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--gradient-danger)", color: "hsl(var(--destructive-foreground))" }}>
                 <Plus size={13} /> Ajouter
               </button>
             </div>
@@ -88,6 +89,7 @@ export default function Expenses() {
                     <th className="text-left">Catégorie</th>
                     <th className="text-left">Activité</th>
                     <th className="text-right">Montant</th>
+                    <th className="text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,17 +102,22 @@ export default function Expenses() {
                         <td style={{ color: "hsl(var(--foreground))" }}>{exp.description || "—"}</td>
                         <td>
                           {cat ? (
-                            <span
-                              className="text-xs font-medium px-2 py-0.5 rounded-full"
-                              style={{ background: cat.color + "30", color: cat.color }}
-                            >
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: cat.color + "30", color: cat.color }}>
                               {cat.icon} {cat.name}
                             </span>
                           ) : "—"}
                         </td>
                         <td>{act ? <span className="badge-info text-xs">{act.name}</span> : "—"}</td>
-                        <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
-                          -{formatCurrency(exp.amount)}
+                        <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>-{formatCurrency(exp.amount)}</td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => handleEdit(exp)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                              <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button onClick={() => handleDelete(exp)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                              <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -121,6 +128,9 @@ export default function Expenses() {
           </div>
         </div>
       </div>
+
+      <ExpenseForm open={formOpen} onOpenChange={setFormOpen} expense={editItem} />
+      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer la dépense" description={`Supprimer "${deleteTarget?.description || "cette dépense"}" ?`} onConfirm={confirmDelete} />
     </div>
   );
 }

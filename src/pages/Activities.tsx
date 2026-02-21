@@ -1,6 +1,10 @@
-import { Briefcase, Plus, Calendar } from "lucide-react";
+import { useState } from "react";
+import { Briefcase, Plus, Calendar, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { activities, investments, incomes, expenses, getActivityById, formatCurrency, formatDate } from "@/data/staticData";
+import { activities, investments, incomes, expenses, getActivityById, formatCurrency, formatDate, Activity } from "@/data/staticData";
+import ActivityForm from "@/components/forms/ActivityForm";
+import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { toast } from "@/hooks/use-toast";
 
 const typeColors: Record<string, string> = {
   SALARY: "badge-income", BUSINESS: "badge-purple", FREELANCE: "badge-info", OTHER: "badge-warning",
@@ -16,21 +20,25 @@ const typeGradients: Record<string, string> = {
 };
 
 export default function Activities() {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Activity | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
+
+  const handleEdit = (act: Activity) => { setEditItem(act); setFormOpen(true); };
+  const handleDelete = (act: Activity) => { setDeleteTarget(act); setDeleteOpen(true); };
+  const confirmDelete = () => { toast({ title: "Activité supprimée", description: deleteTarget?.name }); setDeleteOpen(false); };
+
   return (
     <div className="animate-fade-in">
       <Header title="Activités" subtitle="Sources de revenus et activités financières" />
       <div className="p-6 space-y-6">
-        {/* Action bar */}
         <div className="flex justify-end">
-          <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-          >
+          <button onClick={() => { setEditItem(null); setFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
             <Plus size={16} /> Nouvelle activité
           </button>
         </div>
 
-        {/* Activity cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activities.map((act) => {
             const actIncome = incomes.filter((i) => i.activityId === act.id).reduce((s, i) => s + i.amount, 0);
@@ -39,13 +47,10 @@ export default function Activities() {
             const recvInv = investments.filter((i) => i.toActivityId === act.id).reduce((s, i) => s + i.amount, 0);
 
             return (
-              <div key={act.id} className="stat-card hover:border-primary/40 transition-colors cursor-pointer group">
+              <div key={act.id} className="stat-card hover:border-primary/40 transition-colors group">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ background: typeGradients[act.type] }}
-                    >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: typeGradients[act.type] }}>
                       <Briefcase size={18} style={{ color: "hsl(var(--primary-foreground))" }} />
                     </div>
                     <div>
@@ -53,7 +58,17 @@ export default function Activities() {
                       {act.description && <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{act.description}</p>}
                     </div>
                   </div>
-                  <span className={typeColors[act.type]}>{typeLabels[act.type]}</span>
+                  <div className="flex items-center gap-1">
+                    <span className={typeColors[act.type]}>{typeLabels[act.type]}</span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                      <button onClick={() => handleEdit(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                        <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                      </button>
+                      <button onClick={() => handleDelete(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                        <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -77,9 +92,7 @@ export default function Activities() {
 
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
                   <Calendar size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                  <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Depuis le {formatDate(act.startDate)}
-                  </p>
+                  <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Depuis le {formatDate(act.startDate)}</p>
                 </div>
               </div>
             );
@@ -107,15 +120,9 @@ export default function Activities() {
                   return (
                     <tr key={inv.id}>
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(inv.date)}</td>
-                      <td>
-                        <span className="badge-income">{from?.name}</span>
-                      </td>
-                      <td>
-                        <span className="badge-purple">{to?.name}</span>
-                      </td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--purple))" }}>
-                        {formatCurrency(inv.amount)}
-                      </td>
+                      <td><span className="badge-income">{from?.name}</span></td>
+                      <td><span className="badge-purple">{to?.name}</span></td>
+                      <td className="text-right font-semibold" style={{ color: "hsl(var(--purple))" }}>{formatCurrency(inv.amount)}</td>
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{inv.note || "—"}</td>
                     </tr>
                   );
@@ -125,6 +132,9 @@ export default function Activities() {
           </div>
         </div>
       </div>
+
+      <ActivityForm open={formOpen} onOpenChange={setFormOpen} activity={editItem} />
+      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer l'activité" description={`Voulez-vous vraiment supprimer "${deleteTarget?.name}" ? Cette action est irréversible.`} onConfirm={confirmDelete} />
     </div>
   );
 }
