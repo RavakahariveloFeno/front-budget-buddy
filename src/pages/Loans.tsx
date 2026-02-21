@@ -1,16 +1,24 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, ChevronDown, ChevronRight, CreditCard, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { loans, getActivityById, formatCurrency, formatDate, Loan } from "@/data/staticData";
+import { activities, loans, formatCurrency, formatDate } from "@/data/staticData";
+import type { Activity, Loan } from "@/data/staticData";
+import { getActivities } from "@/api/activityApi";
+import { createLoan, deleteLoan, getLoans, updateLoan } from "@/api/loanApi";
+import type { LoanPayload } from "@/api/loanApi";
+import { createLoanPayment, getLoanPayments } from "@/api/loanPaymentApi";
+import type { LoanPaymentPayload } from "@/api/loanPaymentApi";
 import LoanForm from "@/components/forms/LoanForm";
 import LoanPaymentForm from "@/components/forms/LoanPaymentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 
-const loanTypeLabels: Record<string, string> = { BANK: "🏦 Banque", FRIEND: "👤 Ami", COMPANY: "🏢 Entreprise", OTHER: "📋 Autre" };
+const loanTypeLabels: Record<string, string> = { BANK: "Banque", FRIEND: "Ami", COMPANY: "Entreprise", OTHER: "Autre" };
 const loanTypeColors: Record<string, string> = { BANK: "badge-info", FRIEND: "badge-warning", COMPANY: "badge-purple", OTHER: "badge-income" };
 
 export default function Loans() {
+  const [loanList, setLoanList] = useState<Loan[]>(loans);
+  const [activityList, setActivityList] = useState<Activity[]>(activities);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Loan | null>(null);
@@ -19,53 +27,153 @@ export default function Loans() {
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [paymentLoanId, setPaymentLoanId] = useState("");
 
-  const activeLoans = loans.filter((l) => l.status === "ACTIVE");
-  const paidLoans = loans.filter((l) => l.status === "PAID");
-  const totalActive = activeLoans.reduce((s, l) => s + l.remainingAmount, 0);
-  const totalPaid = paidLoans.reduce((s, l) => s + l.totalAmount, 0);
+  const loadLoans = async () => {
+    try {
+      const [remoteLoans, remotePayments] = await Promise.all([getLoans(), getLoanPayments()]);
+      const paymentsByLoanId = new Map<string, typeof remotePayments>();
 
-  const handleEdit = (loan: Loan) => { setEditItem(loan); setFormOpen(true); };
-  const handleDelete = (loan: Loan) => { setDeleteTarget(loan); setDeleteOpen(true); };
-  const confirmDelete = () => { toast({ title: "Prêt supprimé" }); setDeleteOpen(false); };
-  const handleAddPayment = (loanId: string) => { setPaymentLoanId(loanId); setPaymentFormOpen(true); };
+      for (const payment of remotePayments) {
+        const current = paymentsByLoanId.get(payment.loanId) || [];
+        current.push(payment);
+        paymentsByLoanId.set(payment.loanId, current);
+      }
+
+      const mergedLoans = remoteLoans.map((loan) => ({
+        ...loan,
+        payments: paymentsByLoanId.get(loan.id) || loan.payments || [],
+      }));
+
+      setLoanList(mergedLoans.length ? mergedLoans : loans);
+    } catch (error) {
+      console.error("Impossible de charger les prets depuis l'API, fallback static.", error);
+      setLoanList(loans);
+    }
+  };
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities.length ? remoteActivities : activities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API, fallback static.", error);
+        setActivityList(activities);
+      }
+    };
+
+    loadLoans();
+    loadActivities();
+  }, []);
+
+  const activityById = useMemo(() => {
+    const map = new Map<string, Activity>();
+    for (const activity of activityList) {
+      map.set(activity.id, activity);
+    }
+    return map;
+  }, [activityList]);
+
+  const activeLoans = loanList.filter((loan) => loan.status === "ACTIVE");
+  const paidLoans = loanList.filter((loan) => loan.status === "PAID");
+  const totalActive = activeLoans.reduce((sum, loan) => sum + loan.remainingAmount, 0);
+  const totalPaid = paidLoans.reduce((sum, loan) => sum + loan.totalAmount, 0);
+
+  const handleEdit = (loan: Loan) => {
+    setEditItem(loan);
+    setFormOpen(true);
+  };
+  const handleDelete = (loan: Loan) => {
+    setDeleteTarget(loan);
+    setDeleteOpen(true);
+  };
+  const handleAddPayment = (loanId: string) => {
+    setPaymentLoanId(loanId);
+    setPaymentFormOpen(true);
+  };
+
+  const handleCreate = async (payload: LoanPayload) => {
+    const created = await createLoan(payload);
+    setLoanList((prev) => [created, ...prev]);
+    toast({ title: "Pret ajoute", description: created.lenderName });
+  };
+
+  const handleUpdate = async (id: string, payload: LoanPayload) => {
+    const updated = await updateLoan(id, payload);
+    setLoanList((prev) => prev.map((loan) => (loan.id === id ? updated : loan)));
+    toast({ title: "Pret modifie", description: updated.lenderName });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    try {
+      await deleteLoan(deleteTarget.id);
+      setLoanList((prev) => prev.filter((loan) => loan.id !== deleteTarget.id));
+      toast({ title: "Pret supprime" });
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error("Impossible de supprimer le pret.", error);
+      toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
+    }
+  };
+
+  const handleCreatePayment = async (payload: LoanPaymentPayload) => {
+    await createLoanPayment(payload);
+    await loadLoans();
+    toast({ title: "Paiement ajoute", description: formatCurrency(payload.amount) });
+  };
 
   return (
     <div className="animate-fade-in">
-      <Header title="Prêts" subtitle="Gérez vos emprunts et remboursements" />
+      <Header title="Prets" subtitle="Gerez vos emprunts et remboursements" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "Restant à rembourser", value: formatCurrency(totalActive), color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
-            { label: "Prêts remboursés", value: formatCurrency(totalPaid), color: "hsl(var(--primary))", bg: "hsl(var(--primary-dim))" },
-            { label: "Prêts actifs", value: `${activeLoans.length} prêt${activeLoans.length > 1 ? "s" : ""}`, color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
-          ].map((s) => (
-            <div key={s.label} className="stat-card flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.bg }}>
-                <CreditCard size={18} style={{ color: s.color }} />
+            { label: "Restant a rembourser", value: formatCurrency(totalActive), color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
+            { label: "Prets rembourses", value: formatCurrency(totalPaid), color: "hsl(var(--primary))", bg: "hsl(var(--primary-dim))" },
+            { label: "Prets actifs", value: `${activeLoans.length} pret${activeLoans.length > 1 ? "s" : ""}`, color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
+          ].map((stat) => (
+            <div key={stat.label} className="stat-card flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: stat.bg }}>
+                <CreditCard size={18} style={{ color: stat.color }} />
               </div>
               <div>
-                <p className="text-xl font-display font-bold" style={{ color: s.color }}>{s.value}</p>
-                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{s.label}</p>
+                <p className="text-xl font-display font-bold" style={{ color: stat.color }}>
+                  {stat.value}
+                </p>
+                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  {stat.label}
+                </p>
               </div>
             </div>
           ))}
         </div>
 
         <div className="flex justify-end">
-          <button onClick={() => { setEditItem(null); setFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}>
-            <Plus size={16} /> Nouveau prêt
+          <button
+            onClick={() => {
+              setEditItem(null);
+              setFormOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+            style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
+          >
+            <Plus size={16} /> Nouveau pret
           </button>
         </div>
 
         <div>
           <h2 className="font-display font-semibold text-base mb-3" style={{ color: "hsl(var(--foreground))" }}>
-            Prêts actifs <span className="badge-warning ml-2">{activeLoans.length}</span>
+            Prets actifs <span className="badge-warning ml-2">{activeLoans.length}</span>
           </h2>
           <div className="space-y-3">
             {activeLoans.map((loan) => {
               const pct = Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100);
               const isExpanded = expandedLoan === loan.id;
-              const act = getActivityById(loan.activityId || "");
+              const activity = loan.activityId ? activityById.get(loan.activityId) : undefined;
 
               return (
                 <div key={loan.id} className="stat-card overflow-hidden group">
@@ -75,18 +183,24 @@ export default function Loans() {
                         <CreditCard size={18} style={{ color: "hsl(var(--warning))" }} />
                       </div>
                       <div>
-                        <p className="font-semibold" style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</p>
+                        <p className="font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                          {loan.lenderName}
+                        </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={loanTypeColors[loan.type]}>{loanTypeLabels[loan.type]}</span>
                           {loan.interestRate && loan.interestRate > 0 && <span className="badge-info">{loan.interestRate}% / an</span>}
-                          {act && <span className="badge-purple text-xs">{act.name}</span>}
+                          {activity && <span className="badge-purple text-xs">{activity.name}</span>}
                         </div>
                       </div>
                     </button>
                     <div className="flex items-center gap-2">
                       <div className="text-right mr-2">
-                        <p className="font-bold" style={{ color: "hsl(var(--warning))" }}>{formatCurrency(loan.remainingAmount)}</p>
-                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>sur {formatCurrency(loan.totalAmount)}</p>
+                        <p className="font-bold" style={{ color: "hsl(var(--warning))" }}>
+                          {formatCurrency(loan.remainingAmount)}
+                        </p>
+                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          sur {formatCurrency(loan.totalAmount)}
+                        </p>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
@@ -109,7 +223,7 @@ export default function Loans() {
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-primary)" }} />
                     </div>
                     <div className="flex justify-between text-xs mt-1.5">
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>Début: {formatDate(loan.startDate)}</span>
+                      <span style={{ color: "hsl(var(--muted-foreground))" }}>Debut: {formatDate(loan.startDate)}</span>
                       {loan.endDate && <span style={{ color: "hsl(var(--muted-foreground))" }}>Fin: {formatDate(loan.endDate)}</span>}
                     </div>
                   </div>
@@ -117,7 +231,9 @@ export default function Loans() {
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t animate-fade-in" style={{ borderColor: "hsl(var(--border))" }}>
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>Historique des paiements</p>
+                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                          Historique des paiements
+                        </p>
                         <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
                           + Ajouter paiement
                         </button>
@@ -126,12 +242,23 @@ export default function Loans() {
                         {loan.payments.map((payment) => (
                           <div key={payment.id} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: "hsl(var(--secondary))" }}>
                             <div>
-                              <p className="text-sm" style={{ color: "hsl(var(--foreground))" }}>{payment.note || "Paiement"}</p>
-                              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(payment.date)}</p>
+                              <p className="text-sm" style={{ color: "hsl(var(--foreground))" }}>
+                                {payment.note || "Paiement"}
+                              </p>
+                              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                                {formatDate(payment.date)}
+                              </p>
                             </div>
-                            <span className="font-semibold text-sm" style={{ color: "hsl(var(--primary))" }}>-{formatCurrency(payment.amount)}</span>
+                            <span className="font-semibold text-sm" style={{ color: "hsl(var(--primary))" }}>
+                              -{formatCurrency(payment.amount)}
+                            </span>
                           </div>
                         ))}
+                        {loan.payments.length === 0 && (
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            Aucun paiement enregistre.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -143,7 +270,7 @@ export default function Loans() {
 
         <div>
           <h2 className="font-display font-semibold text-base mb-3" style={{ color: "hsl(var(--foreground))" }}>
-            Prêts remboursés <span className="badge-income ml-2">{paidLoans.length}</span>
+            Prets rembourses <span className="badge-income ml-2">{paidLoans.length}</span>
           </h2>
           <div className="space-y-3">
             {paidLoans.map((loan) => (
@@ -154,17 +281,21 @@ export default function Loans() {
                       <CheckCircle2 size={18} style={{ color: "hsl(var(--primary))" }} />
                     </div>
                     <div>
-                      <p className="font-semibold" style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</p>
+                      <p className="font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                        {loan.lenderName}
+                      </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className={loanTypeColors[loan.type]}>{loanTypeLabels[loan.type]}</span>
-                        <span className="badge-income">✓ Remboursé</span>
+                        <span className="badge-income">Rembourse</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold line-through" style={{ color: "hsl(var(--muted-foreground))" }}>{formatCurrency(loan.totalAmount)}</p>
+                    <p className="font-bold line-through" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {formatCurrency(loan.totalAmount)}
+                    </p>
                     <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      {loan.startDate && loan.endDate ? `${formatDate(loan.startDate)} → ${formatDate(loan.endDate)}` : ""}
+                      {loan.startDate && loan.endDate ? `${formatDate(loan.startDate)} -> ${formatDate(loan.endDate)}` : ""}
                     </p>
                   </div>
                 </div>
@@ -174,9 +305,15 @@ export default function Loans() {
         </div>
       </div>
 
-      <LoanForm open={formOpen} onOpenChange={setFormOpen} loan={editItem} />
-      <LoanPaymentForm open={paymentFormOpen} onOpenChange={setPaymentFormOpen} loanId={paymentLoanId} />
-      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer le prêt" description={`Supprimer le prêt de "${deleteTarget?.lenderName}" ? Tous les paiements associés seront supprimés.`} onConfirm={confirmDelete} />
+      <LoanForm open={formOpen} onOpenChange={setFormOpen} loan={editItem} activities={activityList} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <LoanPaymentForm open={paymentFormOpen} onOpenChange={setPaymentFormOpen} loanId={paymentLoanId} onCreate={handleCreatePayment} />
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Supprimer le pret"
+        description={`Supprimer le pret de "${deleteTarget?.lenderName}" ? Tous les paiements associes seront supprimes.`}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
