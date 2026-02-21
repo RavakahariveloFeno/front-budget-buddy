@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getCurrentUser } from "@/api/authApi";
+import { clearSessionToken, getCurrentUser } from "@/api/authApi";
 
 interface HeaderProps {
   title: string;
@@ -13,10 +13,14 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const location = useLocation();
   const searchRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const currentUser = getCurrentUser();
+  const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
+  const userEmail = currentUser?.email ?? "-";
   const userInitials = currentUser
     ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.toUpperCase()
     : "U";
@@ -56,6 +60,9 @@ export default function Header({ title, subtitle }: HeaderProps) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
     };
 
     const onShortcut = (event: KeyboardEvent) => {
@@ -78,6 +85,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
     navigate(path);
     setOpen(false);
     setQuery("");
+  };
+
+  const handleLogout = () => {
+    clearSessionToken();
+    navigate("/signin", { replace: true });
+    setUserMenuOpen(false);
   };
 
   const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -196,11 +209,37 @@ export default function Header({ title, subtitle }: HeaderProps) {
             style={{ background: "hsl(var(--destructive))" }}
           />
         </button>
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-          style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-        >
-          {userInitials}
+        <div ref={userMenuRef} className="relative pl-1">
+          <button
+            onClick={() => setUserMenuOpen((prev) => !prev)}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+            title="Mon compte"
+          >
+            {userInitials}
+          </button>
+          {userMenuOpen && (
+            <div
+              className="absolute right-0 mt-2 w-[220px] rounded-lg border p-3 z-30"
+              style={{ background: "hsl(var(--popover))", borderColor: "hsl(var(--border))" }}
+            >
+              <p className="text-sm font-medium truncate" style={{ color: "hsl(var(--foreground))" }}>
+                {userName}
+              </p>
+              <p className="text-xs truncate mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                {userEmail}
+              </p>
+              <button
+                onClick={handleLogout}
+                className="mt-3 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border text-xs transition-colors hover:bg-secondary"
+                style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+                title="Se deconnecter"
+              >
+                <LogOut size={13} />
+                <span>Se deconnecter</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

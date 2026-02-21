@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
@@ -11,9 +11,7 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
-  LogOut,
 } from "lucide-react";
-import { clearSessionToken, getCurrentUser } from "@/api/authApi";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -29,18 +27,6 @@ const navItems = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
-  const currentUser = getCurrentUser();
-  const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
-  const userEmail = currentUser?.email ?? "-";
-  const userInitials = currentUser
-    ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.toUpperCase()
-    : "MC";
-
-  const handleLogout = () => {
-    clearSessionToken();
-    navigate("/signin", { replace: true });
-  };
 
   return (
     <aside
@@ -81,33 +67,6 @@ export default function Sidebar() {
           );
         })}
       </nav>
-
-      {/* User */}
-      <div className="border-t px-2 py-3" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-        <div className={`flex items-center gap-3 px-2 py-2 rounded-lg ${collapsed ? "justify-center" : ""}`}>
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-          >
-            {userInitials}
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0 animate-fade-in">
-              <p className="text-xs font-medium truncate" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
-                {userName}
-              </p>
-              <p className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
-                {userEmail}
-              </p>
-            </div>
-          )}
-          {!collapsed && (
-            <button onClick={handleLogout} className="p-1 rounded-md hover:bg-secondary/30 transition-colors" title="Se deconnecter">
-              <LogOut size={14} className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--sidebar-foreground))" }} />
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Collapse toggle */}
       <button
