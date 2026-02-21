@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+ï»¿import { useEffect, useState } from "react";
 import {
   TrendingUp, TrendingDown, CreditCard, ArrowLeftRight,
   Wallet, Activity as ActivityIcon,
@@ -49,10 +49,7 @@ function StatCard({
   return (
     <div className={`stat-card ${variantClass} animate-fade-in`}>
       <div className="flex items-start justify-between mb-4">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: iconBg }}
-        >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: iconBg }}>
           <Icon size={18} style={{ color: iconColors }} />
         </div>
         {trend !== undefined && (
@@ -135,10 +132,7 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in">
-      <Header
-        title="Tableau de bord"
-        subtitle="Vue d'ensemble de vos finances"
-      />
+      <Header title="Tableau de bord" subtitle="Vue d'ensemble de vos finances" />
 
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -148,10 +142,7 @@ export default function Dashboard() {
           <StatCard label="Investissements" value={formatCurrency(dashboard.totals.investments)} icon={ArrowLeftRight} variant="invest" />
         </div>
 
-        <div
-          className="rounded-xl p-5 flex items-center justify-between"
-          style={{ background: "var(--gradient-primary)" }}
-        >
+        <div className="rounded-xl p-5 flex items-center justify-between" style={{ background: "var(--gradient-primary)" }}>
           <div>
             <p className="text-sm font-medium opacity-80" style={{ color: "hsl(var(--primary-foreground))" }}>Solde net disponible</p>
             <p className="text-3xl font-display font-bold mt-1" style={{ color: "hsl(var(--primary-foreground))" }}>
@@ -228,12 +219,12 @@ export default function Dashboard() {
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
                         style={{ background: isIncome ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}
                       >
-                        {tx.categoryIcon || (isIncome ? "??" : "??")}
+                        {tx.categoryIcon || (isIncome ? "$$" : "--")}
                       </div>
                       <div>
                         <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{tx.description || (isIncome ? "Revenu" : "Depense")}</p>
                         <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                          {formatDate(tx.date)} · {tx.activityName || tx.categoryName || "—"}
+                          {formatDate(tx.date)} Â· {tx.activityName || tx.categoryName || "-"}
                         </p>
                       </div>
                     </div>
@@ -269,7 +260,7 @@ export default function Dashboard() {
             </div>
 
             <div className="stat-card">
-              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Activites</p>
+              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Revenus par activite</p>
               <div className="space-y-2">
                 {dashboard.activities.map((act) => (
                   <div key={act.activityId} className="flex items-center justify-between">
@@ -281,6 +272,26 @@ export default function Dashboard() {
                     <span className="text-sm font-medium" style={{ color: "hsl(var(--primary))" }}>{formatCurrency(act.income)}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Soldes nets par activite</p>
+              <div className="space-y-2">
+                {dashboard.activities.map((act) => {
+                  const isPositive = act.netAvailable >= 0;
+                  return (
+                    <div key={`net-${act.activityId}`} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
+                        <p className="text-sm" style={{ color: "hsl(var(--foreground))" }}>{act.name}</p>
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                        {formatCurrency(act.netAvailable)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

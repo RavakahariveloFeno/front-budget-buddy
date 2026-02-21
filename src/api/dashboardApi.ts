@@ -43,6 +43,10 @@ export interface DashboardStats {
     name: string;
     type: string;
     income: number;
+    expense: number;
+    sentInvestment: number;
+    receivedInvestment: number;
+    netAvailable: number;
   }>;
 }
 
@@ -133,6 +137,10 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
             name: String(row.name ?? ""),
             type: String(row.type ?? ""),
             income: Number(row.income ?? 0),
+            expense: Number(row.expense ?? 0),
+            sentInvestment: Number(row.sentInvestment ?? 0),
+            receivedInvestment: Number(row.receivedInvestment ?? 0),
+            netAvailable: Number(row.netAvailable ?? 0),
           };
         })
         .filter((entry): entry is DashboardStats["activities"][number] => Boolean(entry && entry.activityId && entry.name))
