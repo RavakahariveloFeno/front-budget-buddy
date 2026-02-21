@@ -1,17 +1,36 @@
-import { useState } from "react";
-import { Briefcase, Plus, Calendar, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Briefcase, Calendar, Pencil, Plus, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { activities, investments, incomes, expenses, getActivityById, formatCurrency, formatDate, Activity } from "@/data/staticData";
+import {
+  activities,
+  investments,
+  incomes,
+  expenses,
+  getActivityById,
+  formatCurrency,
+  formatDate,
+  type Activity,
+} from "@/data/staticData";
+import { createActivity, deleteActivity, getActivities, updateActivity } from "@/api/activityApi";
+import type { ActivityPayload } from "@/api/activityApi";
 import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 
 const typeColors: Record<string, string> = {
-  SALARY: "badge-income", BUSINESS: "badge-purple", FREELANCE: "badge-info", OTHER: "badge-warning",
+  SALARY: "badge-income",
+  BUSINESS: "badge-purple",
+  FREELANCE: "badge-info",
+  OTHER: "badge-warning",
 };
+
 const typeLabels: Record<string, string> = {
-  SALARY: "Salaire", BUSINESS: "Business", FREELANCE: "Freelance", OTHER: "Autre",
+  SALARY: "Salaire",
+  BUSINESS: "Business",
+  FREELANCE: "Freelance",
+  OTHER: "Autre",
 };
+
 const typeGradients: Record<string, string> = {
   SALARY: "var(--gradient-primary)",
   BUSINESS: "var(--gradient-purple)",
@@ -20,27 +39,84 @@ const typeGradients: Record<string, string> = {
 };
 
 export default function Activities() {
+  const [activityList, setActivityList] = useState<Activity[]>(activities);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
 
-  const handleEdit = (act: Activity) => { setEditItem(act); setFormOpen(true); };
-  const handleDelete = (act: Activity) => { setDeleteTarget(act); setDeleteOpen(true); };
-  const confirmDelete = () => { toast({ title: "Activité supprimée", description: deleteTarget?.name }); setDeleteOpen(false); };
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities.length ? remoteActivities : activities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API, fallback static.", error);
+        setActivityList(activities);
+      }
+    };
+
+    loadActivities();
+  }, []);
+
+  const handleEdit = (act: Activity) => {
+    setEditItem(act);
+    setFormOpen(true);
+  };
+
+  const handleDelete = (act: Activity) => {
+    setDeleteTarget(act);
+    setDeleteOpen(true);
+  };
+
+  const handleCreate = async (payload: ActivityPayload) => {
+    const created = await createActivity(payload);
+    setActivityList((prev) => [created, ...prev]);
+    toast({ title: "Activite ajoutee", description: created.name });
+  };
+
+  const handleUpdate = async (id: string, payload: ActivityPayload) => {
+    const updated = await updateActivity(id, payload);
+    setActivityList((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
+    toast({ title: "Activite modifiee", description: updated.name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    try {
+      await deleteActivity(deleteTarget.id);
+      setActivityList((prev) => prev.filter((activity) => activity.id !== deleteTarget.id));
+      toast({ title: "Activite supprimee", description: deleteTarget.name });
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error("Impossible de supprimer l'activite.", error);
+      toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
+    }
+  };
 
   return (
     <div className="animate-fade-in">
-      <Header title="Activités" subtitle="Sources de revenus et activités financières" />
+      <Header title="Activites" subtitle="Sources de revenus et activites financieres" />
       <div className="p-6 space-y-6">
         <div className="flex justify-end">
-          <button onClick={() => { setEditItem(null); setFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
-            <Plus size={16} /> Nouvelle activité
+          <button
+            onClick={() => {
+              setEditItem(null);
+              setFormOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+          >
+            <Plus size={16} /> Nouvelle activite
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activities.map((act) => {
+          {activityList.map((act) => {
             const actIncome = incomes.filter((i) => i.activityId === act.id).reduce((s, i) => s + i.amount, 0);
             const actExpenses = expenses.filter((e) => e.activityId === act.id).reduce((s, e) => s + e.amount, 0);
             const sentInv = investments.filter((i) => i.fromActivityId === act.id).reduce((s, i) => s + i.amount, 0);
@@ -54,8 +130,14 @@ export default function Activities() {
                       <Briefcase size={18} style={{ color: "hsl(var(--primary-foreground))" }} />
                     </div>
                     <div>
-                      <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>{act.name}</p>
-                      {act.description && <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{act.description}</p>}
+                      <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                        {act.name}
+                      </p>
+                      {act.description && (
+                        <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          {act.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -73,35 +155,54 @@ export default function Activities() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg p-3" style={{ background: "hsl(var(--primary-dim))" }}>
-                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Revenus</p>
-                    <p className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{formatCurrency(actIncome)}</p>
+                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Revenus
+                    </p>
+                    <p className="font-semibold" style={{ color: "hsl(var(--primary))" }}>
+                      {formatCurrency(actIncome)}
+                    </p>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "hsl(var(--destructive-dim))" }}>
-                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Dépenses</p>
-                    <p className="font-semibold" style={{ color: "hsl(var(--destructive))" }}>{formatCurrency(actExpenses)}</p>
+                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Depenses
+                    </p>
+                    <p className="font-semibold" style={{ color: "hsl(var(--destructive))" }}>
+                      {formatCurrency(actExpenses)}
+                    </p>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "hsl(var(--purple-dim))" }}>
-                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Invest. envoyés</p>
-                    <p className="font-semibold" style={{ color: "hsl(var(--purple))" }}>{formatCurrency(sentInv)}</p>
+                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Invest. envoyes
+                    </p>
+                    <p className="font-semibold" style={{ color: "hsl(var(--purple))" }}>
+                      {formatCurrency(sentInv)}
+                    </p>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "hsl(var(--info-dim))" }}>
-                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Invest. reçus</p>
-                    <p className="font-semibold" style={{ color: "hsl(var(--info))" }}>{formatCurrency(recvInv)}</p>
+                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Invest. recus
+                    </p>
+                    <p className="font-semibold" style={{ color: "hsl(var(--info))" }}>
+                      {formatCurrency(recvInv)}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
                   <Calendar size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                  <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Depuis le {formatDate(act.startDate)}</p>
+                  <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Depuis le {formatDate(act.startDate)}
+                  </p>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Investments table */}
         <div className="stat-card">
-          <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Transferts entre activités</p>
+          <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
+            Transferts entre activites
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full data-table">
               <thead>
@@ -120,10 +221,16 @@ export default function Activities() {
                   return (
                     <tr key={inv.id}>
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(inv.date)}</td>
-                      <td><span className="badge-income">{from?.name}</span></td>
-                      <td><span className="badge-purple">{to?.name}</span></td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--purple))" }}>{formatCurrency(inv.amount)}</td>
-                      <td style={{ color: "hsl(var(--muted-foreground))" }}>{inv.note || "—"}</td>
+                      <td>
+                        <span className="badge-income">{from?.name}</span>
+                      </td>
+                      <td>
+                        <span className="badge-purple">{to?.name}</span>
+                      </td>
+                      <td className="text-right font-semibold" style={{ color: "hsl(var(--purple))" }}>
+                        {formatCurrency(inv.amount)}
+                      </td>
+                      <td style={{ color: "hsl(var(--muted-foreground))" }}>{inv.note || "-"}</td>
                     </tr>
                   );
                 })}
@@ -133,8 +240,14 @@ export default function Activities() {
         </div>
       </div>
 
-      <ActivityForm open={formOpen} onOpenChange={setFormOpen} activity={editItem} />
-      <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer l'activité" description={`Voulez-vous vraiment supprimer "${deleteTarget?.name}" ? Cette action est irréversible.`} onConfirm={confirmDelete} />
+      <ActivityForm open={formOpen} onOpenChange={setFormOpen} activity={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Supprimer l'activite"
+        description={`Voulez-vous vraiment supprimer "${deleteTarget?.name}" ? Cette action est irreversible.`}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
