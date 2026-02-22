@@ -3,6 +3,17 @@ import { ArrowLeft, LayoutGrid } from "lucide-react";
 import * as Icons from "lucide-react";
 import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES } from "@/data/staticData";
+import StockPage from "@/pages/modules/StockPage";
+import FacturesPage from "@/pages/modules/FacturesPage";
+import ProduitsPage from "@/pages/modules/ProduitsPage";
+import ClientsPage from "@/pages/modules/ClientsPage";
+
+const PAGE_MAP: Record<string, React.ComponentType> = {
+  stock: StockPage,
+  factures: FacturesPage,
+  produits: ProduitsPage,
+  clients: ClientsPage,
+};
 
 function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: React.CSSProperties }) {
   const Icon = (Icons as unknown as Record<string, React.ComponentType<any>>)[name];
@@ -27,6 +38,13 @@ export default function ModuleMenuPage() {
     );
   }
 
+  // If a dedicated page exists, render it
+  const PageComponent = PAGE_MAP[menuPath!];
+  if (PageComponent) {
+    return <PageComponent />;
+  }
+
+  // Fallback placeholder
   return (
     <div className="animate-fade-in">
       <Header title={menu.label} subtitle={`Module : ${module.name}`} />
