@@ -94,3 +94,56 @@ export function formatDate(date: string): string {
     year: "numeric",
   });
 }
+
+// ── Modules ──────────────────────────────────────────────
+export interface ModuleMenu {
+  id: string;
+  label: string;
+  icon: string; // lucide icon name
+  path: string; // route segment
+}
+
+export interface AppModule {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string; // CSS variable name
+  menus: ModuleMenu[];
+}
+
+export const PREDEFINED_MODULES: AppModule[] = [
+  {
+    id: "mod-vente",
+    name: "Gestion de vente",
+    description: "Gestion des ventes, stocks, factures et produits",
+    icon: "ShoppingCart",
+    color: "primary",
+    menus: [
+      { id: "menu-stock", label: "Stock", icon: "Package", path: "stock" },
+      { id: "menu-facture", label: "Factures", icon: "FileText", path: "factures" },
+      { id: "menu-produit", label: "Produits", icon: "Box", path: "produits" },
+      { id: "menu-client", label: "Clients", icon: "Users", path: "clients" },
+    ],
+  },
+  {
+    id: "mod-achat-revente",
+    name: "Achat–revente de marchandises",
+    description: "Suivi des achats et reventes de marchandises",
+    icon: "Repeat",
+    color: "purple",
+    menus: [
+      { id: "menu-achats", label: "Achats", icon: "ShoppingBag", path: "achats" },
+      { id: "menu-reventes", label: "Reventes", icon: "DollarSign", path: "reventes" },
+      { id: "menu-marge", label: "Marges", icon: "TrendingUp", path: "marges" },
+      { id: "menu-fournisseur", label: "Fournisseurs", icon: "Truck", path: "fournisseurs" },
+    ],
+  },
+];
+
+// Many-to-many link between Activity and Module
+export interface ActivityModuleLink {
+  activityId: string;
+  moduleId: string;
+}
+
