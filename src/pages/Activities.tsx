@@ -19,6 +19,14 @@ import { getInvestments } from "@/api/investmentApi";
 import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { buildActivityPath } from "@/lib/activityRoute";
+import {
+  getActivityPremiumModules,
+  isPremiumEnabled,
+  setActivitySalesModuleEnabled,
+  subscribePremiumChange,
+} from "@/api/premiumApi";
 
 const typeColors: Record<string, string> = {
   SALARY: "badge-income",
@@ -49,6 +57,7 @@ function buildStatsMap(stats: ActivityStats[]): Record<string, ActivityStats> {
 }
 
 export default function Activities() {
+  const navigate = useNavigate();
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
@@ -56,6 +65,8 @@ export default function Activities() {
   const [editItem, setEditItem] = useState<Activity | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
+  const [premium, setPremium] = useState(isPremiumEnabled());
+  const [salesModuleByActivity, setSalesModuleByActivity] = useState<Record<string, boolean>>({});
 
   const refreshActivityStats = async () => {
     try {
@@ -64,6 +75,31 @@ export default function Activities() {
     } catch (error) {
       console.error("Impossible de charger les statistiques activite depuis l'API.", error);
       setStatsByActivity({});
+    }
+  };
+
+  useEffect(() => {
+    return subscribePremiumChange((enabled) => setPremium(enabled));
+  }, []);
+
+  const loadActivityModules = async () => {
+    if (!premium) {
+      setSalesModuleByActivity({});
+      return;
+    }
+
+    try {
+      const modules = await getActivityPremiumModules();
+      const next = modules.reduce<Record<string, boolean>>((acc, moduleAccess) => {
+        if (moduleAccess.module === "SALES_MANAGEMENT") {
+          acc[moduleAccess.activityId] = moduleAccess.isEnabled;
+        }
+        return acc;
+      }, {});
+      setSalesModuleByActivity(next);
+    } catch (error) {
+      console.error("Impossible de charger les modules premium par activite.", error);
+      setSalesModuleByActivity({});
     }
   };
 
@@ -91,7 +127,22 @@ export default function Activities() {
     loadActivities();
     loadInvestments();
     refreshActivityStats();
-  }, []);
+    void loadActivityModules();
+  }, [premium]);
+
+  const toggleSalesModule = async (activityId: string, enabled: boolean) => {
+    try {
+      await setActivitySalesModuleEnabled(activityId, enabled);
+      setSalesModuleByActivity((prev) => ({ ...prev, [activityId]: enabled }));
+      toast({
+        title: enabled ? "Module vente active" : "Module vente desactive",
+        description: "Configuration enregistree pour cette activite.",
+      });
+    } catch (error) {
+      console.error("Impossible de changer l'etat du module vente.", error);
+      toast({ title: "Erreur", description: "Mise a jour du module impossible." });
+    }
+  };
 
   const handleEdit = (act: Activity) => {
     setEditItem(act);
@@ -251,6 +302,34 @@ export default function Activities() {
                     Depuis le {formatDate(act.startDate)}
                   </p>
                 </div>
+                {premium ? (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        Module premium: Gestion de vente
+                      </p>
+                      {Boolean(salesModuleByActivity[act.id]) ? (
+                        <button
+                          onClick={() => navigate(buildActivityPath(act))}
+                          className="px-2 py-1 rounded-md text-xs font-medium"
+                          style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}
+                        >
+                          Ouvrir activite
+                        </button>
+                      ) : null}
+                    </div>
+                    <button
+                      onClick={() => void toggleSalesModule(act.id, !Boolean(salesModuleByActivity[act.id]))}
+                      className="px-2 py-1 rounded-md text-xs font-medium border"
+                      style={{
+                        borderColor: "hsl(var(--border))",
+                        color: Boolean(salesModuleByActivity[act.id]) ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      {Boolean(salesModuleByActivity[act.id]) ? "Desactiver" : "Activer"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             );
           })}

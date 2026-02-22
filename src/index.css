@@ -212,6 +212,18 @@
     color: hsl(var(--purple));
   }
 
+  .input {
+    @apply w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors;
+    border-color: hsl(var(--border));
+    background: hsl(var(--input));
+    color: hsl(var(--foreground));
+  }
+
+  .input:focus {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+  }
+
   /* Page header */
   .page-header {
     @apply mb-6;

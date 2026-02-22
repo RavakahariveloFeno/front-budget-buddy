@@ -13,6 +13,7 @@ import Categories from "./pages/Categories";
 import Budgets from "./pages/Budgets";
 import Loans from "./pages/Loans";
 import Investments from "./pages/Investments";
+import ActivityWorkspace from "./pages/ActivityWorkspace";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/loans" element={<Loans />} />
             <Route path="/investments" element={<Investments />} />
+            <Route path="/:activitySlug" element={<ActivityWorkspace />} />
           </Route>
           <Route element={<PublicOnlyRoute />}>
             <Route path="/signin" element={<SignIn />} />

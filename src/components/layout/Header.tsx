@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, CalendarClock, LogOut, Search } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, LogOut, Search, Sparkles } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser } from "@/api/authApi";
+import { isPremiumEnabled, setPremiumEnabled, subscribePremiumChange } from "@/api/premiumApi";
 import { getRecurringIncomes } from "@/api/incomeApi";
 import type { RecurringIncome } from "@/api/incomeApi";
 import { getRecurringExpenses } from "@/api/expenseApi";
@@ -232,6 +233,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
   const seenNotificationMapRef = useRef<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(0);
+  const [premium, setPremium] = useState(isPremiumEnabled());
   const currentUser = getCurrentUser();
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
   const userEmail = currentUser?.email ?? "-";
@@ -276,6 +278,10 @@ export default function Header({ title, subtitle }: HeaderProps) {
   useEffect(() => {
     setActiveIndex(0);
   }, [query]);
+
+  useEffect(() => {
+    return subscribePremiumChange((enabled) => setPremium(enabled));
+  }, []);
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -493,6 +499,10 @@ export default function Header({ title, subtitle }: HeaderProps) {
     setUserMenuOpen(false);
   };
 
+  const togglePremium = () => {
+    setPremiumEnabled(!premium);
+  };
+
   const handleNotificationClick = (to: string) => {
     markNotificationsAsRead(notifications.map((item) => item.id));
     setNotificationOpen(false);
@@ -692,8 +702,17 @@ export default function Header({ title, subtitle }: HeaderProps) {
                 {userEmail}
               </p>
               <button
-                onClick={handleLogout}
+                onClick={togglePremium}
                 className="mt-3 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border text-xs transition-colors hover:bg-secondary"
+                style={{ borderColor: "hsl(var(--border))", color: premium ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+                title="Activer ou desactiver le mode premium manuel"
+              >
+                <Sparkles size={13} />
+                <span>{premium ? "Premium ON (manuel)" : "Premium OFF (manuel)"}</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border text-xs transition-colors hover:bg-secondary"
                 style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                 title="Se deconnecter"
               >
