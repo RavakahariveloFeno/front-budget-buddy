@@ -7,6 +7,8 @@ import Layout from "@/components/layout/Layout";
 import { isSessionAuthenticated } from "@/api/authApi";
 import Dashboard from "./pages/Dashboard";
 import Activities from "./pages/Activities";
+import ActivityDetail from "./pages/ActivityDetail";
+import ModuleMenuPage from "./pages/ModuleMenuPage";
 import Incomes from "./pages/Incomes";
 import Expenses from "./pages/Expenses";
 import Categories from "./pages/Categories";
@@ -46,6 +48,8 @@ const App = () => (
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/activities" element={<Activities />} />
+            <Route path="/activities/:activityId" element={<ActivityDetail />} />
+            <Route path="/activities/:activityId/modules/:moduleId/:menuPath" element={<ModuleMenuPage />} />
             <Route path="/incomes" element={<Incomes />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/categories" element={<Categories />} />

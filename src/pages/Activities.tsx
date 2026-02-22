@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Briefcase, Calendar, Pencil, Plus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Briefcase, Calendar, Eye, LayoutGrid, Pencil, Plus, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import {
   formatCurrency,
   formatDate,
+  PREDEFINED_MODULES,
   type Activity,
   type Investment,
 } from "@/data/staticData";
@@ -19,6 +21,7 @@ import { getInvestments } from "@/api/investmentApi";
 import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { useModuleStore } from "@/stores/moduleStore";
 
 const typeColors: Record<string, string> = {
   SALARY: "badge-income",
@@ -49,7 +52,9 @@ function buildStatsMap(stats: ActivityStats[]): Record<string, ActivityStats> {
 }
 
 export default function Activities() {
+  const navigate = useNavigate();
   const [activityList, setActivityList] = useState<Activity[]>([]);
+  const { getModuleIds, setLinks } = useModuleStore();
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
   const [formOpen, setFormOpen] = useState(false);
@@ -106,8 +111,11 @@ export default function Activities() {
   const handleCreate = async (payload: ActivityPayload) => {
     const created = await createActivity(payload);
     setActivityList((prev) => [created, ...prev]);
+    // Module linking is handled inside ActivityForm via onUpdate for edits;
+    // for new activities we need the ID, so we do it here via the store
     await refreshActivityStats();
     toast({ title: "Activite ajoutee", description: created.name });
+    return created;
   };
 
   const handleUpdate = async (id: string, payload: ActivityPayload) => {
@@ -184,6 +192,9 @@ export default function Activities() {
                   <div className="flex items-center gap-1">
                     <span className={typeColors[act.type]}>{typeLabels[act.type]}</span>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                      <button onClick={() => navigate(`/activities/${act.id}`)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors" title="Voir modules">
+                        <Eye size={13} style={{ color: "hsl(var(--info))" }} />
+                      </button>
                       <button onClick={() => handleEdit(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
                         <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
                       </button>
@@ -244,6 +255,23 @@ export default function Activities() {
                     </p>
                   </div>
                 </div>
+
+                {/* Linked modules */}
+                {(() => {
+                  const moduleIds = getModuleIds(act.id);
+                  const linkedMods = PREDEFINED_MODULES.filter((m) => moduleIds.includes(m.id));
+                  if (linkedMods.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
+                      <LayoutGrid size={12} className="mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                      {linkedMods.map((mod) => (
+                        <span key={mod.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: `hsl(var(--${mod.color}-dim))`, color: `hsl(var(--${mod.color}))` }}>
+                          {mod.name}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 <div className="flex items-center gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
                   <Calendar size={12} style={{ color: "hsl(var(--muted-foreground))" }} />

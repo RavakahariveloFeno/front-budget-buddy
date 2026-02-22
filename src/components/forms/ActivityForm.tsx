@@ -3,8 +3,10 @@ import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import type { Activity, ActivityType } from "@/data/staticData";
+import { PREDEFINED_MODULES } from "@/data/staticData";
 import { toast } from "@/hooks/use-toast";
 import type { ActivityPayload } from "@/api/activityApi";
+import { useModuleStore } from "@/stores/moduleStore";
 
 const typeOptions = [
   { value: "SALARY", label: "Salaire" },
@@ -17,7 +19,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activity?: Activity | null;
-  onCreate: (payload: ActivityPayload) => Promise<void>;
+  onCreate: (payload: ActivityPayload) => Promise<Activity | void>;
   onUpdate: (id: string, payload: ActivityPayload) => Promise<void>;
 }
 
@@ -28,17 +30,24 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+
+  const { getModuleIds, setLinks } = useModuleStore();
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
+    if (!open) return;
     setName(activity?.name || "");
     setType(activity?.type || "SALARY");
     setDescription(activity?.description || "");
     setStartDate(activity?.startDate ? activity.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setSelectedModules(activity ? getModuleIds(activity.id) : []);
   }, [activity, open]);
+
+  const toggleModule = (moduleId: string) => {
+    setSelectedModules((prev) =>
+      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,8 +67,12 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
       setIsSubmitting(true);
       if (isEdit && activity) {
         await onUpdate(activity.id, payload);
+        setLinks(activity.id, selectedModules);
       } else {
-        await onCreate(payload);
+        const created = await onCreate(payload);
+        if (created && created.id) {
+          setLinks(created.id, selectedModules);
+        }
       }
       onOpenChange(false);
     } catch (error) {
@@ -77,6 +90,49 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
         <SelectField label="Type" value={type} onValueChange={(value) => setType(value as ActivityType)} options={typeOptions} />
         <FormFieldInput label="Description" id="act-desc" value={description} onChange={setDescription} placeholder="Description optionnelle" />
         <FormFieldInput label="Date de debut" id="act-date" type="date" value={startDate} onChange={setStartDate} required />
+
+        {/* Module multi-select */}
+        <div>
+          <label className="text-sm font-medium mb-2 block" style={{ color: "hsl(var(--foreground))" }}>
+            Modules associés
+          </label>
+          <div className="space-y-2">
+            {PREDEFINED_MODULES.map((mod) => {
+              const isSelected = selectedModules.includes(mod.id);
+              return (
+                <button
+                  key={mod.id}
+                  type="button"
+                  onClick={() => toggleModule(mod.id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all"
+                  style={{
+                    borderColor: isSelected ? `hsl(var(--${mod.color}))` : "hsl(var(--border))",
+                    background: isSelected ? `hsl(var(--${mod.color}-dim))` : "transparent",
+                  }}
+                >
+                  <div
+                    className="w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0"
+                    style={{
+                      background: isSelected ? `hsl(var(--${mod.color}))` : "hsl(var(--secondary))",
+                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                    }}
+                  >
+                    {isSelected ? "✓" : ""}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                      {mod.name}
+                    </p>
+                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {mod.menus.map((m) => m.label).join(", ")}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={isSubmitting}

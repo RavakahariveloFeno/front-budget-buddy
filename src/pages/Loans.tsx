@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, ChevronDown, ChevronRight, CreditCard, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
-import type { Activity, Loan } from "@/data/staticData";
+import type { Activity, Loan, LoanStatus } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import { createLoan, deleteLoan, getLoanPaymentHistory, getLoans, updateLoan } from "@/api/loanApi";
 import type { LoanPayload } from "@/api/loanApi";
@@ -39,7 +39,7 @@ export default function Loans() {
         return {
           ...loan,
           remainingAmount,
-          status: remainingAmount === 0 ? "PAID" : "ACTIVE",
+          status: (remainingAmount === 0 ? "PAID" : "ACTIVE") as LoanStatus,
           payments,
         };
       });
