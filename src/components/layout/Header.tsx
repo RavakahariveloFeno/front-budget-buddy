@@ -114,7 +114,7 @@ function buildRecurringIncomeAlerts(items: RecurringIncome[], today: Date): AppN
         timestamp: next.getTime(),
       } satisfies AppNotification;
     })
-    .filter((item): item is AppNotification => Boolean(item));
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 function buildRecurringExpenseAlerts(items: RecurringExpense[], today: Date): AppNotification[] {
@@ -140,7 +140,7 @@ function buildRecurringExpenseAlerts(items: RecurringExpense[], today: Date): Ap
         timestamp: next.getTime(),
       } satisfies AppNotification;
     })
-    .filter((item): item is AppNotification => Boolean(item));
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 function buildBudgetAlerts(budgets: Budget[], spentByPeriod: { DAY: number; WEEK: number; MONTH: number }): AppNotification[] {
@@ -176,7 +176,7 @@ function buildBudgetAlerts(budgets: Budget[], spentByPeriod: { DAY: number; WEEK
 
       return null;
     })
-    .filter((item): item is AppNotification => Boolean(item));
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 function buildLoanAlerts(loans: Loan[], today: Date): AppNotification[] {
@@ -213,7 +213,7 @@ function buildLoanAlerts(loans: Loan[], today: Date): AppNotification[] {
 
       return null;
     })
-    .filter((item): item is AppNotification => Boolean(item));
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 export default function Header({ title, subtitle }: HeaderProps) {
