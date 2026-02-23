@@ -11,9 +11,7 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
-  LogOut,
 } from "lucide-react";
-import { currentUser } from "@/data/staticData";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -69,31 +67,6 @@ export default function Sidebar() {
           );
         })}
       </nav>
-
-      {/* User */}
-      <div className="border-t px-2 py-3" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-        <div className={`flex items-center gap-3 px-2 py-2 rounded-lg ${collapsed ? "justify-center" : ""}`}>
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-          >
-            {currentUser.firstName[0]}{currentUser.lastName[0]}
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0 animate-fade-in">
-              <p className="text-xs font-medium truncate" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>
-                {currentUser.firstName} {currentUser.lastName}
-              </p>
-              <p className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
-                {currentUser.email}
-              </p>
-            </div>
-          )}
-          {!collapsed && (
-            <LogOut size={14} className="flex-shrink-0 cursor-pointer opacity-50 hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--sidebar-foreground))" }} />
-          )}
-        </div>
-      </div>
 
       {/* Collapse toggle */}
       <button
