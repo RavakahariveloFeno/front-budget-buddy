@@ -5,28 +5,28 @@ import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES } from "@/data/staticData";
 
 // ── Vente ──
-import StockPage from "@/pages/modules/StockPage";
-import FacturesPage from "@/pages/modules/FacturesPage";
-import ProduitsPage from "@/pages/modules/ProduitsPage";
-import ClientsPage from "@/pages/modules/ClientsPage";
+import StockPage from "@/pages/modules/sale-management/StockPage";
+import FacturesPage from "@/pages/modules/sale-management/FacturesPage";
+import ProduitsPage from "@/pages/modules/sale-management/ProduitsPage";
+import ClientsPage from "@/pages/modules/sale-management/ClientsPage";
 
 // ── Comptabilité ──
-import JournalPage from "@/pages/modules/JournalPage";
-import PlanComptablePage from "@/pages/modules/PlanComptablePage";
-import BilanPage from "@/pages/modules/BilanPage";
-import TresoreriePage from "@/pages/modules/TresoreriePage";
+import JournalPage from "@/pages/modules/accounting-management/JournalPage";
+import PlanComptablePage from "@/pages/modules/accounting-management/PlanComptablePage";
+import BilanPage from "@/pages/modules/accounting-management/BilanPage";
+import TresoreriePage from "@/pages/modules/accounting-management/TresoreriePage";
 
 // ── Paie ──
-import EmployesPage from "@/pages/modules/EmployesPage";
-import FichesPaiePage from "@/pages/modules/FichesPaiePage";
-import ChargesPage from "@/pages/modules/ChargesPage";
-import CongesPage from "@/pages/modules/CongesPage";
+import EmployesPage from "@/pages/modules/payroll-management/EmployesPage";
+import FichesPaiePage from "@/pages/modules/payroll-management/FichesPaiePage";
+import ChargesPage from "@/pages/modules/payroll-management/ChargesPage";
+import CongesPage from "@/pages/modules/payroll-management/CongesPage";
 
 // ── Trésorerie ──
-import EncaissementsPage from "@/pages/modules/EncaissementsPage";
-import DecaissementsPage from "@/pages/modules/DecaissementsPage";
-import PrevisionsPage from "@/pages/modules/PrevisionsPage";
-import RapportsPage from "@/pages/modules/RapportsPage";
+import EncaissementsPage from "@/pages/modules/cash-management/EncaissementsPage";
+import DecaissementsPage from "@/pages/modules/cash-management/DecaissementsPage";
+import PrevisionsPage from "@/pages/modules/cash-management/PrevisionsPage";
+import RapportsPage from "@/pages/modules/cash-management/RapportsPage";
 
 const PAGE_MAP: Record<string, React.ComponentType> = {
   // Vente

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
@@ -91,10 +92,9 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
         <FormFieldInput label="Description" id="act-desc" value={description} onChange={setDescription} placeholder="Description optionnelle" />
         <FormFieldInput label="Date de debut" id="act-date" type="date" value={startDate} onChange={setStartDate} required />
 
-        {/* Module multi-select */}
         <div>
           <label className="text-sm font-medium mb-2 block" style={{ color: "hsl(var(--foreground))" }}>
-            Modules associés
+            Modules associes
           </label>
           <div className="space-y-2">
             {PREDEFINED_MODULES.map((mod) => {
@@ -111,13 +111,15 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
                   }}
                 >
                   <div
-                    className="w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0"
+                    className="w-5 h-5 rounded-md border flex items-center justify-center text-xs flex-shrink-0 transition-all"
                     style={{
-                      background: isSelected ? `hsl(var(--${mod.color}))` : "hsl(var(--secondary))",
-                      color: isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                      borderColor: isSelected ? `hsl(var(--${mod.color}))` : "hsl(var(--muted-foreground) / 0.4)",
+                      background: isSelected ? `hsl(var(--${mod.color}))` : "transparent",
+                      boxShadow: isSelected ? `0 0 0 2px hsl(var(--${mod.color}) / 0.22)` : "none",
+                      color: isSelected ? "hsl(var(--background))" : "hsl(var(--muted-foreground))",
                     }}
                   >
-                    {isSelected ? "✓" : ""}
+                    {isSelected ? <Check size={13} strokeWidth={3} /> : null}
                   </div>
                   <div>
                     <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
