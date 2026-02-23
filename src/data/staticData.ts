@@ -139,6 +139,45 @@ export const PREDEFINED_MODULES: AppModule[] = [
       { id: "menu-fournisseur", label: "Fournisseurs", icon: "Truck", path: "fournisseurs" },
     ],
   },
+  {
+    id: "mod-comptabilite",
+    name: "Comptabilité",
+    description: "Suivi comptable lié aux dépenses et revenus",
+    icon: "BookOpen",
+    color: "chart-2",
+    menus: [
+      { id: "menu-journal", label: "Journal", icon: "BookOpen", path: "journal" },
+      { id: "menu-plan-comptable", label: "Plan comptable", icon: "List", path: "plan-comptable" },
+      { id: "menu-bilan", label: "Bilan", icon: "BarChart3", path: "bilan" },
+      { id: "menu-tresorerie", label: "Trésorerie", icon: "Landmark", path: "tresorerie" },
+    ],
+  },
+  {
+    id: "mod-paie",
+    name: "Gestion de paie",
+    description: "Gestion des employés, fiches de paie et charges",
+    icon: "Wallet",
+    color: "chart-3",
+    menus: [
+      { id: "menu-employes", label: "Employés", icon: "UserCheck", path: "employes" },
+      { id: "menu-fiches-paie", label: "Fiches de paie", icon: "Receipt", path: "fiches-paie" },
+      { id: "menu-charges", label: "Charges sociales", icon: "PiggyBank", path: "charges" },
+      { id: "menu-conges", label: "Congés", icon: "Calendar", path: "conges" },
+    ],
+  },
+  {
+    id: "mod-tresorerie",
+    name: "Suivi de trésorerie",
+    description: "Encaissements, décaissements et prévisions financières",
+    icon: "TrendingUp",
+    color: "chart-4",
+    menus: [
+      { id: "menu-encaissements", label: "Encaissements", icon: "ArrowDownLeft", path: "encaissements" },
+      { id: "menu-decaissements", label: "Décaissements", icon: "ArrowUpRight", path: "decaissements" },
+      { id: "menu-previsions", label: "Prévisions", icon: "LineChart", path: "previsions" },
+      { id: "menu-rapports", label: "Rapports", icon: "FileBarChart", path: "rapports" },
+    ],
+  },
 ];
 
 // Many-to-many link between Activity and Module
