@@ -9,6 +9,7 @@ import {
   PiggyBank,
   CreditCard,
   ArrowLeftRight,
+  Settings,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/budgets", icon: PiggyBank, label: "Budgets" },
   { to: "/loans", icon: CreditCard, label: "Prêts" },
   { to: "/investments", icon: ArrowLeftRight, label: "Investissements" },
+  { to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
 export default function Sidebar() {
@@ -40,15 +42,14 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <div
-          className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0"
-          style={{ background: "var(--gradient-primary)" }}
+          className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0"
         >
-          <span className="text-base font-bold" style={{ color: "hsl(var(--primary-foreground))" }}>₣</span>
+          <img src="/pilgo-logo.png" alt="Pilgo logo" className="w-full h-full object-cover rounded-lg" />
         </div>
         {!collapsed && (
           <div className="animate-fade-in overflow-hidden">
-            <p className="font-display font-bold text-sm" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>FinanceFlow</p>
-            <p className="text-xs" style={{ color: "hsl(var(--sidebar-foreground))" }}>Gestion personnelle</p>
+            <p className="font-display font-bold text-sm" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>Pilgo</p>
+            <p className="text-xs" style={{ color: "hsl(var(--sidebar-foreground))" }}>Pilotage budgetaire</p>
           </div>
         )}
       </div>

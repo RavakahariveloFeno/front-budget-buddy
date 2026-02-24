@@ -63,6 +63,20 @@
     --purple: 263 70% 62%;
     --purple-dim: 263 40% 18%;
 
+    /* Chart palette */
+    --chart-1: 158 64% 52%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 263 70% 62%;
+
+    /* Chart dim variants */
+    --chart-1-dim: 158 40% 20%;
+    --chart-2-dim: 217 45% 18%;
+    --chart-3-dim: 142 40% 16%;
+    --chart-4-dim: 38 45% 18%;
+    --chart-5-dim: 263 40% 18%;
+
     /* Borders & inputs */
     --border: 224 22% 18%;
     --input: 224 22% 14%;
