@@ -1,5 +1,6 @@
 const AUTH_API_URL = "http://localhost:3001/auth";
 const TOKEN_STORAGE_KEY = "bb_access_token";
+const USER_PROFILE_STORAGE_KEY = "bb_user_profile";
 
 export interface AuthUser {
   id: string;
@@ -58,9 +59,41 @@ export function getSessionToken(): string | null {
 
 export function clearSessionToken(): void {
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+}
+
+function readCachedUserProfile(): AuthUser | null {
+  const raw = sessionStorage.getItem(USER_PROFILE_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<AuthUser>;
+    if (!parsed.id || !parsed.email || !parsed.firstName || !parsed.lastName) {
+      return null;
+    }
+    return {
+      id: parsed.id,
+      email: parsed.email,
+      firstName: parsed.firstName,
+      lastName: parsed.lastName,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUserProfile(profile: AuthUser): void {
+  sessionStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
 }
 
 export function getCurrentUser(): AuthUser | null {
+  const cachedUser = readCachedUserProfile();
+  if (cachedUser) {
+    return cachedUser;
+  }
+
   const token = getSessionToken();
   if (!token) {
     return null;
@@ -71,12 +104,27 @@ export function getCurrentUser(): AuthUser | null {
     return null;
   }
 
-  return {
+  const user: AuthUser = {
     id: payload.sub,
     email: payload.email,
     firstName: payload.firstName,
     lastName: payload.lastName,
   };
+  writeCachedUserProfile(user);
+  return user;
+}
+
+export function updateCachedCurrentUserProfile(payload: Pick<AuthUser, "firstName" | "lastName">): void {
+  const current = getCurrentUser();
+  if (!current) {
+    return;
+  }
+
+  writeCachedUserProfile({
+    ...current,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+  });
 }
 
 export function getCurrentUserId(): string | null {
@@ -149,5 +197,6 @@ export async function signIn(payload: LoginPayload): Promise<void> {
     throw new Error("Missing access token");
   }
 
+  sessionStorage.removeItem(USER_PROFILE_STORAGE_KEY);
   saveSessionToken(token);
 }

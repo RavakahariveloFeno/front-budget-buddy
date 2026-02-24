@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { User, Lock, Users, Pencil, Trash2, Plus, Shield } from "lucide-react";
 import { PREDEFINED_MODULES } from "@/data/staticData";
-import { getCurrentUser } from "@/api/authApi";
+import { getCurrentUser, updateCachedCurrentUserProfile } from "@/api/authApi";
+import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
 
 type AppRole = "admin" | "manager" | "user";
@@ -52,6 +53,7 @@ export default function Settings() {
   const [firstName, setFirstName] = useState(currentUser?.firstName || "Admin");
   const [lastName, setLastName] = useState(currentUser?.lastName || "Pilgo");
   const [email] = useState(currentUser?.email || "admin@pilgo.mg");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -64,8 +66,33 @@ export default function Settings() {
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [formUser, setFormUser] = useState<Omit<ManagedUser, "id">>({ firstName: "", lastName: "", email: "", role: "user", moduleIds: [] });
 
-  const handleSaveProfile = () => {
-    toast({ title: "Profil mis à jour", description: "Vos informations ont été enregistrées." });
+  const handleSaveProfile = async () => {
+    const nextFirstName = firstName.trim();
+    const nextLastName = lastName.trim();
+
+    if (!nextFirstName || !nextLastName) {
+      toast({ title: "Erreur", description: "Le prenom et le nom sont obligatoires.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      await updateCurrentUserProfile({
+        firstName: nextFirstName,
+        lastName: nextLastName,
+      });
+      updateCachedCurrentUserProfile({
+        firstName: nextFirstName,
+        lastName: nextLastName,
+      });
+      setFirstName(nextFirstName);
+      setLastName(nextLastName);
+      toast({ title: "Profil mis a jour", description: "Vos informations ont ete enregistrees." });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de mettre a jour le profil.", variant: "destructive" });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -173,7 +200,9 @@ export default function Settings() {
                 <Label htmlFor="email" className="text-muted-foreground text-sm">Email</Label>
                 <Input id="email" value={email} disabled className="border-border bg-input opacity-60" />
               </div>
-              <Button onClick={handleSaveProfile} className="mt-2">Enregistrer</Button>
+              <Button onClick={handleSaveProfile} className="mt-2" disabled={isSavingProfile}>
+                {isSavingProfile ? "Enregistrement..." : "Enregistrer"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -331,3 +360,4 @@ export default function Settings() {
     </div>
   );
 }
+
