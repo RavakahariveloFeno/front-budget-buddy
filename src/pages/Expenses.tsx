@@ -4,7 +4,8 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Category, Expense } from "@/data/staticData";
-import { getActivities } from "@/api/activityApi";
+import { getActivities, getActivityStatsByUser } from "@/api/activityApi";
+import type { ActivityStats } from "@/api/activityApi";
 import { getCategories } from "@/api/categoryApi";
 import {
   createRecurringExpense,
@@ -61,6 +62,7 @@ export default function Expenses() {
   const [recurringActivityId, setRecurringActivityId] = useState("none");
   const [recurringActive, setRecurringActive] = useState(true);
   const [isRecurringSubmitting, setIsRecurringSubmitting] = useState(false);
+  const [activityStatsById, setActivityStatsById] = useState<Record<string, ActivityStats>>({});
 
   const loadExpenses = async () => {
     try {
@@ -92,6 +94,20 @@ export default function Expenses() {
     }
   };
 
+  const refreshActivityStats = async () => {
+    try {
+      const stats = await getActivityStatsByUser();
+      const byId = stats.reduce<Record<string, ActivityStats>>((acc, entry) => {
+        acc[entry.activityId] = entry;
+        return acc;
+      }, {});
+      setActivityStatsById(byId);
+    } catch (error) {
+      console.error("Impossible de charger les statistiques activite depuis l'API.", error);
+      setActivityStatsById({});
+    }
+  };
+
   useEffect(() => {
     const loadActivities = async () => {
       try {
@@ -118,6 +134,7 @@ export default function Expenses() {
     loadActivities();
     loadCategories();
     refreshExpenseStats();
+    refreshActivityStats();
   }, []);
 
   const maxCatLabel = expenseStats.topCategory
@@ -140,6 +157,13 @@ export default function Expenses() {
     return map;
   }, [activityList]);
 
+  const activityNetById = useMemo(() => {
+    return Object.entries(activityStatsById).reduce<Record<string, number>>((acc, [activityId, stats]) => {
+      acc[activityId] = (stats.income ?? 0) - (stats.expense ?? 0) - (stats.sentInvestment ?? 0) + (stats.receivedInvestment ?? 0);
+      return acc;
+    }, {});
+  }, [activityStatsById]);
+
   const handleEdit = (expense: Expense) => {
     setEditItem(expense);
     setFormOpen(true);
@@ -153,6 +177,7 @@ export default function Expenses() {
     const created = await createExpense(payload);
     setExpenseList((prev) => [created, ...prev]);
     await refreshExpenseStats();
+    await refreshActivityStats();
     toast({ title: "Depense ajoutee", description: `-${formatCurrency(created.amount)}` });
   };
 
@@ -161,6 +186,7 @@ export default function Expenses() {
     await loadExpenses();
     await loadRecurringExpenses();
     await refreshExpenseStats();
+    await refreshActivityStats();
     toast({
       title: "Depense automatique ajoutee",
       description: `${result.createdOccurrences} occurrence(s) generee(s).`,
@@ -171,6 +197,7 @@ export default function Expenses() {
     const updated = await updateExpense(id, payload);
     setExpenseList((prev) => prev.map((expense) => (expense.id === id ? updated : expense)));
     await refreshExpenseStats();
+    await refreshActivityStats();
     toast({ title: "Depense modifiee", description: `-${formatCurrency(updated.amount)}` });
   };
 
@@ -183,6 +210,7 @@ export default function Expenses() {
       await deleteExpense(deleteTarget.id);
       setExpenseList((prev) => prev.filter((expense) => expense.id !== deleteTarget.id));
       await refreshExpenseStats();
+      await refreshActivityStats();
       toast({ title: "Depense supprimee" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -239,6 +267,7 @@ export default function Expenses() {
       await loadRecurringExpenses();
       await loadExpenses();
       await refreshExpenseStats();
+      await refreshActivityStats();
       setRecurringEditOpen(false);
       toast({ title: "Depense automatique modifiee" });
     } catch (error) {
@@ -254,6 +283,7 @@ export default function Expenses() {
     try {
       await deleteRecurringExpense(recurringDeleteTarget.id);
       await loadRecurringExpenses();
+      await refreshActivityStats();
       toast({ title: "Depense automatique supprimee" });
       setRecurringDeleteOpen(false);
       setRecurringDeleteTarget(null);
@@ -355,7 +385,9 @@ export default function Expenses() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...expenseList].reverse().map((expense) => {
+                  {[...expenseList]
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((expense) => {
                     const category = expense.categoryId ? categoryById.get(expense.categoryId) : undefined;
                     const activity = expense.activityId ? activityById.get(expense.activityId) : undefined;
                     return (
@@ -466,6 +498,7 @@ export default function Expenses() {
         onOpenChange={setFormOpen}
         expense={editItem}
         activities={activityList}
+        activityNetById={activityNetById}
         categories={categoryList}
         onCreate={handleCreate}
         onCreateRecurring={handleCreateRecurring}

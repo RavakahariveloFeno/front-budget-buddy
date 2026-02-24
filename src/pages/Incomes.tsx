@@ -354,7 +354,9 @@ export default function Incomes() {
                 </tr>
               </thead>
               <tbody>
-                {[...incomeList].reverse().map((inc) => {
+                {[...incomeList]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((inc) => {
                   const act = activityList.find((activity) => activity.id === inc.activityId);
                   return (
                     <tr key={inc.id}>

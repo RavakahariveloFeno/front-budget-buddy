@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
-import type { Activity, Category, Expense } from "@/data/staticData";
+import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
+import { formatCurrency, type Activity, type Category, type Expense } from "@/data/staticData";
 import type { ExpensePayload, RecurringExpensePayload } from "@/api/expenseApi";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
@@ -13,13 +14,31 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   expense?: Expense | null;
   activities: Activity[];
+  activityNetById?: Record<string, number>;
   categories: Category[];
   onCreate: (payload: ExpensePayload) => Promise<void>;
   onCreateRecurring: (payload: RecurringExpensePayload) => Promise<void>;
   onUpdate: (id: string, payload: ExpensePayload) => Promise<void>;
 }
 
-export default function ExpenseForm({ open, onOpenChange, expense, activities, categories, onCreate, onCreateRecurring, onUpdate }: Props) {
+interface OverBudgetConfirmState {
+  payload: ExpensePayload;
+  activityName: string;
+  availableBudget: number;
+  requestedAmount: number;
+}
+
+export default function ExpenseForm({
+  open,
+  onOpenChange,
+  expense,
+  activities,
+  activityNetById = {},
+  categories,
+  onCreate,
+  onCreateRecurring,
+  onUpdate,
+}: Props) {
   const isEdit = Boolean(expense);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -30,6 +49,7 @@ export default function ExpenseForm({ open, onOpenChange, expense, activities, c
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [overBudgetConfirm, setOverBudgetConfirm] = useState<OverBudgetConfirmState | null>(null);
 
   const catOptions = useMemo(
     () => [{ value: "none", label: "Aucune" }, ...categories.map((category) => ({ value: category.id, label: `${category.icon || ""} ${category.name}`.trim() }))],
@@ -61,7 +81,26 @@ export default function ExpenseForm({ open, onOpenChange, expense, activities, c
     setIsRecurring(false);
     setRecurrenceFrequency("MONTH");
     setRecurrenceEndDate("");
+    setOverBudgetConfirm(null);
   }, [expense, open]);
+
+  const handleConfirmOverBudget = async () => {
+    if (!overBudgetConfirm) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onCreate(overBudgetConfirm.payload);
+      onOpenChange(false);
+      setOverBudgetConfirm(null);
+    } catch (error) {
+      console.error("Echec de l'enregistrement de depense.", error);
+      toast({ title: "Erreur", description: "Impossible d'enregistrer la depense." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -101,6 +140,19 @@ export default function ExpenseForm({ open, onOpenChange, expense, activities, c
           frequency: recurrenceFrequency,
         });
       } else {
+        if (activityId !== "none") {
+          const activityName = activities.find((activity) => activity.id === activityId)?.name || "cette activite";
+          const availableBudget = activityNetById[activityId] ?? 0;
+          if (parsedAmount > availableBudget) {
+            setOverBudgetConfirm({
+              payload,
+              activityName,
+              availableBudget,
+              requestedAmount: parsedAmount,
+            });
+            return;
+          }
+        }
         await onCreate(payload);
       }
       onOpenChange(false);
@@ -113,8 +165,9 @@ export default function ExpenseForm({ open, onOpenChange, expense, activities, c
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier la depense" : "Nouvelle depense"}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier la depense" : "Nouvelle depense"}>
+        <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (EUR)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
@@ -144,7 +197,24 @@ export default function ExpenseForm({ open, onOpenChange, expense, activities, c
         >
           {isSubmitting ? "En cours..." : isEdit ? "Enregistrer" : isRecurring ? "Programmer" : "Ajouter"}
         </button>
-      </form>
-    </FormDialog>
+        </form>
+      </FormDialog>
+      <ActionConfirmDialog
+        open={Boolean(overBudgetConfirm)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setOverBudgetConfirm(null);
+          }
+        }}
+        title="Budget d'activite insuffisant"
+        description={
+          overBudgetConfirm
+            ? `Le budget disponible de ${overBudgetConfirm.activityName} (${formatCurrency(overBudgetConfirm.availableBudget)}) est inferieur au montant (${formatCurrency(overBudgetConfirm.requestedAmount)}). Voulez-vous continuer ?`
+            : ""
+        }
+        confirmLabel="Continuer"
+        onConfirm={handleConfirmOverBudget}
+      />
+    </>
   );
 }

@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Bell, CalendarClock, LogOut, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser } from "@/api/authApi";
-import { getRecurringIncomes } from "@/api/incomeApi";
+import { getIncomes, getRecurringIncomes } from "@/api/incomeApi";
 import type { RecurringIncome } from "@/api/incomeApi";
-import { getRecurringExpenses } from "@/api/expenseApi";
+import { getExpenses, getRecurringExpenses } from "@/api/expenseApi";
 import type { RecurringExpense } from "@/api/expenseApi";
 import { getBudgets, getBudgetStatistics } from "@/api/budgetApi";
 import { getLoans } from "@/api/loanApi";
-import type { Budget, Loan } from "@/data/staticData";
+import type { Budget, Expense, Income, Loan } from "@/data/staticData";
 import { formatCurrency } from "@/data/staticData";
 
 interface HeaderProps {
@@ -143,6 +143,43 @@ function buildRecurringExpenseAlerts(items: RecurringExpense[], today: Date): Ap
     .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
+function buildAutoRunAlerts(incomes: Income[], expenses: Expense[], today: Date): AppNotification[] {
+  const isToday = (value: string): boolean => {
+    const date = parseDateOnly(value);
+    return Boolean(date && date.getTime() === today.getTime());
+  };
+
+  const autoIncomes = incomes.filter((item) => Boolean(item.recurringIncomeId) && isToday(item.date));
+  const autoExpenses = expenses.filter((item) => Boolean(item.recurringExpenseId) && isToday(item.date));
+
+  const alerts: AppNotification[] = [];
+  if (autoIncomes.length > 0) {
+    const total = autoIncomes.reduce((sum, item) => sum + item.amount, 0);
+    alerts.push({
+      id: `auto-income-run-${today.toISOString().slice(0, 10)}-${autoIncomes.length}-${Math.round(total)}`,
+      title: "Action automatique revenu lancee",
+      description: `${autoIncomes.length} revenu(x) automatique(s) execute(s) - ${formatCurrency(total)}`,
+      level: "medium",
+      to: "/incomes",
+      timestamp: today.getTime() + 11,
+    });
+  }
+
+  if (autoExpenses.length > 0) {
+    const total = autoExpenses.reduce((sum, item) => sum + item.amount, 0);
+    alerts.push({
+      id: `auto-expense-run-${today.toISOString().slice(0, 10)}-${autoExpenses.length}-${Math.round(total)}`,
+      title: "Action automatique depense lancee",
+      description: `${autoExpenses.length} depense(s) automatique(s) executee(s) - ${formatCurrency(total)}`,
+      level: "medium",
+      to: "/expenses",
+      timestamp: today.getTime() + 12,
+    });
+  }
+
+  return alerts;
+}
+
 function buildBudgetAlerts(budgets: Budget[], spentByPeriod: { DAY: number; WEEK: number; MONTH: number }): AppNotification[] {
   return budgets
     .map((budget) => {
@@ -249,6 +286,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
       { to: "/budgets", title: "Budgets", subtitle: "Objectifs et limites", keywords: ["budget", "plafond"] },
       { to: "/loans", title: "Prets", subtitle: "Emprunts et remboursements", keywords: ["loan", "credit"] },
       { to: "/investments", title: "Investissements", subtitle: "Transferts entre activites", keywords: ["investment", "transfert"] },
+      { to: "/settings", title: "Parametres", subtitle: "Preferences et compte", keywords: ["settings", "parametre", "configuration"] },
     ],
     [],
   );
@@ -399,9 +437,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
       setNotificationsLoading(true);
     }
 
-    const [recIncomeResult, recExpenseResult, budgetsResult, budgetStatsResult, loansResult] = await Promise.allSettled([
+    const [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult] = await Promise.allSettled([
       getRecurringIncomes(),
       getRecurringExpenses(),
+      getIncomes(),
+      getExpenses(),
       getBudgets(),
       getBudgetStatistics(),
       getLoans(),
@@ -418,6 +458,10 @@ export default function Header({ title, subtitle }: HeaderProps) {
       nextNotifications.push(...buildRecurringExpenseAlerts(recExpenseResult.value, today));
     }
 
+    if (incomesResult.status === "fulfilled" && expensesResult.status === "fulfilled") {
+      nextNotifications.push(...buildAutoRunAlerts(incomesResult.value, expensesResult.value, today));
+    }
+
     if (budgetsResult.status === "fulfilled" && budgetStatsResult.status === "fulfilled") {
       nextNotifications.push(...buildBudgetAlerts(budgetsResult.value, budgetStatsResult.value.spentByPeriod));
     }
@@ -426,7 +470,9 @@ export default function Header({ title, subtitle }: HeaderProps) {
       nextNotifications.push(...buildLoanAlerts(loansResult.value, today));
     }
 
-    const failedCount = [recIncomeResult, recExpenseResult, budgetsResult, budgetStatsResult, loansResult].filter((result) => result.status === "rejected").length;
+    const failedCount = [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult].filter(
+      (result) => result.status === "rejected",
+    ).length;
     if (failedCount > 0) {
       nextNotifications.push({
         id: "notif-sync-warning",
