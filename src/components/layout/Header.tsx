@@ -8,6 +8,7 @@ import { getExpenses, getRecurringExpenses } from "@/api/expenseApi";
 import type { RecurringExpense } from "@/api/expenseApi";
 import { getBudgets, getBudgetStatistics } from "@/api/budgetApi";
 import { getLoans } from "@/api/loanApi";
+import { getNotificationState, updateNotificationState } from "@/api/notificationApi";
 import type { Budget, Expense, Income, Loan } from "@/data/staticData";
 import { formatCurrency } from "@/data/staticData";
 
@@ -267,9 +268,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+  const readNotificationIdsRef = useRef<string[]>([]);
   const seenNotificationMapRef = useRef<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(0);
   const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.id ?? null;
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
   const userEmail = currentUser?.email ?? "-";
   const userInitials = currentUser
@@ -303,8 +306,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
     });
   }, [query, searchItems]);
 
-  const notificationStorageKey = currentUser ? `bb.notifications.read.${currentUser.id}` : "bb.notifications.read";
-  const notificationSeenStorageKey = currentUser ? `bb.notifications.seen.${currentUser.id}` : "bb.notifications.seen";
   const unreadNotifications = useMemo(
     () => notifications.filter((item) => !readNotificationIds.includes(item.id)),
     [notifications, readNotificationIds],
@@ -345,49 +346,57 @@ export default function Header({ title, subtitle }: HeaderProps) {
   }, []);
 
   useEffect(() => {
-    const raw = localStorage.getItem(notificationStorageKey);
-    if (!raw) {
-      setReadNotificationIds([]);
-      return;
-    }
+    readNotificationIdsRef.current = readNotificationIds;
+  }, [readNotificationIds]);
 
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setReadNotificationIds([]);
+  const persistNotificationState = useCallback(
+    async (nextReadIds: string[], nextSeenMap: Record<string, number>) => {
+      if (!currentUserId) {
         return;
       }
 
-      const ids = parsed.filter((entry): entry is string => typeof entry === "string");
-      setReadNotificationIds(ids);
-    } catch {
-      setReadNotificationIds([]);
-    }
-  }, [notificationStorageKey]);
+      try {
+        await updateNotificationState({
+          readIds: nextReadIds,
+          seenMap: nextSeenMap,
+        });
+      } catch {
+        // Ignore transient sync failures and retry on next update.
+      }
+    },
+    [currentUserId],
+  );
 
   useEffect(() => {
-    const raw = localStorage.getItem(notificationSeenStorageKey);
-    if (!raw) {
+    if (!currentUserId) {
+      setReadNotificationIds([]);
       seenNotificationMapRef.current = {};
       return;
     }
 
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    let cancelled = false;
+    const loadState = async () => {
+      try {
+        const state = await getNotificationState();
+        if (cancelled) {
+          return;
+        }
+        setReadNotificationIds(state.readIds);
+        seenNotificationMapRef.current = state.seenMap;
+      } catch {
+        if (cancelled) {
+          return;
+        }
+        setReadNotificationIds([]);
         seenNotificationMapRef.current = {};
-        return;
       }
+    };
 
-      const entries = Object.entries(parsed as Record<string, unknown>).filter(
-        (entry): entry is [string, number] => typeof entry[0] === "string" && Number.isFinite(entry[1]),
-      );
-      const map = Object.fromEntries(entries);
-      seenNotificationMapRef.current = map;
-    } catch {
-      seenNotificationMapRef.current = {};
-    }
-  }, [notificationSeenStorageKey]);
+    void loadState();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
 
   const markNotificationsAsRead = useCallback(
     (ids: string[]) => {
@@ -397,11 +406,14 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
       setReadNotificationIds((prev) => {
         const next = Array.from(new Set([...prev, ...ids]));
-        localStorage.setItem(notificationStorageKey, JSON.stringify(next));
+        if (next.length !== prev.length) {
+          readNotificationIdsRef.current = next;
+          void persistNotificationState(next, seenNotificationMapRef.current);
+        }
         return next;
       });
     },
-    [notificationStorageKey],
+    [persistNotificationState],
   );
 
   const trackSeenNotifications = useCallback(
@@ -427,9 +439,9 @@ export default function Header({ title, subtitle }: HeaderProps) {
       }
 
       seenNotificationMapRef.current = next;
-      localStorage.setItem(notificationSeenStorageKey, JSON.stringify(next));
+      void persistNotificationState(readNotificationIdsRef.current, next);
     },
-    [notificationSeenStorageKey],
+    [persistNotificationState],
   );
 
   const loadNotifications = useCallback(async (withLoading: boolean) => {
