@@ -15,6 +15,7 @@ import Categories from "./pages/Categories";
 import Budgets from "./pages/Budgets";
 import Loans from "./pages/Loans";
 import Investments from "./pages/Investments";
+import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/loans" element={<Loans />} />
             <Route path="/investments" element={<Investments />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route element={<PublicOnlyRoute />}>
             <Route path="/signin" element={<SignIn />} />

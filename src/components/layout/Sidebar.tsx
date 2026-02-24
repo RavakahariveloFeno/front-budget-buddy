@@ -9,6 +9,7 @@ import {
   PiggyBank,
   CreditCard,
   ArrowLeftRight,
+  Settings,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/budgets", icon: PiggyBank, label: "Budgets" },
   { to: "/loans", icon: CreditCard, label: "Prêts" },
   { to: "/investments", icon: ArrowLeftRight, label: "Investissements" },
+  { to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
 export default function Sidebar() {
