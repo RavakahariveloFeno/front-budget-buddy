@@ -42,7 +42,7 @@ export default function Sidebar() {
         <div
           className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0"
         >
-          <img src="/pg.png" alt="Pilgo logo" className="w-full h-full object-cover rounded-lg" />
+          <img src="/pilgo-logo.png" alt="Pilgo logo" className="w-full h-full object-cover rounded-lg" />
         </div>
         {!collapsed && (
           <div className="animate-fade-in overflow-hidden">
