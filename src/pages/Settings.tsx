@@ -10,8 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { User, Lock, Users, Pencil, Trash2, Plus, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PREDEFINED_MODULES } from "@/data/staticData";
-import { getCurrentUser, updateCachedCurrentUserProfile } from "@/api/authApi";
+import { changePassword, clearSessionToken, getCurrentUser, updateCachedCurrentUserProfile } from "@/api/authApi";
 import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
 
@@ -47,6 +48,7 @@ const initialUsers: ManagedUser[] = [
 
 export default function Settings() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const currentUser = getCurrentUser();
 
   // Profile state
@@ -59,6 +61,7 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // User management state
   const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
@@ -95,7 +98,7 @@ export default function Settings() {
     }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast({ title: "Erreur", description: "Veuillez remplir tous les champs.", variant: "destructive" });
       return;
@@ -105,13 +108,29 @@ export default function Settings() {
       return;
     }
     if (newPassword.length < 6) {
-      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins 6 caractères.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins 6 caracteres.", variant: "destructive" });
       return;
     }
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    toast({ title: "Mot de passe modifié", description: "Votre mot de passe a été changé avec succès." });
+
+    try {
+      setIsChangingPassword(true);
+      await changePassword({
+        currentPassword,
+        newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      clearSessionToken();
+      navigate("/signin", { replace: true });
+    } catch (error) {
+      const message = error instanceof Error && error.message.includes("401")
+        ? "Le mot de passe actuel est incorrect."
+        : "Impossible de modifier le mot de passe.";
+      toast({ title: "Erreur", description: message, variant: "destructive" });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const openAddUser = () => {
@@ -229,7 +248,9 @@ export default function Settings() {
                 <Label htmlFor="confirmPwd" className="text-muted-foreground text-sm">Confirmer le mot de passe</Label>
                 <Input id="confirmPwd" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="border-border bg-input" />
               </div>
-              <Button onClick={handleChangePassword} className="mt-2">Modifier le mot de passe</Button>
+              <Button onClick={handleChangePassword} className="mt-2" disabled={isChangingPassword}>
+                {isChangingPassword ? "Modification..." : "Modifier le mot de passe"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -360,4 +381,5 @@ export default function Settings() {
     </div>
   );
 }
+
 

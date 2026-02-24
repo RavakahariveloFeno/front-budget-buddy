@@ -25,6 +25,11 @@ interface LoginPayload {
   password: string;
 }
 
+interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
 type JwtPayload = {
   sub?: string;
   email?: string;
@@ -199,4 +204,16 @@ export async function signIn(payload: LoginPayload): Promise<void> {
 
   sessionStorage.removeItem(USER_PROFILE_STORAGE_KEY);
   saveSessionToken(token);
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/password`, {
+    method: "PUT",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 }
