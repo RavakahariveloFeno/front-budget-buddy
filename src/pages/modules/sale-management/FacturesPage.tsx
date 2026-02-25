@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { FileText, Plus, Pencil, Trash2, Eye } from "lucide-react";
-import { STATIC_FACTURES, STATIC_CLIENTS, STATIC_PRODUITS, type Facture, type FactureStatut } from "@/data/venteData";
+import { FileText, Plus, Pencil, Trash2, Eye, PlusCircle, X } from "lucide-react";
+import { STATIC_FACTURES, STATIC_CLIENTS, STATIC_PRODUITS, type Facture, type FactureStatut, type LigneFacture } from "@/data/venteData";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +22,8 @@ const statutColor: Record<FactureStatut, string> = {
   "ANNULÉE": "destructive",
 };
 
+const emptyLigne = (): LigneFacture => ({ produitId: "", quantite: 1, prixUnitaire: 0 });
+
 export default function FacturesPage() {
   const { toast } = useToast();
   const [factures, setFactures] = useState<Facture[]>(STATIC_FACTURES);
@@ -35,18 +37,47 @@ export default function FacturesPage() {
   const [clientId, setClientId] = useState("");
   const [date, setDate] = useState("");
   const [statut, setStatut] = useState<string>("EN_ATTENTE");
-  const [total, setTotal] = useState("");
+  const [lignes, setLignes] = useState<LigneFacture[]>([emptyLigne()]);
 
-  const openAdd = () => { setEditing(null); setNumero(`FAC-${new Date().getFullYear()}-${String(factures.length + 1).padStart(3, "0")}`); setClientId(""); setDate(new Date().toISOString().slice(0, 10)); setStatut("EN_ATTENTE"); setTotal(""); setFormOpen(true); };
-  const openEdit = (f: Facture) => { setEditing(f); setNumero(f.numero); setClientId(f.clientId); setDate(f.date); setStatut(f.statut); setTotal(String(f.total)); setFormOpen(true); };
+  const lignesTotal = lignes.reduce((s, l) => s + l.quantite * l.prixUnitaire, 0);
+
+  const updateLigne = (index: number, field: keyof LigneFacture, value: string | number) => {
+    setLignes((prev) => prev.map((l, i) => {
+      if (i !== index) return l;
+      if (field === "produitId") {
+        const prod = STATIC_PRODUITS.find((p) => p.id === value);
+        return { ...l, produitId: value as string, prixUnitaire: prod?.prixVente ?? 0 };
+      }
+      return { ...l, [field]: field === "quantite" || field === "prixUnitaire" ? +value : value };
+    }));
+  };
+
+  const addLigne = () => setLignes((prev) => [...prev, emptyLigne()]);
+  const removeLigne = (index: number) => setLignes((prev) => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
+
+  const openAdd = () => {
+    setEditing(null);
+    setNumero(`FAC-${new Date().getFullYear()}-${String(factures.length + 1).padStart(3, "0")}`);
+    setClientId(""); setDate(new Date().toISOString().slice(0, 10)); setStatut("EN_ATTENTE");
+    setLignes([emptyLigne()]);
+    setFormOpen(true);
+  };
+  const openEdit = (f: Facture) => {
+    setEditing(f); setNumero(f.numero); setClientId(f.clientId); setDate(f.date); setStatut(f.statut);
+    setLignes(f.lignes.length > 0 ? [...f.lignes] : [emptyLigne()]);
+    setFormOpen(true);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    const validLignes = lignes.filter((l) => l.produitId && l.quantite > 0);
+    if (validLignes.length === 0) { toast({ title: "Ajoutez au moins un produit", variant: "destructive" }); return; }
+    const total = validLignes.reduce((s, l) => s + l.quantite * l.prixUnitaire, 0);
     if (editing) {
-      setFactures((prev) => prev.map((f) => f.id === editing.id ? { ...f, numero, clientId, date, statut: statut as FactureStatut, total: +total } : f));
+      setFactures((prev) => prev.map((f) => f.id === editing.id ? { ...f, numero, clientId, date, statut: statut as FactureStatut, total, lignes: validLignes } : f));
       toast({ title: "Facture modifiée" });
     } else {
-      setFactures((prev) => [...prev, { id: `f${Date.now()}`, numero, clientId, date, statut: statut as FactureStatut, total: +total, lignes: [] }]);
+      setFactures((prev) => [...prev, { id: `f${Date.now()}`, numero, clientId, date, statut: statut as FactureStatut, total, lignes: validLignes }]);
       toast({ title: "Facture créée" });
     }
     setFormOpen(false);
@@ -148,7 +179,33 @@ export default function FacturesPage() {
           <SelectField label="Client" value={clientId} onValueChange={setClientId} options={STATIC_CLIENTS.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" />
           <FormFieldInput label="Date" id="date" type="date" value={date} onChange={setDate} required />
           <SelectField label="Statut" value={statut} onValueChange={setStatut} options={[{ value: "EN_ATTENTE", label: "En attente" }, { value: "PAYÉE", label: "Payée" }, { value: "ANNULÉE", label: "Annulée" }]} />
-          <FormFieldInput label="Total (MGA)" id="total" type="number" value={total} onChange={setTotal} min="0" required />
+
+          {/* Lignes de facture */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>Produits</label>
+              <Button type="button" variant="outline" size="sm" onClick={addLigne}><PlusCircle size={14} className="mr-1" /> Ajouter</Button>
+            </div>
+            <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+              {lignes.map((ligne, i) => (
+                <div key={i} className="grid grid-cols-[1fr_70px_100px_28px] gap-2 items-end rounded-lg p-2 border" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--muted) / 0.3)" }}>
+                  <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={STATIC_PRODUITS.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Produit" />
+                  <FormFieldInput label={i === 0 ? "Qté" : ""} id={`qty-${i}`} type="number" value={String(ligne.quantite)} onChange={(v) => updateLigne(i, "quantite", v)} min="1" required />
+                  <div>
+                    {i === 0 && <label className="text-sm font-medium block mb-1.5" style={{ color: "hsl(var(--foreground))" }}>Sous-total</label>}
+                    <div className="h-10 flex items-center text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>{formatCurrency(ligne.quantite * ligne.prixUnitaire)}</div>
+                  </div>
+                  <button type="button" onClick={() => removeLigne(i)} className="h-10 flex items-center justify-center rounded hover:bg-destructive/20">
+                    <X size={14} style={{ color: "hsl(var(--destructive))" }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="text-right text-base font-bold pt-1" style={{ color: "hsl(var(--foreground))" }}>
+              Total : {formatCurrency(lignesTotal)}
+            </div>
+          </div>
+
           <Button type="submit" className="w-full">{editing ? "Enregistrer" : "Créer"}</Button>
         </form>
       </FormDialog>
