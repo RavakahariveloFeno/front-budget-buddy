@@ -22,6 +22,7 @@ import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { useModuleStore } from "@/stores/moduleStore";
+import { getActivityModules } from "@/api/moduleApi";
 
 const typeColors: Record<string, string> = {
   SALARY: "badge-income",
@@ -77,6 +78,17 @@ export default function Activities() {
       try {
         const remoteActivities = await getActivities();
         setActivityList(remoteActivities);
+        // Charger les modules lies depuis l'API pour chaque activite
+        for (const act of remoteActivities) {
+          try {
+            const ids = await getActivityModules(act.id);
+            if (ids.length) {
+              setLinks(act.id, ids);
+            }
+          } catch {
+            // ignore per-activity errors
+          }
+        }
       } catch (error) {
         console.error("Impossible de charger les activites depuis l'API.", error);
         setActivityList([]);

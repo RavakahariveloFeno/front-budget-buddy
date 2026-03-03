@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Users, Plus, Pencil, Trash2, Mail, Phone } from "lucide-react";
-import { STATIC_CLIENTS, type Client } from "@/data/venteData";
+import type { Client } from "@/data/venteData";
 import { formatCurrency } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,10 +10,12 @@ import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
+import { createClient, deleteClient, getClients, updateClient } from "@/api/saleApi";
 
 export default function ClientsPage() {
   const { toast } = useToast();
-  const [clients, setClients] = useState<Client[]>(STATIC_CLIENTS);
+  const { activityId } = useParams<{ activityId: string }>();
+  const [clients, setClients] = useState<Client[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -22,24 +25,50 @@ export default function ClientsPage() {
   const [telephone, setTelephone] = useState("");
   const [adresse, setAdresse] = useState("");
 
+  useEffect(() => {
+    if (!activityId) return;
+    getClients({ activityId })
+      .then(setClients)
+      .catch(() => {
+        toast({ title: "Impossible de charger les clients", variant: "destructive" });
+      });
+  }, [activityId, toast]);
+
   const openAdd = () => { setEditing(null); setNom(""); setEmail(""); setTelephone(""); setAdresse(""); setFormOpen(true); };
   const openEdit = (c: Client) => { setEditing(c); setNom(c.nom); setEmail(c.email); setTelephone(c.telephone); setAdresse(c.adresse); setFormOpen(true); };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) {
-      setClients((prev) => prev.map((c) => c.id === editing.id ? { ...c, nom, email, telephone, adresse } : c));
-      toast({ title: "Client modifié" });
-    } else {
-      setClients((prev) => [...prev, { id: `c${Date.now()}`, nom, email, telephone, adresse, totalAchats: 0 }]);
-      toast({ title: "Client ajouté" });
+    if (!activityId) return;
+    const payload = { nom, email, telephone, adresse };
+    try {
+      if (editing) {
+        const updated = await updateClient({ activityId }, editing.id, payload);
+        setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        toast({ title: "Client modifié" });
+      } else {
+        const created = await createClient({ activityId }, payload);
+        setClients((prev) => [...prev, created]);
+        toast({ title: "Client ajouté" });
+      }
+      setFormOpen(false);
+    } catch {
+      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = () => {
-    if (editing) { setClients((prev) => prev.filter((c) => c.id !== editing.id)); toast({ title: "Client supprimé" }); }
-    setDeleteOpen(false); setEditing(null);
+  const handleDelete = async () => {
+    if (!editing || !activityId) { setDeleteOpen(false); setEditing(null); return; }
+    try {
+      await deleteClient({ activityId }, editing.id);
+      setClients((prev) => prev.filter((c) => c.id !== editing.id));
+      toast({ title: "Client supprimé" });
+    } catch {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    } finally {
+      setDeleteOpen(false);
+      setEditing(null);
+    }
   };
 
   const totalCA = clients.reduce((s, c) => s + c.totalAchats, 0);

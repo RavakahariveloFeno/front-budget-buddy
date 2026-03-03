@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Package, AlertTriangle, Plus, Pencil, Trash2, MapPin } from "lucide-react";
-import { STATIC_STOCK, STATIC_PRODUITS, type StockItem } from "@/data/venteData";
+import type { StockItem, Produit } from "@/data/venteData";
 import { formatDate } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,14 +12,13 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
-
-function getProduitNom(id: string) {
-  return STATIC_PRODUITS.find((p) => p.id === id)?.nom ?? "—";
-}
+import { createStockItem, deleteStockItem, getProduits, getStock, updateStockItem } from "@/api/saleApi";
 
 export default function StockPage() {
   const { toast } = useToast();
-  const [items, setItems] = useState<StockItem[]>(STATIC_STOCK);
+  const { activityId } = useParams<{ activityId: string }>();
+  const [items, setItems] = useState<StockItem[]>([]);
+  const [produits, setProduits] = useState<Produit[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
@@ -28,25 +28,59 @@ export default function StockPage() {
   const [seuil, setSeuil] = useState("");
   const [emplacement, setEmplacement] = useState("");
 
+  useEffect(() => {
+    if (!activityId) return;
+    getProduits({ activityId })
+      .then(setProduits)
+      .catch(() => {
+        toast({ title: "Impossible de charger les produits", variant: "destructive" });
+      });
+    getStock({ activityId })
+      .then(setItems)
+      .catch(() => {
+        toast({ title: "Impossible de charger le stock", variant: "destructive" });
+      });
+  }, [activityId, toast]);
+
+  function getProduitNom(id: string) {
+    return produits.find((p) => p.id === id)?.nom ?? "—";
+  }
+
   const openAdd = () => { setEditing(null); setProduitId(""); setQuantite(""); setSeuil("15"); setEmplacement(""); setFormOpen(true); };
   const openEdit = (s: StockItem) => { setEditing(s); setProduitId(s.produitId); setQuantite(String(s.quantite)); setSeuil(String(s.seuilAlerte)); setEmplacement(s.emplacement); setFormOpen(true); };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) {
-      setItems((prev) => prev.map((i) => i.id === editing.id ? { ...i, produitId, quantite: +quantite, seuilAlerte: +seuil, emplacement, derniereMaj: new Date().toISOString().slice(0, 10) } : i));
-      toast({ title: "Stock mis à jour" });
-    } else {
-      const newItem: StockItem = { id: `s${Date.now()}`, produitId, quantite: +quantite, seuilAlerte: +seuil, emplacement, derniereMaj: new Date().toISOString().slice(0, 10) };
-      setItems((prev) => [...prev, newItem]);
-      toast({ title: "Stock ajouté" });
+    if (!activityId) return;
+    const payload = { produitId, quantite: +quantite, seuilAlerte: +seuil, emplacement };
+    try {
+      if (editing) {
+        const updated = await updateStockItem({ activityId }, editing.id, payload);
+        setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+        toast({ title: "Stock mis à jour" });
+      } else {
+        const created = await createStockItem({ activityId }, payload);
+        setItems((prev) => [...prev, created]);
+        toast({ title: "Stock ajouté" });
+      }
+      setFormOpen(false);
+    } catch {
+      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = () => {
-    if (editing) { setItems((prev) => prev.filter((i) => i.id !== editing.id)); toast({ title: "Stock supprimé" }); }
-    setDeleteOpen(false); setEditing(null);
+  const handleDelete = async () => {
+    if (!editing || !activityId) { setDeleteOpen(false); setEditing(null); return; }
+    try {
+      await deleteStockItem({ activityId }, editing.id);
+      setItems((prev) => prev.filter((i) => i.id !== editing.id));
+      toast({ title: "Stock supprimé" });
+    } catch {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    } finally {
+      setDeleteOpen(false);
+      setEditing(null);
+    }
   };
 
   const totalItems = items.reduce((s, i) => s + i.quantite, 0);
@@ -105,7 +139,7 @@ export default function StockPage() {
 
       <FormDialog open={formOpen} onOpenChange={setFormOpen} title={editing ? "Modifier le stock" : "Ajouter au stock"}>
         <form onSubmit={handleSave} className="space-y-4">
-          <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={STATIC_PRODUITS.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" />
+          <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" />
           <FormFieldInput label="Quantité" id="quantite" type="number" value={quantite} onChange={setQuantite} min="0" required />
           <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" required />
           <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" required />

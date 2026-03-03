@@ -8,6 +8,7 @@ import { PREDEFINED_MODULES } from "@/data/staticData";
 import { toast } from "@/hooks/use-toast";
 import type { ActivityPayload } from "@/api/activityApi";
 import { useModuleStore } from "@/stores/moduleStore";
+import { getActivityModules, setActivityModules } from "@/api/moduleApi";
 
 const typeOptions = [
   { value: "SALARY", label: "Salaire" },
@@ -35,7 +36,7 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [showAllModules, setShowAllModules] = useState(false);
 
-  const { getModuleIds, setLinks } = useModuleStore();
+  const { setLinks } = useModuleStore();
 
   useEffect(() => {
     if (!open) return;
@@ -43,7 +44,13 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
     setType(activity?.type || "SALARY");
     setDescription(activity?.description || "");
     setStartDate(activity?.startDate ? activity.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-    setSelectedModules(activity ? getModuleIds(activity.id) : []);
+    if (activity && activity.id) {
+      getActivityModules(activity.id)
+        .then((ids) => setSelectedModules(ids))
+        .catch(() => setSelectedModules([]));
+    } else {
+      setSelectedModules([]);
+    }
     setShowAllModules(false);
   }, [activity, open]);
 
@@ -71,10 +78,12 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
       setIsSubmitting(true);
       if (isEdit && activity) {
         await onUpdate(activity.id, payload);
+        await setActivityModules(activity.id, selectedModules);
         setLinks(activity.id, selectedModules);
       } else {
         const created = await onCreate(payload);
         if (created && created.id) {
+          await setActivityModules(created.id, selectedModules);
           setLinks(created.id, selectedModules);
         }
       }

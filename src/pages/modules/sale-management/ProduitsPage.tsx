@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Box, Plus, Pencil, Trash2 } from "lucide-react";
-import { STATIC_PRODUITS, type Produit } from "@/data/venteData";
+import type { Produit } from "@/data/venteData";
 import { formatCurrency } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,12 +12,14 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
+import { createProduit, deleteProduit, getProduits, updateProduit } from "@/api/saleApi";
 
 const CATEGORIES = ["Alimentaire", "Ménage", "Fourniture", "Électronique", "Autre"];
 
 export default function ProduitsPage() {
   const { toast } = useToast();
-  const [produits, setProduits] = useState<Produit[]>(STATIC_PRODUITS);
+  const { activityId } = useParams<{ activityId: string }>();
+  const [produits, setProduits] = useState<Produit[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<Produit | null>(null);
@@ -27,25 +30,50 @@ export default function ProduitsPage() {
   const [prixVente, setPrixVente] = useState("");
   const [categorie, setCategorie] = useState("");
 
+  useEffect(() => {
+    if (!activityId) return;
+    getProduits({ activityId })
+      .then(setProduits)
+      .catch(() => {
+        toast({ title: "Impossible de charger les produits", variant: "destructive" });
+      });
+  }, [activityId, toast]);
+
   const openAdd = () => { setEditing(null); setNom(""); setReference(""); setPrixAchat(""); setPrixVente(""); setCategorie(""); setFormOpen(true); };
   const openEdit = (p: Produit) => { setEditing(p); setNom(p.nom); setReference(p.reference); setPrixAchat(String(p.prixAchat)); setPrixVente(String(p.prixVente)); setCategorie(p.categorie); setFormOpen(true); };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const data = { nom, reference, prixAchat: +prixAchat, prixVente: +prixVente, categorie };
-    if (editing) {
-      setProduits((prev) => prev.map((p) => p.id === editing.id ? { ...p, ...data } : p));
-      toast({ title: "Produit modifié" });
-    } else {
-      setProduits((prev) => [...prev, { id: `p${Date.now()}`, ...data }]);
-      toast({ title: "Produit ajouté" });
+    if (!activityId) return;
+    try {
+      if (editing) {
+        const updated = await updateProduit({ activityId }, editing.id, data);
+        setProduits((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        toast({ title: "Produit modifié" });
+      } else {
+        const created = await createProduit({ activityId }, data);
+        setProduits((prev) => [...prev, created]);
+        toast({ title: "Produit ajouté" });
+      }
+      setFormOpen(false);
+    } catch {
+      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = () => {
-    if (editing) { setProduits((prev) => prev.filter((p) => p.id !== editing.id)); toast({ title: "Produit supprimé" }); }
-    setDeleteOpen(false); setEditing(null);
+  const handleDelete = async () => {
+    if (!editing || !activityId) { setDeleteOpen(false); setEditing(null); return; }
+    try {
+      await deleteProduit({ activityId }, editing.id);
+      setProduits((prev) => prev.filter((p) => p.id !== editing.id));
+      toast({ title: "Produit supprimé" });
+    } catch {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    } finally {
+      setDeleteOpen(false);
+      setEditing(null);
+    }
   };
 
   const totalMarge = produits.reduce((s, p) => s + (p.prixVente - p.prixAchat), 0);

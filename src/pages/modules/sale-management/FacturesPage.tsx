@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { FileText, Plus, Pencil, Trash2, Eye, PlusCircle, X, ArrowLeft } from "lucide-react";
-import { STATIC_FACTURES, STATIC_CLIENTS, STATIC_PRODUITS, type Facture, type FactureStatut, type LigneFacture } from "@/data/venteData";
+import type { Facture, FactureStatut, LigneFacture, Client, Produit } from "@/data/venteData";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,9 +12,10 @@ import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { createFacture, deleteFacture, getClients, getFactures, getProduits, updateFacture } from "@/api/saleApi";
 
-function clientNom(id: string) { return STATIC_CLIENTS.find((c) => c.id === id)?.nom ?? "—"; }
-function produitNom(id: string) { return STATIC_PRODUITS.find((p) => p.id === id)?.nom ?? "—"; }
+function clientNom(id: string, clients: Client[]) { return clients.find((c) => c.id === id)?.nom ?? "—"; }
+function produitNom(id: string, produits: Produit[]) { return produits.find((p) => p.id === id)?.nom ?? "—"; }
 
 const statutColor: Record<FactureStatut, string> = {
   "PAYÉE": "default",
@@ -27,7 +29,10 @@ type ViewMode = "list" | "form";
 
 export default function FacturesPage() {
   const { toast } = useToast();
-  const [factures, setFactures] = useState<Facture[]>(STATIC_FACTURES);
+  const { activityId } = useParams<{ activityId: string }>();
+  const [factures, setFactures] = useState<Facture[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [produits, setProduits] = useState<Produit[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -40,13 +45,32 @@ export default function FacturesPage() {
   const [statut, setStatut] = useState<string>("EN_ATTENTE");
   const [lignes, setLignes] = useState<LigneFacture[]>([emptyLigne()]);
 
+  useEffect(() => {
+    if (!activityId) return;
+    getFactures({ activityId })
+      .then(setFactures)
+      .catch(() => {
+        toast({ title: "Impossible de charger les factures", variant: "destructive" });
+      });
+    getClients({ activityId })
+      .then(setClients)
+      .catch(() => {
+        toast({ title: "Impossible de charger les clients", variant: "destructive" });
+      });
+    getProduits({ activityId })
+      .then(setProduits)
+      .catch(() => {
+        toast({ title: "Impossible de charger les produits", variant: "destructive" });
+      });
+  }, [activityId, toast]);
+
   const lignesTotal = lignes.reduce((s, l) => s + l.quantite * l.prixUnitaire, 0);
 
   const updateLigne = (index: number, field: keyof LigneFacture, value: string | number) => {
     setLignes((prev) => prev.map((l, i) => {
       if (i !== index) return l;
       if (field === "produitId") {
-        const prod = STATIC_PRODUITS.find((p) => p.id === value);
+        const prod = produits.find((p) => p.id === value);
         return { ...l, produitId: value as string, prixUnitaire: prod?.prixVente ?? 0 };
       }
       return { ...l, [field]: field === "quantite" || field === "prixUnitaire" ? +value : value };
@@ -69,24 +93,40 @@ export default function FacturesPage() {
     setViewMode("form");
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const validLignes = lignes.filter((l) => l.produitId && l.quantite > 0);
     if (validLignes.length === 0) { toast({ title: "Ajoutez au moins un produit", variant: "destructive" }); return; }
-    const total = validLignes.reduce((s, l) => s + l.quantite * l.prixUnitaire, 0);
-    if (editing) {
-      setFactures((prev) => prev.map((f) => f.id === editing.id ? { ...f, numero, clientId, date, statut: statut as FactureStatut, total, lignes: validLignes } : f));
-      toast({ title: "Facture modifiée" });
-    } else {
-      setFactures((prev) => [...prev, { id: `f${Date.now()}`, numero, clientId, date, statut: statut as FactureStatut, total, lignes: validLignes }]);
-      toast({ title: "Facture créée" });
+    if (!activityId) return;
+    const payload = { numero, clientId, date, statut: statut as FactureStatut, lignes: validLignes };
+    try {
+      if (editing) {
+        const updated = await updateFacture({ activityId }, editing.id, payload);
+        setFactures((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+        toast({ title: "Facture modifiée" });
+      } else {
+        const created = await createFacture({ activityId }, payload);
+        setFactures((prev) => [...prev, created]);
+        toast({ title: "Facture créée" });
+      }
+      setViewMode("list");
+    } catch {
+      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
     }
-    setViewMode("list");
   };
 
-  const handleDelete = () => {
-    if (editing) { setFactures((prev) => prev.filter((f) => f.id !== editing.id)); toast({ title: "Facture supprimée" }); }
-    setDeleteOpen(false); setEditing(null);
+  const handleDelete = async () => {
+    if (!editing || !activityId) { setDeleteOpen(false); setEditing(null); return; }
+    try {
+      await deleteFacture({ activityId }, editing.id);
+      setFactures((prev) => prev.filter((f) => f.id !== editing.id));
+      toast({ title: "Facture supprimée" });
+    } catch {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    } finally {
+      setDeleteOpen(false);
+      setEditing(null);
+    }
   };
 
   const totalPayee = factures.filter((f) => f.statut === "PAYÉE").reduce((s, f) => s + f.total, 0);
@@ -183,7 +223,7 @@ export default function FacturesPage() {
               {factures.map((f) => (
                 <TableRow key={f.id}>
                   <TableCell className="font-medium font-mono text-xs text-foreground">{f.numero}</TableCell>
-                  <TableCell className="text-foreground">{clientNom(f.clientId)}</TableCell>
+                  <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(f.date)}</TableCell>
                   <TableCell className="font-semibold text-foreground">{formatCurrency(f.total)}</TableCell>
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
@@ -210,7 +250,7 @@ export default function FacturesPage() {
           {viewing && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId)}</span></div>
+                <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId, clients)}</span></div>
                 <div><span className="text-muted-foreground">Date : </span><span className="text-foreground">{formatDate(viewing.date)}</span></div>
                 <div><span className="text-muted-foreground">Statut : </span><Badge variant={statutColor[viewing.statut] as any}>{viewing.statut}</Badge></div>
               </div>
@@ -220,7 +260,7 @@ export default function FacturesPage() {
                   <TableBody>
                     {viewing.lignes.map((l, i) => (
                       <TableRow key={i}>
-                        <TableCell className="text-foreground">{produitNom(l.produitId)}</TableCell>
+                        <TableCell className="text-foreground">{produitNom(l.produitId, produits)}</TableCell>
                         <TableCell className="text-muted-foreground">{l.quantite}</TableCell>
                         <TableCell className="text-muted-foreground">{formatCurrency(l.prixUnitaire)}</TableCell>
                         <TableCell className="font-semibold text-foreground">{formatCurrency(l.quantite * l.prixUnitaire)}</TableCell>
