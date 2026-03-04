@@ -7,18 +7,19 @@ import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
+import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
-import { createProduit, deleteProduit, getProduits, updateProduit } from "@/api/saleApi";
+import { createProduit, deleteProduit, getProductCategories, getProduits, updateProduit } from "@/api/saleApi";
+import type { ProductCategoryOption } from "@/api/saleApi";
 
 export default function ProduitsPage() {
   const { toast } = useToast();
   const { activityId } = useParams<{ activityId: string }>();
   const [produits, setProduits] = useState<Produit[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategoryOption[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<Produit | null>(null);
@@ -29,20 +30,15 @@ export default function ProduitsPage() {
   const [prixVente, setPrixVente] = useState("");
   const [categorie, setCategorie] = useState("");
 
-  const categorySuggestions = Array.from(
-    new Set(
-      produits
-        .map((p) => p.categorie.trim())
-        .filter((cat) => cat.length > 0),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
-
   useEffect(() => {
     if (!activityId) return;
-    getProduits({ activityId })
-      .then(setProduits)
+    Promise.all([getProduits({ activityId }), getProductCategories({ activityId })])
+      .then(([products, categories]) => {
+        setProduits(products);
+        setProductCategories(categories);
+      })
       .catch(() => {
-        toast({ title: "Impossible de charger les produits", variant: "destructive" });
+        toast({ title: "Impossible de charger les donnees", variant: "destructive" });
       });
   }, [activityId, toast]);
 
@@ -68,6 +64,10 @@ export default function ProduitsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!categorie) {
+      toast({ title: "Veuillez selectionner une categorie", variant: "destructive" });
+      return;
+    }
     const data = { nom, reference, prixAchat: +prixAchat, prixVente: +prixVente, categorie };
     if (!activityId) return;
 
@@ -79,6 +79,8 @@ export default function ProduitsPage() {
       } else {
         const created = await createProduit({ activityId }, data);
         setProduits((prev) => [...prev, created]);
+        const categories = await getProductCategories({ activityId });
+        setProductCategories(categories);
         toast({ title: "Produit ajoute" });
       }
       setFormOpen(false);
@@ -106,6 +108,16 @@ export default function ProduitsPage() {
   };
 
   const totalMarge = produits.reduce((s, p) => s + (p.prixVente - p.prixAchat), 0);
+  const categoryNames = new Set(productCategories.map((category) => category.name));
+  if (categorie && !categoryNames.has(categorie)) {
+    categoryNames.add(categorie);
+  }
+  const categoryOptions = Array.from(categoryNames)
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({
+      value: name,
+      label: name,
+    }));
 
   return (
     <div className="animate-fade-in">
@@ -214,26 +226,13 @@ export default function ProduitsPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <FormFieldInput label="Nom" id="nom" value={nom} onChange={setNom} placeholder="Ex: Riz 50kg" required />
           <FormFieldInput label="Reference" id="reference" value={reference} onChange={setReference} placeholder="Ex: RIZ-050" required />
-          <div className="space-y-1.5">
-            <Label htmlFor="categorie" className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-              Categorie
-            </Label>
-            <Input
-              id="categorie"
-              list="produit-categories"
-              value={categorie}
-              onChange={(e) => setCategorie(e.target.value)}
-              placeholder="Ex: Alimentaire"
-              required
-              className="border-border"
-              style={{ background: "hsl(var(--input))", color: "hsl(var(--foreground))" }}
-            />
-            <datalist id="produit-categories">
-              {categorySuggestions.map((cat) => (
-                <option key={cat} value={cat} />
-              ))}
-            </datalist>
-          </div>
+          <SelectField
+            label="Categorie"
+            value={categorie}
+            onValueChange={setCategorie}
+            options={categoryOptions}
+            placeholder={categoryOptions.length ? "Selectionner une categorie" : "Aucune categorie disponible"}
+          />
           <div className="grid grid-cols-2 gap-3">
             <FormFieldInput label="Prix d'achat" id="prixAchat" type="number" value={prixAchat} onChange={setPrixAchat} min="0" required />
             <FormFieldInput label="Prix de vente" id="prixVente" type="number" value={prixVente} onChange={setPrixVente} min="0" required />

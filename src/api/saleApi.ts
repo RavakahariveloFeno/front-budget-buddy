@@ -91,6 +91,11 @@ export interface ProduitPayload {
   categorie: string;
 }
 
+export interface ProductCategoryOption {
+  id: string;
+  name: string;
+}
+
 export async function getProduits(params: SaleContextParams): Promise<Produit[]> {
   const { userId, activityId } = getContext(params);
   const response = await fetch(`${SALE_API_URL}/products?userId=${userId}&activityId=${activityId}`, {
@@ -100,6 +105,20 @@ export async function getProduits(params: SaleContextParams): Promise<Produit[]>
   const data: unknown = await response.json();
   if (!Array.isArray(data)) return [];
   return data.map((item) => mapProduit(item));
+}
+
+export async function getProductCategories(params: SaleContextParams): Promise<ProductCategoryOption[]> {
+  const { userId, activityId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/product-categories?userId=${userId}&activityId=${activityId}`, {
+    headers: buildAuthHeaders(),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) return [];
+  return data.map((record: any) => ({
+    id: String(record.id ?? ""),
+    name: String(record.name ?? ""),
+  })).filter((item) => item.id && item.name);
 }
 
 export async function createProduit(params: SaleContextParams, payload: ProduitPayload): Promise<Produit> {
