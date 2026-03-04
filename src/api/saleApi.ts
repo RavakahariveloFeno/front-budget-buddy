@@ -19,13 +19,18 @@ function getContext(params: SaleContextParams): { userId: string; activityId: st
 // ── Mapping helpers ────────────────────────────────────────
 
 function mapProduit(data: any): Produit {
+  const categoryName =
+    data?.productCategory && typeof data.productCategory === "object"
+      ? String(data.productCategory.name ?? "")
+      : String(data.category ?? "");
+
   return {
     id: String(data.id ?? ""),
     nom: String(data.name ?? ""),
     reference: String(data.reference ?? ""),
     prixAchat: Number(data.purchasePrice ?? 0),
     prixVente: Number(data.salePrice ?? 0),
-    categorie: String(data.category ?? ""),
+    categorie: categoryName,
   };
 }
 
