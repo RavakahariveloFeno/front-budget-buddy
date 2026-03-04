@@ -121,6 +121,62 @@ export async function getProductCategories(params: SaleContextParams): Promise<P
   })).filter((item) => item.id && item.name);
 }
 
+export async function createProductCategory(
+  params: SaleContextParams,
+  name: string,
+): Promise<ProductCategoryOption> {
+  const { userId, activityId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/product-categories`, {
+    method: "POST",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({
+      name,
+      userId,
+      activityId,
+    }),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data: any = await response.json();
+  return {
+    id: String(data.id ?? ""),
+    name: String(data.name ?? ""),
+  };
+}
+
+export async function updateProductCategory(
+  params: SaleContextParams,
+  id: string,
+  name: string,
+): Promise<ProductCategoryOption> {
+  const { userId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/product-categories/${id}`, {
+    method: "PATCH",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({
+      name,
+      userId,
+    }),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data: any = await response.json();
+  return {
+    id: String(data.id ?? ""),
+    name: String(data.name ?? ""),
+  };
+}
+
+export async function deleteProductCategory(
+  params: SaleContextParams,
+  id: string,
+): Promise<void> {
+  const { userId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/product-categories/${id}?userId=${userId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
 export async function createProduit(params: SaleContextParams, payload: ProduitPayload): Promise<Produit> {
   const { userId, activityId } = getContext(params);
   const response = await fetch(`${SALE_API_URL}/products`, {

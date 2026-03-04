@@ -123,6 +123,7 @@ export const PREDEFINED_MODULES: AppModule[] = [
       { id: "menu-stock", label: "Stock", icon: "Package", path: "stock" },
       { id: "menu-facture", label: "Factures", icon: "FileText", path: "factures" },
       { id: "menu-produit", label: "Produits", icon: "Box", path: "produits" },
+      { id: "menu-product-category", label: "Categories", icon: "Tags", path: "categories-produits" },
       { id: "menu-client", label: "Clients", icon: "Users", path: "clients" },
     ],
   },

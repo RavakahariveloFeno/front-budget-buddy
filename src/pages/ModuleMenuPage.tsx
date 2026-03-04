@@ -9,6 +9,7 @@ import StockPage from "@/pages/modules/sale-management/StockPage";
 import FacturesPage from "@/pages/modules/sale-management/FacturesPage";
 import ProduitsPage from "@/pages/modules/sale-management/ProduitsPage";
 import ClientsPage from "@/pages/modules/sale-management/ClientsPage";
+import ProductCategoriesPage from "@/pages/modules/sale-management/ProductCategoriesPage";
 
 // ── Comptabilité ──
 import JournalPage from "@/pages/modules/accounting-management/JournalPage";
@@ -34,6 +35,7 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   factures: FacturesPage,
   produits: ProduitsPage,
   clients: ClientsPage,
+  "categories-produits": ProductCategoriesPage,
   // Comptabilité
   journal: JournalPage,
   "plan-comptable": PlanComptablePage,
