@@ -148,7 +148,7 @@ export default function FacturesPage() {
               <h3 className="font-display font-semibold text-foreground">Informations générales</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormFieldInput label="Numéro" id="numero" value={numero} onChange={setNumero} required />
-                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={STATIC_CLIENTS.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" />
+                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={clients.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" />
                 <FormFieldInput label="Date" id="date" type="date" value={date} onChange={setDate} required />
                 <SelectField label="Statut" value={statut} onValueChange={setStatut} options={[{ value: "EN_ATTENTE", label: "En attente" }, { value: "PAYÉE", label: "Payée" }, { value: "ANNULÉE", label: "Annulée" }]} />
               </div>
@@ -164,7 +164,7 @@ export default function FacturesPage() {
               <div className="space-y-3">
                 {lignes.map((ligne, i) => (
                   <div key={i} className="grid grid-cols-[1fr_90px_120px_32px] gap-3 items-end rounded-lg p-3 border border-border bg-muted/30">
-                    <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={STATIC_PRODUITS.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Choisir un produit" />
+                    <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={produits.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Choisir un produit" />
                     <FormFieldInput label={i === 0 ? "Quantité" : ""} id={`qty-${i}`} type="number" value={String(ligne.quantite)} onChange={(v) => updateLigne(i, "quantite", v)} min="1" required />
                     <div>
                       {i === 0 && <label className="text-sm font-medium block mb-1.5 text-foreground">Sous-total</label>}
