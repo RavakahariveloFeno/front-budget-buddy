@@ -17,6 +17,12 @@ interface SelectFieldProps {
 }
 
 export default function SelectField({ label, value, onValueChange, options, placeholder, onAddClick }: SelectFieldProps) {
+  const handleAddClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onAddClick?.();
+  };
+
   return (
     <div className="space-y-1.5">
       <Label className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</Label>
@@ -34,7 +40,7 @@ export default function SelectField({ label, value, onValueChange, options, plac
         {onAddClick && (
           <button
             type="button"
-            onClick={onAddClick}
+            onClick={handleAddClick}
             className="h-10 w-10 flex-shrink-0 rounded-md border flex items-center justify-center transition-colors hover:bg-accent"
             style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--input))" }}
             title={`Ajouter ${label.toLowerCase()}`}

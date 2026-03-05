@@ -200,6 +200,50 @@ export default function FacturesPage() {
             </div>
           </form>
         </div>
+        <FormDialog open={clientFormOpen} onOpenChange={setClientFormOpen} title="Nouveau client">
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!activityId) return;
+            try {
+              const created = await createClient({ activityId }, { nom: newClientNom, email: newClientEmail, telephone: newClientTelephone, adresse: newClientAdresse });
+              setClients((prev) => [...prev, created]);
+              setClientId(created.id);
+              setClientFormOpen(false);
+              toast({ title: "Client ajoutÃ©" });
+            } catch {
+              toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+            }
+          }} className="space-y-4">
+            <FormFieldInput label="Nom" id="new-client-nom" value={newClientNom} onChange={setNewClientNom} placeholder="Ex: Rakoto Jean" required />
+            <FormFieldInput label="Email" id="new-client-email" type="email" value={newClientEmail} onChange={setNewClientEmail} placeholder="email@exemple.mg" />
+            <FormFieldInput label="TÃ©lÃ©phone" id="new-client-tel" value={newClientTelephone} onChange={setNewClientTelephone} placeholder="034 12 345 67" required />
+            <FormFieldInput label="Adresse" id="new-client-adr" value={newClientAdresse} onChange={setNewClientAdresse} placeholder="Quartier, Ville" required />
+            <Button type="submit" className="w-full">Ajouter</Button>
+          </form>
+        </FormDialog>
+
+        <FormDialog open={produitFormOpen} onOpenChange={setProduitFormOpen} title="Nouveau produit">
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!activityId) return;
+            try {
+              const created = await createProduit({ activityId }, { nom: newProdNom, reference: newProdRef, prixAchat: +newProdPrixAchat, prixVente: +newProdPrixVente, categorie: "" });
+              setProduits((prev) => [...prev, created]);
+              setProduitFormOpen(false);
+              toast({ title: "Produit ajoutÃ©" });
+            } catch {
+              toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+            }
+          }} className="space-y-4">
+            <FormFieldInput label="Nom" id="new-prod-nom" value={newProdNom} onChange={setNewProdNom} placeholder="Ex: Riz 50kg" required />
+            <FormFieldInput label="RÃ©fÃ©rence" id="new-prod-ref" value={newProdRef} onChange={setNewProdRef} placeholder="Ex: RIZ-050" />
+            <div className="grid grid-cols-2 gap-3">
+              <FormFieldInput label="Prix d'achat" id="new-prod-pa" type="number" value={newProdPrixAchat} onChange={setNewProdPrixAchat} min="0" required />
+              <FormFieldInput label="Prix de vente" id="new-prod-pv" type="number" value={newProdPrixVente} onChange={setNewProdPrixVente} min="0" required />
+            </div>
+            <Button type="submit" className="w-full">Ajouter</Button>
+          </form>
+        </FormDialog>
       </div>
     );
   }

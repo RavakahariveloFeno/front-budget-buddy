@@ -12,7 +12,8 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
-import { createProduit, createStockItem, deleteStockItem, getProduits, getStock, updateStockItem } from "@/api/saleApi";
+import { createProduit, createProductCategory, createStockItem, deleteStockItem, getProductCategories, getProduits, getStock, updateStockItem } from "@/api/saleApi";
+import type { ProductCategoryOption } from "@/api/saleApi";
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -32,6 +33,10 @@ export default function StockPage() {
   const [newProdRef, setNewProdRef] = useState("");
   const [newProdPrixAchat, setNewProdPrixAchat] = useState("");
   const [newProdPrixVente, setNewProdPrixVente] = useState("");
+  const [newProdCategorie, setNewProdCategorie] = useState("");
+  const [productCategories, setProductCategories] = useState<ProductCategoryOption[]>([]);
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
     if (!activityId) return;
@@ -39,6 +44,11 @@ export default function StockPage() {
       .then(setProduits)
       .catch(() => {
         toast({ title: "Impossible de charger les produits", variant: "destructive" });
+      });
+    getProductCategories({ activityId })
+      .then(setProductCategories)
+      .catch(() => {
+        toast({ title: "Impossible de charger les categories", variant: "destructive" });
       });
     getStock({ activityId })
       .then(setItems)
@@ -90,6 +100,16 @@ export default function StockPage() {
 
   const totalItems = items.reduce((s, i) => s + i.quantite, 0);
   const alertes = items.filter((i) => i.quantite <= i.seuilAlerte);
+  const categoryNames = new Set(productCategories.map((category) => category.name));
+  if (newProdCategorie && !categoryNames.has(newProdCategorie)) {
+    categoryNames.add(newProdCategorie);
+  }
+  const categoryOptions = Array.from(categoryNames)
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({
+      value: name,
+      label: name,
+    }));
 
   return (
     <div className="animate-fade-in">
@@ -144,7 +164,7 @@ export default function StockPage() {
 
       <FormDialog open={formOpen} onOpenChange={setFormOpen} title={editing ? "Modifier le stock" : "Ajouter au stock"}>
         <form onSubmit={handleSave} className="space-y-4">
-          <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" onAddClick={() => { setNewProdNom(""); setNewProdRef(""); setNewProdPrixAchat(""); setNewProdPrixVente(""); setProduitFormOpen(true); }} />
+          <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" onAddClick={() => { setNewProdNom(""); setNewProdRef(""); setNewProdPrixAchat(""); setNewProdPrixVente(""); setNewProdCategorie(""); setProduitFormOpen(true); }} />
           <FormFieldInput label="Quantité" id="quantite" type="number" value={quantite} onChange={setQuantite} min="0" required />
           <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" />
           <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" />
@@ -157,9 +177,15 @@ export default function StockPage() {
         <form onSubmit={async (e) => {
           e.preventDefault();
           if (!activityId) return;
+          if (!newProdCategorie) {
+            toast({ title: "Veuillez selectionner une categorie", variant: "destructive" });
+            return;
+          }
           try {
-            const created = await createProduit({ activityId }, { nom: newProdNom, reference: newProdRef, prixAchat: +newProdPrixAchat, prixVente: +newProdPrixVente, categorie: "" });
+            const created = await createProduit({ activityId }, { nom: newProdNom, reference: newProdRef, prixAchat: +newProdPrixAchat, prixVente: +newProdPrixVente, categorie: newProdCategorie });
             setProduits((prev) => [...prev, created]);
+            const categories = await getProductCategories({ activityId });
+            setProductCategories(categories);
             setProduitId(created.id);
             setProduitFormOpen(false);
             toast({ title: "Produit ajouté" });
@@ -169,10 +195,37 @@ export default function StockPage() {
         }} className="space-y-4">
           <FormFieldInput label="Nom" id="new-prod-nom" value={newProdNom} onChange={setNewProdNom} placeholder="Ex: Riz 50kg" required />
           <FormFieldInput label="Référence" id="new-prod-ref" value={newProdRef} onChange={setNewProdRef} placeholder="Ex: RIZ-050" />
+          <SelectField
+            label="Categorie"
+            value={newProdCategorie}
+            onValueChange={setNewProdCategorie}
+            options={categoryOptions}
+            placeholder={categoryOptions.length ? "Selectionner une categorie" : "Aucune categorie disponible"}
+            onAddClick={() => { setNewCategoryName(""); setCategoryFormOpen(true); }}
+          />
           <div className="grid grid-cols-2 gap-3">
             <FormFieldInput label="Prix d'achat" id="new-prod-pa" type="number" value={newProdPrixAchat} onChange={setNewProdPrixAchat} min="0" required />
             <FormFieldInput label="Prix de vente" id="new-prod-pv" type="number" value={newProdPrixVente} onChange={setNewProdPrixVente} min="0" required />
           </div>
+          <Button type="submit" className="w-full">Ajouter</Button>
+        </form>
+      </FormDialog>
+
+      <FormDialog open={categoryFormOpen} onOpenChange={setCategoryFormOpen} title="Nouvelle catégorie">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!activityId) return;
+          try {
+            const created = await createProductCategory({ activityId }, newCategoryName);
+            setProductCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+            setNewProdCategorie(created.name);
+            setCategoryFormOpen(false);
+            toast({ title: "Catégorie ajoutée" });
+          } catch {
+            toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+          }
+        }} className="space-y-4">
+          <FormFieldInput label="Nom" id="new-cat-name" value={newCategoryName} onChange={setNewCategoryName} placeholder="Ex: Alimentaire" required />
           <Button type="submit" className="w-full">Ajouter</Button>
         </form>
       </FormDialog>
