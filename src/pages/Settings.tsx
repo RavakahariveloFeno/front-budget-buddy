@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { User, Lock, Users, Pencil, Trash2, Plus, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PREDEFINED_MODULES } from "@/data/staticData";
+import type { Activity } from "@/data/staticData";
 import { changePassword, clearSessionToken, getCurrentUser, updateCachedCurrentUserProfile } from "@/api/authApi";
 import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
+import { getActivities } from "@/api/activityApi";
 
 type AppRole = "admin" | "manager" | "user";
 
@@ -40,8 +42,6 @@ const ROLE_COLORS: Record<AppRole, string> = {
   manager: "bg-warning/20 text-warning border-warning/30",
   user: "bg-primary/20 text-primary border-primary/30",
 };
-
-const STATIC_ACTIVITIES = ["Vente", "Consulting", "Freelance", "Formation", "Investissement"];
 
 const initialProfiles: ManagedProfile[] = [
   {
@@ -94,6 +94,8 @@ export default function Settings() {
   const [profiles, setProfiles] = useState<ManagedProfile[]>(initialProfiles);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ManagedProfile | null>(null);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(false);
   const [formProfile, setFormProfile] = useState<Omit<ManagedProfile, "id">>({
     firstName: "",
     lastName: "",
@@ -103,6 +105,23 @@ export default function Settings() {
     activities: [],
     moduleIds: [],
   });
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        setIsLoadingActivities(true);
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
+      } finally {
+        setIsLoadingActivities(false);
+      }
+    };
+
+    loadActivities();
+  }, []);
 
   const handleSaveProfile = async () => {
     const nextFirstName = firstName.trim();
@@ -427,12 +446,21 @@ export default function Settings() {
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Activities</Label>
               <div className="space-y-2 rounded-lg border border-border p-3" style={{ background: "hsl(var(--input))" }}>
-                {STATIC_ACTIVITIES.map((activity) => (
-                  <label key={activity} className="flex items-center gap-3 cursor-pointer py-1">
-                    <Checkbox checked={formProfile.activities.includes(activity)} onCheckedChange={() => toggleActivity(activity)} />
-                    <span className="text-sm">{activity}</span>
-                  </label>
-                ))}
+                {activityList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {isLoadingActivities ? "Chargement des activites..." : "Aucune activite disponible."}
+                  </p>
+                ) : (
+                  activityList.map((activity) => (
+                    <label key={activity.id} className="flex items-center gap-3 cursor-pointer py-1">
+                      <Checkbox
+                        checked={formProfile.activities.includes(activity.name)}
+                        onCheckedChange={() => toggleActivity(activity.name)}
+                      />
+                      <span className="text-sm">{activity.name}</span>
+                    </label>
+                  ))
+                )}
               </div>
             </div>
             <div className="space-y-2">
