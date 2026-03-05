@@ -12,7 +12,7 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
-import { createProduit, deleteProduit, getProductCategories, getProduits, updateProduit } from "@/api/saleApi";
+import { createProduit, createProductCategory, deleteProduit, getProductCategories, getProduits, updateProduit } from "@/api/saleApi";
 import type { ProductCategoryOption } from "@/api/saleApi";
 
 export default function ProduitsPage() {
@@ -29,6 +29,8 @@ export default function ProduitsPage() {
   const [prixAchat, setPrixAchat] = useState("");
   const [prixVente, setPrixVente] = useState("");
   const [categorie, setCategorie] = useState("");
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
     if (!activityId) return;
@@ -232,6 +234,7 @@ export default function ProduitsPage() {
             onValueChange={setCategorie}
             options={categoryOptions}
             placeholder={categoryOptions.length ? "Selectionner une categorie" : "Aucune categorie disponible"}
+            onAddClick={() => { setNewCategoryName(""); setCategoryFormOpen(true); }}
           />
           <div className="grid grid-cols-2 gap-3">
             <FormFieldInput label="Prix d'achat" id="prixAchat" type="number" value={prixAchat} onChange={setPrixAchat} min="0" required />
@@ -249,6 +252,25 @@ export default function ProduitsPage() {
         title="Supprimer ce produit ?"
         description="Cette action est irreversible."
       />
+
+      <FormDialog open={categoryFormOpen} onOpenChange={setCategoryFormOpen} title="Nouvelle catégorie">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!activityId) return;
+          try {
+            const created = await createProductCategory({ activityId }, newCategoryName);
+            setProductCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+            setCategorie(created.name);
+            setCategoryFormOpen(false);
+            toast({ title: "Catégorie ajoutée" });
+          } catch {
+            toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+          }
+        }} className="space-y-4">
+          <FormFieldInput label="Nom" id="new-cat-name" value={newCategoryName} onChange={setNewCategoryName} placeholder="Ex: Alimentaire" required />
+          <Button type="submit" className="w-full">Ajouter</Button>
+        </form>
+      </FormDialog>
     </div>
   );
 }
