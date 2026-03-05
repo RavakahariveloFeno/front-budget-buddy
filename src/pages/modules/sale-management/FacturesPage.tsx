@@ -13,7 +13,7 @@ import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import FormDialog from "@/components/dialogs/FormDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { createFacture, deleteFacture, getClients, getFactures, getProduits, updateFacture } from "@/api/saleApi";
+import { createClient, createFacture, createProduit, deleteFacture, getClients, getFactures, getProduits, updateFacture } from "@/api/saleApi";
 
 function clientNom(id: string, clients: Client[]) { return clients.find((c) => c.id === id)?.nom ?? "—"; }
 function produitNom(id: string, produits: Produit[]) { return produits.find((p) => p.id === id)?.nom ?? "—"; }
@@ -44,6 +44,11 @@ export default function FacturesPage() {
   const [newClientEmail, setNewClientEmail] = useState("");
   const [newClientTelephone, setNewClientTelephone] = useState("");
   const [newClientAdresse, setNewClientAdresse] = useState("");
+  const [produitFormOpen, setProduitFormOpen] = useState(false);
+  const [newProdNom, setNewProdNom] = useState("");
+  const [newProdRef, setNewProdRef] = useState("");
+  const [newProdPrixAchat, setNewProdPrixAchat] = useState("");
+  const [newProdPrixVente, setNewProdPrixVente] = useState("");
 
   const [numero, setNumero] = useState("");
   const [clientId, setClientId] = useState("");
@@ -154,7 +159,7 @@ export default function FacturesPage() {
               <h3 className="font-display font-semibold text-foreground">Informations générales</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormFieldInput label="Numéro" id="numero" value={numero} onChange={setNumero} required />
-                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={clients.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" />
+                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={clients.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" onAddClick={() => { setNewClientNom(""); setNewClientEmail(""); setNewClientTelephone(""); setNewClientAdresse(""); setClientFormOpen(true); }} />
                 <FormFieldInput label="Date" id="date" type="date" value={date} onChange={setDate} required />
                 <SelectField label="Statut" value={statut} onValueChange={setStatut} options={[{ value: "EN_ATTENTE", label: "En attente" }, { value: "PAYÉE", label: "Payée" }, { value: "ANNULÉE", label: "Annulée" }]} />
               </div>
@@ -170,7 +175,7 @@ export default function FacturesPage() {
               <div className="space-y-3">
                 {lignes.map((ligne, i) => (
                   <div key={i} className="grid grid-cols-[1fr_90px_120px_32px] gap-3 items-end rounded-lg p-3 border border-border bg-muted/30">
-                    <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={produits.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Choisir un produit" />
+                    <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={produits.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Choisir un produit" onAddClick={() => { setProduitFormOpen(true); setNewProdNom(""); setNewProdRef(""); setNewProdPrixAchat(""); setNewProdPrixVente(""); }} />
                     <FormFieldInput label={i === 0 ? "Quantité" : ""} id={`qty-${i}`} type="number" value={String(ligne.quantite)} onChange={(v) => updateLigne(i, "quantite", v)} min="1" required />
                     <FormFieldInput label={i === 0 ? "Prix unitaire" : ""} id={`pu-${i}`} type="number" value={String(ligne.prixUnitaire)} onChange={(v) => updateLigne(i, "prixUnitaire", v)} min="0" required />
                     <div>
@@ -287,19 +292,46 @@ export default function FacturesPage() {
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} title="Supprimer cette facture ?" description="Cette action est irréversible." />
 
       <FormDialog open={clientFormOpen} onOpenChange={setClientFormOpen} title="Nouveau client">
-        <form onSubmit={(e) => {
+        <form onSubmit={async (e) => {
           e.preventDefault();
-          const newId = `c${Date.now()}`;
-          const newClient: Client = { id: newId, nom: newClientNom, email: newClientEmail, telephone: newClientTelephone, adresse: newClientAdresse, totalAchats: 0 };
-          setClients((prev) => [...prev, newClient]);
-          setClientId(newId);
-          setClientFormOpen(false);
-          toast({ title: "Client ajouté" });
+          if (!activityId) return;
+          try {
+            const created = await createClient({ activityId }, { nom: newClientNom, email: newClientEmail, telephone: newClientTelephone, adresse: newClientAdresse });
+            setClients((prev) => [...prev, created]);
+            setClientId(created.id);
+            setClientFormOpen(false);
+            toast({ title: "Client ajouté" });
+          } catch {
+            toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+          }
         }} className="space-y-4">
           <FormFieldInput label="Nom" id="new-client-nom" value={newClientNom} onChange={setNewClientNom} placeholder="Ex: Rakoto Jean" required />
-          <FormFieldInput label="Email" id="new-client-email" type="email" value={newClientEmail} onChange={setNewClientEmail} placeholder="email@exemple.mg" required />
+          <FormFieldInput label="Email" id="new-client-email" type="email" value={newClientEmail} onChange={setNewClientEmail} placeholder="email@exemple.mg" />
           <FormFieldInput label="Téléphone" id="new-client-tel" value={newClientTelephone} onChange={setNewClientTelephone} placeholder="034 12 345 67" required />
           <FormFieldInput label="Adresse" id="new-client-adr" value={newClientAdresse} onChange={setNewClientAdresse} placeholder="Quartier, Ville" required />
+          <Button type="submit" className="w-full">Ajouter</Button>
+        </form>
+      </FormDialog>
+
+      <FormDialog open={produitFormOpen} onOpenChange={setProduitFormOpen} title="Nouveau produit">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!activityId) return;
+          try {
+            const created = await createProduit({ activityId }, { nom: newProdNom, reference: newProdRef, prixAchat: +newProdPrixAchat, prixVente: +newProdPrixVente, categorie: "" });
+            setProduits((prev) => [...prev, created]);
+            setProduitFormOpen(false);
+            toast({ title: "Produit ajouté" });
+          } catch {
+            toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+          }
+        }} className="space-y-4">
+          <FormFieldInput label="Nom" id="new-prod-nom" value={newProdNom} onChange={setNewProdNom} placeholder="Ex: Riz 50kg" required />
+          <FormFieldInput label="Référence" id="new-prod-ref" value={newProdRef} onChange={setNewProdRef} placeholder="Ex: RIZ-050" />
+          <div className="grid grid-cols-2 gap-3">
+            <FormFieldInput label="Prix d'achat" id="new-prod-pa" type="number" value={newProdPrixAchat} onChange={setNewProdPrixAchat} min="0" required />
+            <FormFieldInput label="Prix de vente" id="new-prod-pv" type="number" value={newProdPrixVente} onChange={setNewProdPrixVente} min="0" required />
+          </div>
           <Button type="submit" className="w-full">Ajouter</Button>
         </form>
       </FormDialog>

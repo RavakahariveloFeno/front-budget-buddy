@@ -12,7 +12,7 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
-import { createStockItem, deleteStockItem, getProduits, getStock, updateStockItem } from "@/api/saleApi";
+import { createProduit, createStockItem, deleteStockItem, getProduits, getStock, updateStockItem } from "@/api/saleApi";
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -27,6 +27,11 @@ export default function StockPage() {
   const [quantite, setQuantite] = useState("");
   const [seuil, setSeuil] = useState("");
   const [emplacement, setEmplacement] = useState("");
+  const [produitFormOpen, setProduitFormOpen] = useState(false);
+  const [newProdNom, setNewProdNom] = useState("");
+  const [newProdRef, setNewProdRef] = useState("");
+  const [newProdPrixAchat, setNewProdPrixAchat] = useState("");
+  const [newProdPrixVente, setNewProdPrixVente] = useState("");
 
   useEffect(() => {
     if (!activityId) return;
@@ -139,7 +144,7 @@ export default function StockPage() {
 
       <FormDialog open={formOpen} onOpenChange={setFormOpen} title={editing ? "Modifier le stock" : "Ajouter au stock"}>
         <form onSubmit={handleSave} className="space-y-4">
-          <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" />
+          <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" onAddClick={() => { setNewProdNom(""); setNewProdRef(""); setNewProdPrixAchat(""); setNewProdPrixVente(""); setProduitFormOpen(true); }} />
           <FormFieldInput label="Quantité" id="quantite" type="number" value={quantite} onChange={setQuantite} min="0" required />
           <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" />
           <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" />
@@ -147,6 +152,30 @@ export default function StockPage() {
         </form>
       </FormDialog>
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} title="Supprimer ce stock ?" description="Cette action est irréversible." />
+
+      <FormDialog open={produitFormOpen} onOpenChange={setProduitFormOpen} title="Nouveau produit">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!activityId) return;
+          try {
+            const created = await createProduit({ activityId }, { nom: newProdNom, reference: newProdRef, prixAchat: +newProdPrixAchat, prixVente: +newProdPrixVente, categorie: "" });
+            setProduits((prev) => [...prev, created]);
+            setProduitId(created.id);
+            setProduitFormOpen(false);
+            toast({ title: "Produit ajouté" });
+          } catch {
+            toast({ title: "Erreur lors de l'ajout", variant: "destructive" });
+          }
+        }} className="space-y-4">
+          <FormFieldInput label="Nom" id="new-prod-nom" value={newProdNom} onChange={setNewProdNom} placeholder="Ex: Riz 50kg" required />
+          <FormFieldInput label="Référence" id="new-prod-ref" value={newProdRef} onChange={setNewProdRef} placeholder="Ex: RIZ-050" />
+          <div className="grid grid-cols-2 gap-3">
+            <FormFieldInput label="Prix d'achat" id="new-prod-pa" type="number" value={newProdPrixAchat} onChange={setNewProdPrixAchat} min="0" required />
+            <FormFieldInput label="Prix de vente" id="new-prod-pv" type="number" value={newProdPrixVente} onChange={setNewProdPrixVente} min="0" required />
+          </div>
+          <Button type="submit" className="w-full">Ajouter</Button>
+        </form>
+      </FormDialog>
     </div>
   );
 }
