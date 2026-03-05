@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { changePassword, clearSessionToken, getCurrentUser, updateCachedCurrentU
 import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
 import { getActivities } from "@/api/activityApi";
+import { getActivityModules } from "@/api/moduleApi";
 
 type AppRole = "admin" | "manager" | "user";
 
@@ -96,6 +97,8 @@ export default function Settings() {
   const [editingProfile, setEditingProfile] = useState<ManagedProfile | null>(null);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+  const [activityModulesById, setActivityModulesById] = useState<Record<string, string[]>>({});
+  const [isLoadingModulesById, setIsLoadingModulesById] = useState<Record<string, boolean>>({});
   const [formProfile, setFormProfile] = useState<Omit<ManagedProfile, "id">>({
     firstName: "",
     lastName: "",
@@ -122,6 +125,67 @@ export default function Settings() {
 
     loadActivities();
   }, []);
+
+  const selectedActivityIds = useMemo(() => {
+    if (activityList.length === 0 || formProfile.activities.length === 0) {
+      return [];
+    }
+    return activityList.filter((act) => formProfile.activities.includes(act.name)).map((act) => act.id);
+  }, [activityList, formProfile.activities]);
+
+  const availableModuleIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const activityId of selectedActivityIds) {
+      const modules = activityModulesById[activityId];
+      if (modules) {
+        modules.forEach((moduleId) => ids.add(moduleId));
+      }
+    }
+    return ids;
+  }, [activityModulesById, selectedActivityIds]);
+
+  const availableModules = useMemo(
+    () => PREDEFINED_MODULES.filter((mod) => availableModuleIds.has(mod.id)),
+    [availableModuleIds],
+  );
+
+  const isLoadingModules = selectedActivityIds.some((id) => isLoadingModulesById[id]);
+
+  const fetchActivityModules = useCallback(async (activityId: string) => {
+    if (activityModulesById[activityId] || isLoadingModulesById[activityId]) {
+      return;
+    }
+    setIsLoadingModulesById((prev) => ({ ...prev, [activityId]: true }));
+    try {
+      const ids = await getActivityModules(activityId);
+      setActivityModulesById((prev) => ({ ...prev, [activityId]: ids }));
+    } catch (error) {
+      console.error("Impossible de charger les modules lies a l'activite.", error);
+      setActivityModulesById((prev) => ({ ...prev, [activityId]: [] }));
+    } finally {
+      setIsLoadingModulesById((prev) => ({ ...prev, [activityId]: false }));
+    }
+  }, [activityModulesById, isLoadingModulesById]);
+
+  useEffect(() => {
+    selectedActivityIds.forEach((id) => {
+      void fetchActivityModules(id);
+    });
+  }, [fetchActivityModules, selectedActivityIds]);
+
+  useEffect(() => {
+    setFormProfile((prev) => {
+      if (selectedActivityIds.length === 0) {
+        return prev.moduleIds.length === 0 ? prev : { ...prev, moduleIds: [] };
+      }
+      const allowed = new Set(availableModuleIds);
+      const filtered = prev.moduleIds.filter((id) => allowed.has(id));
+      if (filtered.length === prev.moduleIds.length) {
+        return prev;
+      }
+      return { ...prev, moduleIds: filtered };
+    });
+  }, [availableModuleIds, selectedActivityIds]);
 
   const handleSaveProfile = async () => {
     const nextFirstName = firstName.trim();
@@ -240,12 +304,12 @@ export default function Settings() {
     }));
   };
 
-  const toggleActivity = (activity: string) => {
+  const toggleActivity = (activity: Activity) => {
     setFormProfile((prev) => ({
       ...prev,
-      activities: prev.activities.includes(activity)
-        ? prev.activities.filter((a) => a !== activity)
-        : [...prev.activities, activity],
+      activities: prev.activities.includes(activity.name)
+        ? prev.activities.filter((a) => a !== activity.name)
+        : [...prev.activities, activity.name],
     }));
   };
 
@@ -455,7 +519,7 @@ export default function Settings() {
                     <label key={activity.id} className="flex items-center gap-3 cursor-pointer py-1">
                       <Checkbox
                         checked={formProfile.activities.includes(activity.name)}
-                        onCheckedChange={() => toggleActivity(activity.name)}
+                        onCheckedChange={() => toggleActivity(activity)}
                       />
                       <span className="text-sm">{activity.name}</span>
                     </label>
@@ -466,12 +530,20 @@ export default function Settings() {
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Modules assignes</Label>
               <div className="space-y-2 rounded-lg border border-border p-3" style={{ background: "hsl(var(--input))" }}>
-                {PREDEFINED_MODULES.map((mod) => (
-                  <label key={mod.id} className="flex items-center gap-3 cursor-pointer py-1">
-                    <Checkbox checked={formProfile.moduleIds.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
-                    <span className="text-sm">{mod.name}</span>
-                  </label>
-                ))}
+                {selectedActivityIds.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Selectionnez une activite pour afficher ses modules.</p>
+                ) : availableModules.length === 0 && isLoadingModules ? (
+                  <p className="text-sm text-muted-foreground">Chargement des modules...</p>
+                ) : availableModules.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucun module lie aux activites selectionnees.</p>
+                ) : (
+                  availableModules.map((mod) => (
+                    <label key={mod.id} className="flex items-center gap-3 cursor-pointer py-1">
+                      <Checkbox checked={formProfile.moduleIds.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
+                      <span className="text-sm">{mod.name}</span>
+                    </label>
+                  ))
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
