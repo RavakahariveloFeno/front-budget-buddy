@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import FormDialog from "@/components/dialogs/FormDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { createFacture, deleteFacture, getClients, getFactures, getProduits, updateFacture } from "@/api/saleApi";
@@ -38,6 +39,11 @@ export default function FacturesPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState<Facture | null>(null);
   const [viewing, setViewing] = useState<Facture | null>(null);
+  const [clientFormOpen, setClientFormOpen] = useState(false);
+  const [newClientNom, setNewClientNom] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientTelephone, setNewClientTelephone] = useState("");
+  const [newClientAdresse, setNewClientAdresse] = useState("");
 
   const [numero, setNumero] = useState("");
   const [clientId, setClientId] = useState("");
@@ -166,6 +172,7 @@ export default function FacturesPage() {
                   <div key={i} className="grid grid-cols-[1fr_90px_120px_32px] gap-3 items-end rounded-lg p-3 border border-border bg-muted/30">
                     <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={produits.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Choisir un produit" />
                     <FormFieldInput label={i === 0 ? "Quantité" : ""} id={`qty-${i}`} type="number" value={String(ligne.quantite)} onChange={(v) => updateLigne(i, "quantite", v)} min="1" required />
+                    <FormFieldInput label={i === 0 ? "Prix unitaire" : ""} id={`pu-${i}`} type="number" value={String(ligne.prixUnitaire)} onChange={(v) => updateLigne(i, "prixUnitaire", v)} min="0" required />
                     <div>
                       {i === 0 && <label className="text-sm font-medium block mb-1.5 text-foreground">Sous-total</label>}
                       <div className="h-10 flex items-center text-sm font-semibold text-foreground">{formatCurrency(ligne.quantite * ligne.prixUnitaire)}</div>
@@ -224,6 +231,7 @@ export default function FacturesPage() {
                 <TableRow key={f.id}>
                   <TableCell className="font-medium font-mono text-xs text-foreground">{f.numero}</TableCell>
                   <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
+                  <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(f.date)}</TableCell>
                   <TableCell className="font-semibold text-foreground">{formatCurrency(f.total)}</TableCell>
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
@@ -251,6 +259,7 @@ export default function FacturesPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId, clients)}</span></div>
+                <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId, clients)}</span></div>
                 <div><span className="text-muted-foreground">Date : </span><span className="text-foreground">{formatDate(viewing.date)}</span></div>
                 <div><span className="text-muted-foreground">Statut : </span><Badge variant={statutColor[viewing.statut] as any}>{viewing.statut}</Badge></div>
               </div>
@@ -276,6 +285,24 @@ export default function FacturesPage() {
       </Dialog>
 
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} title="Supprimer cette facture ?" description="Cette action est irréversible." />
+
+      <FormDialog open={clientFormOpen} onOpenChange={setClientFormOpen} title="Nouveau client">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const newId = `c${Date.now()}`;
+          const newClient: Client = { id: newId, nom: newClientNom, email: newClientEmail, telephone: newClientTelephone, adresse: newClientAdresse, totalAchats: 0 };
+          setClients((prev) => [...prev, newClient]);
+          setClientId(newId);
+          setClientFormOpen(false);
+          toast({ title: "Client ajouté" });
+        }} className="space-y-4">
+          <FormFieldInput label="Nom" id="new-client-nom" value={newClientNom} onChange={setNewClientNom} placeholder="Ex: Rakoto Jean" required />
+          <FormFieldInput label="Email" id="new-client-email" type="email" value={newClientEmail} onChange={setNewClientEmail} placeholder="email@exemple.mg" required />
+          <FormFieldInput label="Téléphone" id="new-client-tel" value={newClientTelephone} onChange={setNewClientTelephone} placeholder="034 12 345 67" required />
+          <FormFieldInput label="Adresse" id="new-client-adr" value={newClientAdresse} onChange={setNewClientAdresse} placeholder="Quartier, Ville" required />
+          <Button type="submit" className="w-full">Ajouter</Button>
+        </form>
+      </FormDialog>
     </div>
   );
 }

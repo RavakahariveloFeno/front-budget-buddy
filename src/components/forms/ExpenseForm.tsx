@@ -3,8 +3,10 @@ import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
+import CategoryForm from "@/components/forms/CategoryForm";
 import { formatCurrency, type Activity, type Category, type Expense } from "@/data/staticData";
 import type { ExpensePayload, RecurringExpensePayload } from "@/api/expenseApi";
+import type { CategoryPayload } from "@/api/categoryApi";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -19,6 +21,7 @@ interface Props {
   onCreate: (payload: ExpensePayload) => Promise<void>;
   onCreateRecurring: (payload: RecurringExpensePayload) => Promise<void>;
   onUpdate: (id: string, payload: ExpensePayload) => Promise<void>;
+  onCreateCategory?: (payload: CategoryPayload) => Promise<Category>;
 }
 
 interface OverBudgetConfirmState {
@@ -38,6 +41,7 @@ export default function ExpenseForm({
   onCreate,
   onCreateRecurring,
   onUpdate,
+  onCreateCategory,
 }: Props) {
   const isEdit = Boolean(expense);
   const [amount, setAmount] = useState("");
@@ -50,6 +54,7 @@ export default function ExpenseForm({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [overBudgetConfirm, setOverBudgetConfirm] = useState<OverBudgetConfirmState | null>(null);
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
 
   const catOptions = useMemo(
     () => [{ value: "none", label: "Aucune" }, ...categories.map((category) => ({ value: category.id, label: `${category.icon || ""} ${category.name}`.trim() }))],
@@ -171,7 +176,7 @@ export default function ExpenseForm({
         <FormFieldInput label="Montant (EUR)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
-        <SelectField label="Categorie" value={categoryId} onValueChange={setCategoryId} options={catOptions} />
+        <SelectField label="Categorie" value={categoryId} onValueChange={setCategoryId} options={catOptions} onAddClick={onCreateCategory ? () => setCategoryFormOpen(true) : undefined} />
         <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={actOptions} />
         {!isEdit ? (
           <div className="space-y-2 rounded-lg border border-border p-3">
@@ -215,6 +220,18 @@ export default function ExpenseForm({
         confirmLabel="Continuer"
         onConfirm={handleConfirmOverBudget}
       />
+      {onCreateCategory && (
+        <CategoryForm
+          open={categoryFormOpen}
+          onOpenChange={setCategoryFormOpen}
+          onCreate={async (payload) => {
+            const created = await onCreateCategory(payload);
+            setCategoryId(created.id);
+            setCategoryFormOpen(false);
+          }}
+          onUpdate={async () => {}}
+        />
+      )}
     </>
   );
 }

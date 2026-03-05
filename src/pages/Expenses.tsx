@@ -6,7 +6,8 @@ import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Category, Expense } from "@/data/staticData";
 import { getActivities, getActivityStatsByUser } from "@/api/activityApi";
 import type { ActivityStats } from "@/api/activityApi";
-import { getCategories } from "@/api/categoryApi";
+import { getCategories, createCategory } from "@/api/categoryApi";
+import type { CategoryPayload } from "@/api/categoryApi";
 import {
   createRecurringExpense,
   createExpense,
@@ -20,6 +21,7 @@ import {
 } from "@/api/expenseApi";
 import type { ExpensePayload, ExpenseStatistics, RecurringExpense, RecurringExpensePayload } from "@/api/expenseApi";
 import ExpenseForm from "@/components/forms/ExpenseForm";
+import CategoryForm from "@/components/forms/CategoryForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import FormDialog from "@/components/dialogs/FormDialog";
@@ -63,6 +65,7 @@ export default function Expenses() {
   const [recurringActive, setRecurringActive] = useState(true);
   const [isRecurringSubmitting, setIsRecurringSubmitting] = useState(false);
   const [activityStatsById, setActivityStatsById] = useState<Record<string, ActivityStats>>({});
+  const [recurringCategoryFormOpen, setRecurringCategoryFormOpen] = useState(false);
 
   const loadExpenses = async () => {
     try {
@@ -218,6 +221,13 @@ export default function Expenses() {
       console.error("Impossible de supprimer la depense.", error);
       toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     }
+  };
+
+  const handleCreateCategory = async (payload: CategoryPayload) => {
+    const created = await createCategory(payload);
+    setCategoryList((prev) => [...prev, created]);
+    toast({ title: "Catégorie ajoutée", description: created.name });
+    return created;
   };
 
   const frequencyOptions = [
@@ -503,6 +513,7 @@ export default function Expenses() {
         onCreate={handleCreate}
         onCreateRecurring={handleCreateRecurring}
         onUpdate={handleUpdate}
+        onCreateCategory={handleCreateCategory}
       />
       <DeleteConfirmDialog
         open={deleteOpen}
@@ -530,6 +541,7 @@ export default function Expenses() {
             value={recurringCategoryId}
             onValueChange={setRecurringCategoryId}
             options={[{ value: "none", label: "Aucune" }, ...categoryList.map((category) => ({ value: category.id, label: `${category.icon || ""} ${category.name}`.trim() }))]}
+            onAddClick={() => setRecurringCategoryFormOpen(true)}
           />
           <SelectField
             label="Activite"
@@ -553,6 +565,16 @@ export default function Expenses() {
           </button>
         </form>
       </FormDialog>
+      <CategoryForm
+        open={recurringCategoryFormOpen}
+        onOpenChange={setRecurringCategoryFormOpen}
+        onCreate={async (payload) => {
+          const created = await handleCreateCategory(payload);
+          setRecurringCategoryId(created.id);
+          setRecurringCategoryFormOpen(false);
+        }}
+        onUpdate={async () => {}}
+      />
     </div>
   );
 }
