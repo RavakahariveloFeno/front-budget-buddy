@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileText, Plus, Pencil, Trash2, Eye, PlusCircle, X, ArrowLeft } from "lucide-react";
-import { STATIC_FACTURES, STATIC_CLIENTS, STATIC_PRODUITS, type Facture, type FactureStatut, type LigneFacture } from "@/data/venteData";
+import { STATIC_FACTURES, STATIC_CLIENTS, STATIC_PRODUITS, type Facture, type FactureStatut, type LigneFacture, type Client } from "@/data/venteData";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import FormDialog from "@/components/dialogs/FormDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-function clientNom(id: string) { return STATIC_CLIENTS.find((c) => c.id === id)?.nom ?? "—"; }
+function clientNom(id: string, clients: Client[]) { return clients.find((c) => c.id === id)?.nom ?? "—"; }
 function produitNom(id: string) { return STATIC_PRODUITS.find((p) => p.id === id)?.nom ?? "—"; }
 
 const statutColor: Record<FactureStatut, string> = {
@@ -28,11 +29,17 @@ type ViewMode = "list" | "form";
 export default function FacturesPage() {
   const { toast } = useToast();
   const [factures, setFactures] = useState<Facture[]>(STATIC_FACTURES);
+  const [clients, setClients] = useState<Client[]>(STATIC_CLIENTS);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editing, setEditing] = useState<Facture | null>(null);
   const [viewing, setViewing] = useState<Facture | null>(null);
+  const [clientFormOpen, setClientFormOpen] = useState(false);
+  const [newClientNom, setNewClientNom] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientTelephone, setNewClientTelephone] = useState("");
+  const [newClientAdresse, setNewClientAdresse] = useState("");
 
   const [numero, setNumero] = useState("");
   const [clientId, setClientId] = useState("");
@@ -108,7 +115,7 @@ export default function FacturesPage() {
               <h3 className="font-display font-semibold text-foreground">Informations générales</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormFieldInput label="Numéro" id="numero" value={numero} onChange={setNumero} required />
-                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={STATIC_CLIENTS.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" />
+                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={clients.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" onAddClick={() => { setNewClientNom(""); setNewClientEmail(""); setNewClientTelephone(""); setNewClientAdresse(""); setClientFormOpen(true); }} />
                 <FormFieldInput label="Date" id="date" type="date" value={date} onChange={setDate} required />
                 <SelectField label="Statut" value={statut} onValueChange={setStatut} options={[{ value: "EN_ATTENTE", label: "En attente" }, { value: "PAYÉE", label: "Payée" }, { value: "ANNULÉE", label: "Annulée" }]} />
               </div>
@@ -184,7 +191,7 @@ export default function FacturesPage() {
               {factures.map((f) => (
                 <TableRow key={f.id}>
                   <TableCell className="font-medium font-mono text-xs text-foreground">{f.numero}</TableCell>
-                  <TableCell className="text-foreground">{clientNom(f.clientId)}</TableCell>
+                  <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(f.date)}</TableCell>
                   <TableCell className="font-semibold text-foreground">{formatCurrency(f.total)}</TableCell>
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
@@ -211,7 +218,7 @@ export default function FacturesPage() {
           {viewing && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId)}</span></div>
+                <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId, clients)}</span></div>
                 <div><span className="text-muted-foreground">Date : </span><span className="text-foreground">{formatDate(viewing.date)}</span></div>
                 <div><span className="text-muted-foreground">Statut : </span><Badge variant={statutColor[viewing.statut] as any}>{viewing.statut}</Badge></div>
               </div>
@@ -237,6 +244,24 @@ export default function FacturesPage() {
       </Dialog>
 
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} title="Supprimer cette facture ?" description="Cette action est irréversible." />
+
+      <FormDialog open={clientFormOpen} onOpenChange={setClientFormOpen} title="Nouveau client">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const newId = `c${Date.now()}`;
+          const newClient: Client = { id: newId, nom: newClientNom, email: newClientEmail, telephone: newClientTelephone, adresse: newClientAdresse, totalAchats: 0 };
+          setClients((prev) => [...prev, newClient]);
+          setClientId(newId);
+          setClientFormOpen(false);
+          toast({ title: "Client ajouté" });
+        }} className="space-y-4">
+          <FormFieldInput label="Nom" id="new-client-nom" value={newClientNom} onChange={setNewClientNom} placeholder="Ex: Rakoto Jean" required />
+          <FormFieldInput label="Email" id="new-client-email" type="email" value={newClientEmail} onChange={setNewClientEmail} placeholder="email@exemple.mg" required />
+          <FormFieldInput label="Téléphone" id="new-client-tel" value={newClientTelephone} onChange={setNewClientTelephone} placeholder="034 12 345 67" required />
+          <FormFieldInput label="Adresse" id="new-client-adr" value={newClientAdresse} onChange={setNewClientAdresse} placeholder="Quartier, Ville" required />
+          <Button type="submit" className="w-full">Ajouter</Button>
+        </form>
+      </FormDialog>
     </div>
   );
 }
