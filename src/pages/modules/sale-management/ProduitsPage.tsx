@@ -225,7 +225,7 @@ export default function ProduitsPage() {
       <FormDialog open={formOpen} onOpenChange={setFormOpen} title={editing ? "Modifier le produit" : "Nouveau produit"}>
         <form onSubmit={handleSave} className="space-y-4">
           <FormFieldInput label="Nom" id="nom" value={nom} onChange={setNom} placeholder="Ex: Riz 50kg" required />
-          <FormFieldInput label="Reference" id="reference" value={reference} onChange={setReference} placeholder="Ex: RIZ-050" required />
+          <FormFieldInput label="Reference" id="reference" value={reference} onChange={setReference} placeholder="Ex: RIZ-050" />
           <SelectField
             label="Categorie"
             value={categorie}

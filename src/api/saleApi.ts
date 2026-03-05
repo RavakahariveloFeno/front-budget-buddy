@@ -233,7 +233,7 @@ export async function deleteProduit(params: SaleContextParams, id: string): Prom
 
 export interface ClientPayload {
   nom: string;
-  email: string;
+  email?: string;
   telephone: string;
   adresse: string;
 }
@@ -251,12 +251,13 @@ export async function getClients(params: SaleContextParams): Promise<Client[]> {
 
 export async function createClient(params: SaleContextParams, payload: ClientPayload): Promise<Client> {
   const { userId, activityId } = getContext(params);
+  const email = payload.email?.trim();
   const response = await fetch(`${SALE_API_URL}/clients`, {
     method: "POST",
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       name: payload.nom,
-      email: payload.email,
+      ...(email ? { email } : {}),
       phone: payload.telephone,
       address: payload.adresse,
       userId,
@@ -274,12 +275,13 @@ export async function updateClient(
   payload: ClientPayload,
 ): Promise<Client> {
   const { userId } = getContext(params);
+  const email = payload.email?.trim();
   const response = await fetch(`${SALE_API_URL}/clients/${id}`, {
     method: "PATCH",
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       name: payload.nom,
-      email: payload.email,
+      ...(email ? { email } : {}),
       phone: payload.telephone,
       address: payload.adresse,
       userId,

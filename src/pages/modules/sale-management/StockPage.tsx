@@ -141,8 +141,8 @@ export default function StockPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" />
           <FormFieldInput label="Quantité" id="quantite" type="number" value={quantite} onChange={setQuantite} min="0" required />
-          <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" required />
-          <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" required />
+          <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" />
+          <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" />
           <Button type="submit" className="w-full">{editing ? "Enregistrer" : "Ajouter"}</Button>
         </form>
       </FormDialog>

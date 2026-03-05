@@ -40,7 +40,12 @@ export default function ClientsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId) return;
-    const payload = { nom, email, telephone, adresse };
+    const payload = {
+      nom,
+      email: email.trim(),
+      telephone,
+      adresse,
+    };
     try {
       if (editing) {
         const updated = await updateClient({ activityId }, editing.id, payload);
@@ -125,9 +130,9 @@ export default function ClientsPage() {
       <FormDialog open={formOpen} onOpenChange={setFormOpen} title={editing ? "Modifier le client" : "Nouveau client"}>
         <form onSubmit={handleSave} className="space-y-4">
           <FormFieldInput label="Nom" id="nom" value={nom} onChange={setNom} placeholder="Ex: Rakoto Jean" required />
-          <FormFieldInput label="Email" id="email" type="email" value={email} onChange={setEmail} placeholder="email@exemple.mg" required />
-          <FormFieldInput label="Téléphone" id="telephone" value={telephone} onChange={setTelephone} placeholder="034 12 345 67" required />
-          <FormFieldInput label="Adresse" id="adresse" value={adresse} onChange={setAdresse} placeholder="Quartier, Ville" required />
+          <FormFieldInput label="Email" id="email" type="email" value={email} onChange={setEmail} placeholder="email@exemple.mg" />
+          <FormFieldInput label="Téléphone" id="telephone" value={telephone} onChange={setTelephone} placeholder="034 12 345 67" />
+          <FormFieldInput label="Adresse" id="adresse" value={adresse} onChange={setAdresse} placeholder="Quartier, Ville" />
           <Button type="submit" className="w-full">{editing ? "Enregistrer" : "Ajouter"}</Button>
         </form>
       </FormDialog>
