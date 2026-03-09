@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { User, Lock, Users, Pencil, Trash2, Plus, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PREDEFINED_MODULES } from "@/data/staticData";
+import type { Activity } from "@/data/staticData";
 import { changePassword, clearSessionToken, getCurrentUser, updateCachedCurrentUserProfile } from "@/api/authApi";
 import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
+import { getActivities } from "@/api/activityApi";
+import { getActivityModules } from "@/api/moduleApi";
 
 type AppRole = "admin" | "manager" | "user";
 
@@ -26,7 +29,7 @@ interface ManagedProfile {
   role: AppRole;
   password: string;
   activities: string[];
-  moduleIds: string[];
+  moduleLinks: string[];
 }
 
 const ROLE_OPTIONS: { value: AppRole; label: string }[] = [
@@ -41,7 +44,8 @@ const ROLE_COLORS: Record<AppRole, string> = {
   user: "bg-primary/20 text-primary border-primary/30",
 };
 
-const STATIC_ACTIVITIES = ["Vente", "Consulting", "Freelance", "Formation", "Investissement"];
+const buildModuleLinks = (activities: string[], moduleIds: string[]) =>
+  activities.flatMap((activityId) => moduleIds.map((moduleId) => `${activityId}::${moduleId}`));
 
 const initialProfiles: ManagedProfile[] = [
   {
@@ -52,7 +56,10 @@ const initialProfiles: ManagedProfile[] = [
     role: "admin",
     password: "Admin@123",
     activities: ["Vente", "Investissement"],
-    moduleIds: ["mod-vente", "mod-comptabilite", "mod-paie", "mod-tresorerie", "mod-achat-revente"],
+    moduleLinks: buildModuleLinks(
+      ["Vente", "Investissement"],
+      ["mod-vente", "mod-comptabilite", "mod-paie", "mod-tresorerie", "mod-achat-revente"],
+    ),
   },
   {
     id: "u2",
@@ -62,7 +69,7 @@ const initialProfiles: ManagedProfile[] = [
     role: "manager",
     password: "Manager@123",
     activities: ["Consulting", "Formation"],
-    moduleIds: ["mod-vente", "mod-comptabilite"],
+    moduleLinks: buildModuleLinks(["Consulting", "Formation"], ["mod-vente", "mod-comptabilite"]),
   },
   {
     id: "u3",
@@ -72,7 +79,7 @@ const initialProfiles: ManagedProfile[] = [
     role: "user",
     password: "User@123",
     activities: ["Freelance"],
-    moduleIds: ["mod-vente"],
+    moduleLinks: buildModuleLinks(["Freelance"], ["mod-vente"]),
   },
 ];
 
@@ -94,6 +101,10 @@ export default function Settings() {
   const [profiles, setProfiles] = useState<ManagedProfile[]>(initialProfiles);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ManagedProfile | null>(null);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+  const [activityModulesById, setActivityModulesById] = useState<Record<string, string[]>>({});
+  const [isLoadingModulesById, setIsLoadingModulesById] = useState<Record<string, boolean>>({});
   const [formProfile, setFormProfile] = useState<Omit<ManagedProfile, "id">>({
     firstName: "",
     lastName: "",
@@ -101,8 +112,155 @@ export default function Settings() {
     role: "user",
     password: "",
     activities: [],
-    moduleIds: [],
+    moduleLinks: [],
   });
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        setIsLoadingActivities(true);
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
+      } finally {
+        setIsLoadingActivities(false);
+      }
+    };
+
+    loadActivities();
+  }, []);
+
+  useEffect(() => {
+    if (activityList.length === 0) {
+      return;
+    }
+    const idByName = new Map(activityList.map((act) => [act.name, act.id]));
+    setFormProfile((prev) => {
+      const normalizedActivities = prev.activities.map((value) => idByName.get(value) ?? value);
+      const normalizedLinks = prev.moduleLinks.map((link) => {
+        const [activityId, moduleId] = link.split("::");
+        if (!moduleId) {
+          return link;
+        }
+        const mappedId = idByName.get(activityId);
+        return mappedId ? `${mappedId}::${moduleId}` : link;
+      });
+      const dedupActivities = Array.from(new Set(normalizedActivities));
+      const dedupLinks = Array.from(new Set(normalizedLinks));
+      const sameActivities =
+        dedupActivities.length === prev.activities.length &&
+        dedupActivities.every((value, index) => value === prev.activities[index]);
+      const sameLinks =
+        dedupLinks.length === prev.moduleLinks.length &&
+        dedupLinks.every((value, index) => value === prev.moduleLinks[index]);
+      if (sameActivities && sameLinks) {
+        return prev;
+      }
+      return {
+        ...prev,
+        activities: dedupActivities,
+        moduleLinks: dedupLinks,
+      };
+    });
+  }, [activityList]);
+
+  const selectedActivityIds = useMemo(() => {
+    if (activityList.length === 0 || formProfile.activities.length === 0) {
+      return [];
+    }
+    const idByName = new Map(activityList.map((act) => [act.name, act.id]));
+    const validIds = new Set(activityList.map((act) => act.id));
+    const ids = new Set<string>();
+    formProfile.activities.forEach((value) => {
+      if (validIds.has(value)) {
+        ids.add(value);
+        return;
+      }
+      const mapped = idByName.get(value);
+      if (mapped) {
+        ids.add(mapped);
+      }
+    });
+    return Array.from(ids);
+  }, [activityList, formProfile.activities]);
+
+  const activityNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    activityList.forEach((act) => map.set(act.id, act.name));
+    return map;
+  }, [activityList]);
+
+  const moduleActivityPairs = useMemo(() => {
+    const pairs: Array<{ moduleId: string; activityId: string; activityName: string }> = [];
+    for (const activityId of selectedActivityIds) {
+      const modules = activityModulesById[activityId];
+      if (!modules) {
+        continue;
+      }
+      const activityName = activityNameById.get(activityId) ?? activityId;
+      for (const moduleId of modules) {
+        pairs.push({ moduleId, activityId, activityName });
+      }
+    }
+    return pairs;
+  }, [activityModulesById, activityNameById, selectedActivityIds]);
+
+  const isLoadingModules = selectedActivityIds.some((id) => isLoadingModulesById[id]);
+
+  const fetchActivityModules = useCallback(async (activityId: string) => {
+    if (activityModulesById[activityId] || isLoadingModulesById[activityId]) {
+      return;
+    }
+    setIsLoadingModulesById((prev) => ({ ...prev, [activityId]: true }));
+    try {
+      const ids = await getActivityModules(activityId);
+      setActivityModulesById((prev) => ({ ...prev, [activityId]: ids }));
+    } catch (error) {
+      console.error("Impossible de charger les modules lies a l'activite.", error);
+      setActivityModulesById((prev) => ({ ...prev, [activityId]: [] }));
+    } finally {
+      setIsLoadingModulesById((prev) => ({ ...prev, [activityId]: false }));
+    }
+  }, [activityModulesById, isLoadingModulesById]);
+
+  useEffect(() => {
+    selectedActivityIds.forEach((id) => {
+      void fetchActivityModules(id);
+    });
+  }, [fetchActivityModules, selectedActivityIds]);
+
+  useEffect(() => {
+    setFormProfile((prev) => {
+      if (selectedActivityIds.length === 0) {
+        return prev.moduleLinks.length === 0 ? prev : { ...prev, moduleLinks: [] };
+      }
+      const allowed = new Set<string>();
+      const selectedSet = new Set(selectedActivityIds);
+      selectedActivityIds.forEach((activityId) => {
+        const modules = activityModulesById[activityId];
+        if (!modules) {
+          return;
+        }
+        modules.forEach((moduleId) => allowed.add(`${activityId}::${moduleId}`));
+      });
+      const filtered = prev.moduleLinks.filter((link) => {
+        const [activityId] = link.split("::");
+        if (!selectedSet.has(activityId)) {
+          return false;
+        }
+        if (!activityModulesById[activityId]) {
+          return true;
+        }
+        return allowed.has(link);
+      });
+      if (filtered.length === prev.moduleLinks.length) {
+        return prev;
+      }
+      return { ...prev, moduleLinks: filtered };
+    });
+  }, [activityModulesById, selectedActivityIds]);
 
   const handleSaveProfile = async () => {
     const nextFirstName = firstName.trim();
@@ -171,7 +329,7 @@ export default function Settings() {
 
   const openAddProfile = () => {
     setEditingProfile(null);
-    setFormProfile({ firstName: "", lastName: "", email: "", role: "user", password: "", activities: [], moduleIds: [] });
+    setFormProfile({ firstName: "", lastName: "", email: "", role: "user", password: "", activities: [], moduleLinks: [] });
     setDialogOpen(true);
   };
 
@@ -184,7 +342,7 @@ export default function Settings() {
       role: profile.role,
       password: profile.password,
       activities: [...profile.activities],
-      moduleIds: [...profile.moduleIds],
+      moduleLinks: [...profile.moduleLinks],
     });
     setDialogOpen(true);
   };
@@ -212,23 +370,30 @@ export default function Settings() {
     toast({ title: "Profil supprime" });
   };
 
-  const toggleModule = (moduleId: string) => {
+  const toggleModule = (activityId: string, moduleId: string) => {
+    const linkId = `${activityId}::${moduleId}`;
     setFormProfile((prev) => ({
       ...prev,
-      moduleIds: prev.moduleIds.includes(moduleId)
-        ? prev.moduleIds.filter((m) => m !== moduleId)
-        : [...prev.moduleIds, moduleId],
+      moduleLinks: prev.moduleLinks.includes(linkId)
+        ? prev.moduleLinks.filter((id) => id !== linkId)
+        : [...prev.moduleLinks, linkId],
     }));
   };
 
-  const toggleActivity = (activity: string) => {
+  const toggleActivity = (activity: Activity) => {
+    const activityId = activity.id;
+    const activityName = activity.name;
     setFormProfile((prev) => ({
       ...prev,
-      activities: prev.activities.includes(activity)
-        ? prev.activities.filter((a) => a !== activity)
-        : [...prev.activities, activity],
+      activities: prev.activities.includes(activityId) || prev.activities.includes(activityName)
+        ? prev.activities.filter((a) => a !== activityId && a !== activityName)
+        : [...prev.activities, activityId],
     }));
   };
+
+  const getActivityLabel = (value: string) => activityNameById.get(value) ?? value;
+  const isActivityChecked = (activity: Activity) =>
+    formProfile.activities.includes(activity.id) || formProfile.activities.includes(activity.name);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -350,20 +515,27 @@ export default function Settings() {
                           <div className="flex flex-wrap gap-1">
                             {profile.activities.map((activity) => (
                               <Badge key={activity} variant="outline" className="text-xs bg-secondary/50 text-foreground border-border">
-                                {activity}
+                                {getActivityLabel(activity)}
                               </Badge>
                             ))}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {profile.moduleIds.map((moduleId) => {
+                            {profile.moduleLinks.map((link) => {
+                              const [activityIdRaw, moduleIdRaw] = link.split("::");
+                              const activityId = moduleIdRaw ? activityIdRaw : "";
+                              const moduleId = moduleIdRaw ?? activityIdRaw;
                               const mod = PREDEFINED_MODULES.find((m) => m.id === moduleId);
-                              return mod ? (
-                                <Badge key={moduleId} variant="outline" className="text-xs bg-secondary/50 text-foreground border-border">
-                                  {mod.name}
+                              if (!mod) {
+                                return null;
+                              }
+                              const label = activityId ? `${mod.name} · ${getActivityLabel(activityId)}` : mod.name;
+                              return (
+                                <Badge key={link} variant="outline" className="text-xs bg-secondary/50 text-foreground border-border">
+                                  {label}
                                 </Badge>
-                              ) : null;
+                              );
                             })}
                           </div>
                         </TableCell>
@@ -427,23 +599,61 @@ export default function Settings() {
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Activities</Label>
               <div className="space-y-2 rounded-lg border border-border p-3" style={{ background: "hsl(var(--input))" }}>
-                {STATIC_ACTIVITIES.map((activity) => (
-                  <label key={activity} className="flex items-center gap-3 cursor-pointer py-1">
-                    <Checkbox checked={formProfile.activities.includes(activity)} onCheckedChange={() => toggleActivity(activity)} />
-                    <span className="text-sm">{activity}</span>
-                  </label>
-                ))}
+                {activityList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {isLoadingActivities ? "Chargement des activites..." : "Aucune activite disponible."}
+                  </p>
+                ) : (
+                  activityList.map((activity) => (
+                    <label key={activity.id} className="flex items-center gap-3 cursor-pointer py-1">
+                      <Checkbox
+                        checked={isActivityChecked(activity)}
+                        onCheckedChange={() => toggleActivity(activity)}
+                      />
+                      <span className="text-sm">{activity.name}</span>
+                    </label>
+                  ))
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Modules assignes</Label>
               <div className="space-y-2 rounded-lg border border-border p-3" style={{ background: "hsl(var(--input))" }}>
-                {PREDEFINED_MODULES.map((mod) => (
-                  <label key={mod.id} className="flex items-center gap-3 cursor-pointer py-1">
-                    <Checkbox checked={formProfile.moduleIds.includes(mod.id)} onCheckedChange={() => toggleModule(mod.id)} />
-                    <span className="text-sm">{mod.name}</span>
-                  </label>
-                ))}
+                {selectedActivityIds.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Selectionnez une activite pour afficher ses modules.</p>
+                ) : moduleActivityPairs.length === 0 && isLoadingModules ? (
+                  <p className="text-sm text-muted-foreground">Chargement des modules...</p>
+                ) : moduleActivityPairs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucun module lie aux activites selectionnees.</p>
+                ) : (
+                  moduleActivityPairs.map(({ moduleId, activityId, activityName }) => {
+                    const mod = PREDEFINED_MODULES.find((m) => m.id === moduleId);
+                    if (!mod) {
+                      return null;
+                    }
+                    const linkId = `${activityId}::${moduleId}`;
+                    return (
+                      <label
+                        key={linkId}
+                        className="flex items-center justify-between gap-3 cursor-pointer py-1"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={formProfile.moduleLinks.includes(linkId)}
+                            onCheckedChange={() => toggleModule(activityId, mod.id)}
+                          />
+                          <span className="text-sm">{mod.name}</span>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full px-2 py-0.5 text-[11px] font-medium tracking-tight bg-primary/10 text-primary border-primary/20 shadow-sm"
+                        >
+                          {activityName}
+                        </Badge>
+                      </label>
+                    );
+                  })
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
