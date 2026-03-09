@@ -18,70 +18,25 @@ import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
 import { getActivities } from "@/api/activityApi";
 import { getActivityModules } from "@/api/moduleApi";
+import {
+  createManagedProfile,
+  deleteManagedProfile,
+  getManagedProfiles,
+  updateManagedProfile,
+} from "@/api/profileApi";
+import type { ManagedProfile, ProfileRole } from "@/api/profileApi";
 
-type AppRole = "admin" | "manager" | "user";
-
-interface ManagedProfile {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: AppRole;
-  password: string;
-  activities: string[];
-  moduleLinks: string[];
-}
-
-const ROLE_OPTIONS: { value: AppRole; label: string }[] = [
+const ROLE_OPTIONS: { value: ProfileRole; label: string }[] = [
   { value: "admin", label: "Administrateur" },
   { value: "manager", label: "Manager" },
   { value: "user", label: "Utilisateur" },
 ];
 
-const ROLE_COLORS: Record<AppRole, string> = {
+const ROLE_COLORS: Record<ProfileRole, string> = {
   admin: "bg-destructive/20 text-destructive border-destructive/30",
   manager: "bg-warning/20 text-warning border-warning/30",
   user: "bg-primary/20 text-primary border-primary/30",
 };
-
-const buildModuleLinks = (activities: string[], moduleIds: string[]) =>
-  activities.flatMap((activityId) => moduleIds.map((moduleId) => `${activityId}::${moduleId}`));
-
-const initialProfiles: ManagedProfile[] = [
-  {
-    id: "u1",
-    firstName: "Jean",
-    lastName: "Dupont",
-    email: "jean@pilgo.mg",
-    role: "admin",
-    password: "Admin@123",
-    activities: ["Vente", "Investissement"],
-    moduleLinks: buildModuleLinks(
-      ["Vente", "Investissement"],
-      ["mod-vente", "mod-comptabilite", "mod-paie", "mod-tresorerie", "mod-achat-revente"],
-    ),
-  },
-  {
-    id: "u2",
-    firstName: "Marie",
-    lastName: "Rakoto",
-    email: "marie@pilgo.mg",
-    role: "manager",
-    password: "Manager@123",
-    activities: ["Consulting", "Formation"],
-    moduleLinks: buildModuleLinks(["Consulting", "Formation"], ["mod-vente", "mod-comptabilite"]),
-  },
-  {
-    id: "u3",
-    firstName: "Hery",
-    lastName: "Andria",
-    email: "hery@pilgo.mg",
-    role: "user",
-    password: "User@123",
-    activities: ["Freelance"],
-    moduleLinks: buildModuleLinks(["Freelance"], ["mod-vente"]),
-  },
-];
 
 export default function Settings() {
   const { toast } = useToast();
@@ -98,7 +53,9 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  const [profiles, setProfiles] = useState<ManagedProfile[]>(initialProfiles);
+  const [profiles, setProfiles] = useState<ManagedProfile[]>([]);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [isSavingManagedProfile, setIsSavingManagedProfile] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ManagedProfile | null>(null);
   const [activityList, setActivityList] = useState<Activity[]>([]);
@@ -110,7 +67,6 @@ export default function Settings() {
     lastName: "",
     email: "",
     role: "user",
-    password: "",
     activities: [],
     moduleLinks: [],
   });
@@ -131,6 +87,28 @@ export default function Settings() {
 
     loadActivities();
   }, []);
+
+  useEffect(() => {
+    const loadProfiles = async () => {
+      try {
+        setIsLoadingProfiles(true);
+        const remoteProfiles = await getManagedProfiles();
+        setProfiles(remoteProfiles);
+      } catch (error) {
+        console.error("Impossible de charger les profils depuis l'API.", error);
+        setProfiles([]);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les profils.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingProfiles(false);
+      }
+    };
+
+    void loadProfiles();
+  }, [toast]);
 
   useEffect(() => {
     if (activityList.length === 0) {
@@ -329,7 +307,7 @@ export default function Settings() {
 
   const openAddProfile = () => {
     setEditingProfile(null);
-    setFormProfile({ firstName: "", lastName: "", email: "", role: "user", password: "", activities: [], moduleLinks: [] });
+    setFormProfile({ firstName: "", lastName: "", email: "", role: "user", activities: [], moduleLinks: [] });
     setDialogOpen(true);
   };
 
@@ -340,34 +318,58 @@ export default function Settings() {
       lastName: profile.lastName,
       email: profile.email,
       role: profile.role,
-      password: profile.password,
       activities: [...profile.activities],
       moduleLinks: [...profile.moduleLinks],
     });
     setDialogOpen(true);
   };
 
-  const handleSaveManagedProfile = () => {
-    if (!formProfile.firstName || !formProfile.lastName || !formProfile.email || !formProfile.password) {
+  const handleSaveManagedProfile = async () => {
+    if (!formProfile.firstName || !formProfile.lastName || !formProfile.email) {
       toast({ title: "Erreur", description: "Veuillez remplir tous les champs obligatoires.", variant: "destructive" });
       return;
     }
 
-    if (editingProfile) {
-      setProfiles((prev) => prev.map((item) => (item.id === editingProfile.id ? { ...item, ...formProfile } : item)));
-      toast({ title: "Profil modifie", description: `${formProfile.firstName} ${formProfile.lastName} a ete mis a jour.` });
-    } else {
-      const newProfile: ManagedProfile = { id: `u${Date.now()}`, ...formProfile };
-      setProfiles((prev) => [...prev, newProfile]);
-      toast({ title: "Profil ajoute", description: `${formProfile.firstName} ${formProfile.lastName} a ete cree.` });
-    }
+    try {
+      setIsSavingManagedProfile(true);
+      const payload = {
+        firstName: formProfile.firstName.trim(),
+        lastName: formProfile.lastName.trim(),
+        email: formProfile.email.trim(),
+        role: formProfile.role,
+        activities: formProfile.activities,
+        moduleLinks: formProfile.moduleLinks,
+      };
 
-    setDialogOpen(false);
+      if (editingProfile) {
+        const updated = await updateManagedProfile(editingProfile.id, payload);
+        setProfiles((prev) => prev.map((item) => (item.id === editingProfile.id ? updated : item)));
+        toast({ title: "Profil modifie", description: `${updated.firstName} ${updated.lastName} a ete mis a jour.` });
+      } else {
+        const created = await createManagedProfile(payload);
+        setProfiles((prev) => [...prev, created]);
+        toast({ title: "Profil ajoute", description: `${created.firstName} ${created.lastName} a ete cree.` });
+      }
+
+      setDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof Error && error.message.includes("409")
+        ? "Cet email existe deja."
+        : "Impossible d'enregistrer le profil.";
+      toast({ title: "Erreur", description: message, variant: "destructive" });
+    } finally {
+      setIsSavingManagedProfile(false);
+    }
   };
 
-  const handleDeleteProfile = (id: string) => {
-    setProfiles((prev) => prev.filter((item) => item.id !== id));
-    toast({ title: "Profil supprime" });
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await deleteManagedProfile(id);
+      setProfiles((prev) => prev.filter((item) => item.id !== id));
+      toast({ title: "Profil supprime" });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de supprimer le profil.", variant: "destructive" });
+    }
   };
 
   const toggleModule = (activityId: string, moduleId: string) => {
@@ -480,7 +482,7 @@ export default function Settings() {
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Shield size={20} className="text-primary" /> Gestion des profiles
                 </CardTitle>
-                <CardDescription>Ajoutez des profiles et assignez leurs roles, mot de passe, activities et modules</CardDescription>
+                <CardDescription>Ajoutez des profiles et assignez leurs roles, activities et modules</CardDescription>
               </div>
               <Button onClick={openAddProfile} size="sm" className="gap-1.5">
                 <Plus size={16} /> Ajouter
@@ -494,14 +496,21 @@ export default function Settings() {
                       <TableHead className="text-muted-foreground">Nom</TableHead>
                       <TableHead className="text-muted-foreground">Email</TableHead>
                       <TableHead className="text-muted-foreground">Role</TableHead>
-                      <TableHead className="text-muted-foreground">Mot de passe</TableHead>
                       <TableHead className="text-muted-foreground">Activities</TableHead>
                       <TableHead className="text-muted-foreground">Modules</TableHead>
                       <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {profiles.map((profile) => (
+                    {isLoadingProfiles ? (
+                      <TableRow className="border-border">
+                        <TableCell className="text-muted-foreground" colSpan={6}>Chargement des profils...</TableCell>
+                      </TableRow>
+                    ) : profiles.length === 0 ? (
+                      <TableRow className="border-border">
+                        <TableCell className="text-muted-foreground" colSpan={6}>Aucun profil disponible.</TableCell>
+                      </TableRow>
+                    ) : profiles.map((profile) => (
                       <TableRow key={profile.id} className="border-border">
                         <TableCell className="font-medium">{profile.firstName} {profile.lastName}</TableCell>
                         <TableCell className="text-muted-foreground">{profile.email}</TableCell>
@@ -510,7 +519,6 @@ export default function Settings() {
                             {ROLE_OPTIONS.find((r) => r.value === profile.role)?.label}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{profile.password}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {profile.activities.map((activity) => (
@@ -580,12 +588,8 @@ export default function Settings() {
               <Input type="email" value={formProfile.email} onChange={(e) => setFormProfile((p) => ({ ...p, email: e.target.value }))} className="border-border bg-input" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-sm">Mot de passe</Label>
-              <Input type="password" value={formProfile.password} onChange={(e) => setFormProfile((p) => ({ ...p, password: e.target.value }))} className="border-border bg-input" />
-            </div>
-            <div className="space-y-1.5">
               <Label className="text-muted-foreground text-sm">Role</Label>
-              <Select value={formProfile.role} onValueChange={(value) => setFormProfile((p) => ({ ...p, role: value as AppRole }))}>
+              <Select value={formProfile.role} onValueChange={(value) => setFormProfile((p) => ({ ...p, role: value as ProfileRole }))}>
                 <SelectTrigger className="border-border bg-input">
                   <SelectValue />
                 </SelectTrigger>
@@ -657,8 +661,10 @@ export default function Settings() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
-              <Button onClick={handleSaveManagedProfile}>{editingProfile ? "Enregistrer" : "Ajouter"}</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSavingManagedProfile}>Annuler</Button>
+              <Button onClick={() => void handleSaveManagedProfile()} disabled={isSavingManagedProfile}>
+                {isSavingManagedProfile ? "Enregistrement..." : editingProfile ? "Enregistrer" : "Ajouter"}
+              </Button>
             </div>
           </div>
         </DialogContent>
