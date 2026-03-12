@@ -14,13 +14,21 @@ export interface ManagedProfile {
   moduleLinks: string[];
 }
 
-export interface ManagedProfilePayload {
+export interface ManagedProfilePayloadBase {
   firstName: string;
   lastName: string;
   email: string;
   role: ProfileRole;
   activities: string[];
   moduleLinks: string[];
+}
+
+export interface CreateManagedProfilePayload extends ManagedProfilePayloadBase {
+  password: string;
+}
+
+export interface UpdateManagedProfilePayload extends ManagedProfilePayloadBase {
+  password?: string;
 }
 
 function mapRole(value: unknown): ProfileRole {
@@ -78,7 +86,7 @@ export async function getManagedProfiles(): Promise<ManagedProfile[]> {
     .filter((item): item is ManagedProfile => Boolean(item));
 }
 
-export async function createManagedProfile(payload: ManagedProfilePayload): Promise<ManagedProfile> {
+export async function createManagedProfile(payload: CreateManagedProfilePayload): Promise<ManagedProfile> {
   const userId = getRequiredUserId();
   const response = await fetch(PROFILE_API_URL, {
     method: "POST",
@@ -88,6 +96,7 @@ export async function createManagedProfile(payload: ManagedProfilePayload): Prom
       firstName: payload.firstName,
       lastName: payload.lastName,
       email: payload.email,
+      password: payload.password,
       role: payload.role,
       activities: payload.activities,
       moduleLinks: payload.moduleLinks,
@@ -105,8 +114,9 @@ export async function createManagedProfile(payload: ManagedProfilePayload): Prom
   return profile;
 }
 
-export async function updateManagedProfile(id: string, payload: ManagedProfilePayload): Promise<ManagedProfile> {
+export async function updateManagedProfile(id: string, payload: UpdateManagedProfilePayload): Promise<ManagedProfile> {
   const userId = getRequiredUserId();
+  const password = payload.password;
   const response = await fetch(`${PROFILE_API_URL}/${id}`, {
     method: "PATCH",
     headers: buildAuthHeaders(true),
@@ -115,6 +125,7 @@ export async function updateManagedProfile(id: string, payload: ManagedProfilePa
       firstName: payload.firstName,
       lastName: payload.lastName,
       email: payload.email,
+      ...(password ? { password } : {}),
       role: payload.role,
       activities: payload.activities,
       moduleLinks: payload.moduleLinks,

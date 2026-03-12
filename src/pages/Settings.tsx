@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { User, Lock, Users, Pencil, Trash2, Plus, Shield } from "lucide-react";
+import { User, Lock, Users, Pencil, Trash2, Plus, Shield, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PREDEFINED_MODULES } from "@/data/staticData";
 import type { Activity } from "@/data/staticData";
@@ -38,6 +38,8 @@ const ROLE_COLORS: Record<ProfileRole, string> = {
   user: "bg-primary/20 text-primary border-primary/30",
 };
 
+type ManagedProfileFormState = Omit<ManagedProfile, "id"> & { password: string };
+
 export default function Settings() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -58,14 +60,16 @@ export default function Settings() {
   const [isSavingManagedProfile, setIsSavingManagedProfile] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ManagedProfile | null>(null);
+  const [showManagedProfilePassword, setShowManagedProfilePassword] = useState(false);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
   const [activityModulesById, setActivityModulesById] = useState<Record<string, string[]>>({});
   const [isLoadingModulesById, setIsLoadingModulesById] = useState<Record<string, boolean>>({});
-  const [formProfile, setFormProfile] = useState<Omit<ManagedProfile, "id">>({
+  const [formProfile, setFormProfile] = useState<ManagedProfileFormState>({
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
     role: "user",
     activities: [],
     moduleLinks: [],
@@ -307,16 +311,19 @@ export default function Settings() {
 
   const openAddProfile = () => {
     setEditingProfile(null);
-    setFormProfile({ firstName: "", lastName: "", email: "", role: "user", activities: [], moduleLinks: [] });
+    setShowManagedProfilePassword(false);
+    setFormProfile({ firstName: "", lastName: "", email: "", password: "", role: "user", activities: [], moduleLinks: [] });
     setDialogOpen(true);
   };
 
   const openEditProfile = (profile: ManagedProfile) => {
     setEditingProfile(profile);
+    setShowManagedProfilePassword(false);
     setFormProfile({
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email,
+      password: "",
       role: profile.role,
       activities: [...profile.activities],
       moduleLinks: [...profile.moduleLinks],
@@ -330,9 +337,19 @@ export default function Settings() {
       return;
     }
 
+    const password = formProfile.password.trim();
+    if (!editingProfile && !password) {
+      toast({ title: "Erreur", description: "Le mot de passe est obligatoire lors de l'ajout.", variant: "destructive" });
+      return;
+    }
+    if (password && password.length < 6) {
+      toast({ title: "Erreur", description: "Le mot de passe doit contenir au moins 6 caracteres.", variant: "destructive" });
+      return;
+    }
+
     try {
       setIsSavingManagedProfile(true);
-      const payload = {
+      const basePayload = {
         firstName: formProfile.firstName.trim(),
         lastName: formProfile.lastName.trim(),
         email: formProfile.email.trim(),
@@ -342,11 +359,14 @@ export default function Settings() {
       };
 
       if (editingProfile) {
-        const updated = await updateManagedProfile(editingProfile.id, payload);
+        const updated = await updateManagedProfile(editingProfile.id, {
+          ...basePayload,
+          ...(password ? { password } : {}),
+        });
         setProfiles((prev) => prev.map((item) => (item.id === editingProfile.id ? updated : item)));
         toast({ title: "Profil modifie", description: `${updated.firstName} ${updated.lastName} a ete mis a jour.` });
       } else {
-        const created = await createManagedProfile(payload);
+        const created = await createManagedProfile({ ...basePayload, password });
         setProfiles((prev) => [...prev, created]);
         toast({ title: "Profil ajoute", description: `${created.firstName} ${created.lastName} a ete cree.` });
       }
@@ -586,6 +606,41 @@ export default function Settings() {
             <div className="space-y-1.5">
               <Label className="text-muted-foreground text-sm">Email</Label>
               <Input type="email" value={formProfile.email} onChange={(e) => setFormProfile((p) => ({ ...p, email: e.target.value }))} className="border-border bg-input" />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-muted-foreground text-sm">Mot de passe</Label>
+                {editingProfile ? (
+                  <span className="text-xs text-muted-foreground">Optionnel</span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Obligatoire</span>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  type={showManagedProfilePassword ? "text" : "password"}
+                  value={formProfile.password}
+                  onChange={(e) => setFormProfile((p) => ({ ...p, password: e.target.value }))}
+                  placeholder={editingProfile ? "Laisser vide pour ne pas modifier" : "Minimum 6 caracteres"}
+                  className="border-border bg-input pr-10"
+                  autoComplete="new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowManagedProfilePassword((prev) => !prev)}
+                  aria-label={showManagedProfilePassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                >
+                  {showManagedProfilePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {editingProfile
+                  ? "Laissez vide pour conserver le mot de passe actuel."
+                  : "Choisissez un mot de passe pour ce profil (minimum 6 caracteres)."}
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-muted-foreground text-sm">Role</Label>
