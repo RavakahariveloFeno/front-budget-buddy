@@ -7,6 +7,8 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  profileId?: string;
+  role?: string;
 }
 
 interface LoginResponse {
@@ -36,6 +38,8 @@ type JwtPayload = {
   firstName?: string;
   lastName?: string;
   exp?: number;
+  profileId?: string;
+  role?: string;
 };
 
 function decodeJwtPayload(token: string): JwtPayload | null {
@@ -83,6 +87,8 @@ function readCachedUserProfile(): AuthUser | null {
       email: parsed.email,
       firstName: parsed.firstName,
       lastName: parsed.lastName,
+      ...(parsed.profileId ? { profileId: parsed.profileId } : {}),
+      ...(parsed.role ? { role: parsed.role } : {}),
     };
   } catch {
     return null;
@@ -114,6 +120,8 @@ export function getCurrentUser(): AuthUser | null {
     email: payload.email,
     firstName: payload.firstName,
     lastName: payload.lastName,
+    ...(payload.profileId ? { profileId: payload.profileId } : {}),
+    ...(payload.role ? { role: payload.role } : {}),
   };
   writeCachedUserProfile(user);
   return user;

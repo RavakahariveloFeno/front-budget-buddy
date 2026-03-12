@@ -14,6 +14,7 @@ import { User, Lock, Users, Pencil, Trash2, Plus, Shield, Eye, EyeOff } from "lu
 import { useNavigate } from "react-router-dom";
 import { PREDEFINED_MODULES } from "@/data/staticData";
 import type { Activity } from "@/data/staticData";
+import { MENU_ACCESS_ITEMS } from "@/data/menuAccess";
 import { changePassword, clearSessionToken, getCurrentUser, updateCachedCurrentUserProfile } from "@/api/authApi";
 import { updateCurrentUserProfile } from "@/api/userApi";
 import { useToast } from "@/hooks/use-toast";
@@ -76,6 +77,7 @@ export default function Settings() {
     role: "user",
     activities: [],
     moduleLinks: [],
+    menuAccess: [],
   });
 
   useEffect(() => {
@@ -315,7 +317,7 @@ export default function Settings() {
   const openAddProfile = () => {
     setEditingProfile(null);
     setShowManagedProfilePassword(false);
-    setFormProfile({ firstName: "", lastName: "", email: "", password: "", role: "user", activities: [], moduleLinks: [] });
+    setFormProfile({ firstName: "", lastName: "", email: "", password: "", role: "user", activities: [], moduleLinks: [], menuAccess: [] });
     setDialogOpen(true);
   };
 
@@ -330,6 +332,7 @@ export default function Settings() {
       role: profile.role,
       activities: [...profile.activities],
       moduleLinks: [...profile.moduleLinks],
+      menuAccess: [...profile.menuAccess],
     });
     setDialogOpen(true);
   };
@@ -349,6 +352,10 @@ export default function Settings() {
     }
     if (formProfile.moduleLinks.length === 0) {
       toast({ title: "Erreur", description: "Veuillez selectionner au moins un module.", variant: "destructive" });
+      return;
+    }
+    if (formProfile.menuAccess.length === 0) {
+      toast({ title: "Erreur", description: "Veuillez selectionner au moins un menu.", variant: "destructive" });
       return;
     }
 
@@ -371,6 +378,7 @@ export default function Settings() {
         role: formProfile.role,
         activities: formProfile.activities,
         moduleLinks: formProfile.moduleLinks,
+        menuAccess: formProfile.menuAccess,
       };
 
       if (editingProfile) {
@@ -696,6 +704,27 @@ export default function Settings() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-sm">Acces aux menus</Label>
+              <div className="space-y-2 rounded-lg border border-border p-3" style={{ background: "hsl(var(--input))" }}>
+                {MENU_ACCESS_ITEMS.map((item) => (
+                  <label key={item.key} className="flex items-center gap-3 cursor-pointer py-1">
+                    <Checkbox
+                      checked={formProfile.menuAccess.includes(item.key)}
+                      onCheckedChange={() =>
+                        setFormProfile((prev) => ({
+                          ...prev,
+                          menuAccess: prev.menuAccess.includes(item.key)
+                            ? prev.menuAccess.filter((key) => key !== item.key)
+                            : [...prev.menuAccess, item.key],
+                        }))
+                      }
+                    />
+                    <span className="text-sm">{item.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Activities</Label>

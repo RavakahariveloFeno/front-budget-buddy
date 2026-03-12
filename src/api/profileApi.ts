@@ -12,6 +12,7 @@ export interface ManagedProfile {
   role: ProfileRole;
   activities: string[];
   moduleLinks: string[];
+  menuAccess: string[];
 }
 
 export interface ManagedProfilePayloadBase {
@@ -21,6 +22,7 @@ export interface ManagedProfilePayloadBase {
   role: ProfileRole;
   activities: string[];
   moduleLinks: string[];
+  menuAccess: string[];
 }
 
 export interface CreateManagedProfilePayload extends ManagedProfilePayloadBase {
@@ -55,6 +57,7 @@ function mapManagedProfile(item: unknown): ManagedProfile | null {
 
   const activities = Array.isArray(record.activities) ? record.activities.map((item) => String(item ?? "")).filter(Boolean) : [];
   const moduleLinks = Array.isArray(record.moduleLinks) ? record.moduleLinks.map((item) => String(item ?? "")).filter(Boolean) : [];
+  const menuAccess = Array.isArray(record.menuAccess) ? record.menuAccess.map((item) => String(item ?? "")).filter(Boolean) : [];
 
   return {
     id,
@@ -64,6 +67,7 @@ function mapManagedProfile(item: unknown): ManagedProfile | null {
     role: mapRole(record.role),
     activities,
     moduleLinks,
+    menuAccess,
   };
 }
 
@@ -100,6 +104,7 @@ export async function createManagedProfile(payload: CreateManagedProfilePayload)
       role: payload.role,
       activities: payload.activities,
       moduleLinks: payload.moduleLinks,
+      menuAccess: payload.menuAccess,
     }),
   });
   if (!response.ok) {
@@ -129,6 +134,7 @@ export async function updateManagedProfile(id: string, payload: UpdateManagedPro
       role: payload.role,
       activities: payload.activities,
       moduleLinks: payload.moduleLinks,
+      menuAccess: payload.menuAccess,
     }),
   });
   if (!response.ok) {
@@ -152,4 +158,21 @@ export async function deleteManagedProfile(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
+}
+
+export async function getManagedProfile(id: string): Promise<ManagedProfile> {
+  const userId = getRequiredUserId();
+  const response = await fetch(`${PROFILE_API_URL}/${id}?userId=${userId}`, {
+    headers: buildAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  const profile = mapManagedProfile(data);
+  if (!profile) {
+    throw new Error("Invalid profile response");
+  }
+  return profile;
 }

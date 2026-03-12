@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -13,22 +13,35 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { getCurrentUser } from "@/api/authApi";
+import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
-  { to: "/activities", icon: Briefcase, label: "Activités" },
-  { to: "/incomes", icon: TrendingUp, label: "Revenus" },
-  { to: "/expenses", icon: TrendingDown, label: "Dépenses" },
-  { to: "/categories", icon: Tag, label: "Catégories" },
-  { to: "/budgets", icon: PiggyBank, label: "Budgets" },
-  { to: "/loans", icon: CreditCard, label: "Prêts" },
-  { to: "/investments", icon: ArrowLeftRight, label: "Investissements" },
-  { to: "/settings", icon: Settings, label: "Paramètres" },
+  { key: "dashboard", to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
+  { key: "activities", to: "/activities", icon: Briefcase, label: "Activités" },
+  { key: "incomes", to: "/incomes", icon: TrendingUp, label: "Revenus" },
+  { key: "expenses", to: "/expenses", icon: TrendingDown, label: "Dépenses" },
+  { key: "categories", to: "/categories", icon: Tag, label: "Catégories" },
+  { key: "budgets", to: "/budgets", icon: PiggyBank, label: "Budgets" },
+  { key: "loans", to: "/loans", icon: CreditCard, label: "Prêts" },
+  { key: "investments", to: "/investments", icon: ArrowLeftRight, label: "Investissements" },
+  { key: "settings", to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
 export default function Sidebar() {
+  const currentUser = getCurrentUser();
+  const isManagedProfile = Boolean(currentUser?.profileId);
+  const { data: managedProfile } = useActiveManagedProfile();
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+
+  const visibleNavItems = useMemo(() => {
+    if (!isManagedProfile) {
+      return navItems;
+    }
+    const allowed = new Set(managedProfile?.menuAccess ?? []);
+    return navItems.filter((item) => allowed.has(item.key));
+  }, [isManagedProfile, managedProfile?.menuAccess]);
 
   return (
     <aside
@@ -56,7 +69,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ to, icon: Icon, label }) => {
+        {visibleNavItems.map(({ to, icon: Icon, label }) => {
           const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
           return (
             <NavLink key={to} to={to}>
