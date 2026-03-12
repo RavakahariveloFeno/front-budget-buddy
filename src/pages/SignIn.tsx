@@ -127,6 +127,11 @@ export default function SignIn() {
               <Label htmlFor="password">Mot de passe</Label>
               <Input id="password" type="password" placeholder="••••••••" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12" />
             </div>
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm text-primary font-medium hover:underline">
+                Mot de passe oublié ?
+              </Link>
+            </div>
             <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={submitting}>
               {submitting ? "Connexion..." : "Se connecter"}
             </Button>

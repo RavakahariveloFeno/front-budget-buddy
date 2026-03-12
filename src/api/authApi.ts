@@ -269,6 +269,26 @@ export async function resendVerificationCode(email: string): Promise<void> {
   await assertOk(response);
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  await assertOk(response);
+}
+
+export async function resetPassword(payload: { email: string; code: string; newPassword: string }): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  await assertOk(response);
+}
+
 export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
   const response = await fetch(`${AUTH_API_URL}/password`, {
     method: "PUT",
