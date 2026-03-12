@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { User, Lock, Users, Pencil, Trash2, Plus, Shield, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PREDEFINED_MODULES } from "@/data/staticData";
@@ -59,6 +60,8 @@ export default function Settings() {
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [isSavingManagedProfile, setIsSavingManagedProfile] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState<ManagedProfile | null>(null);
   const [showManagedProfilePassword, setShowManagedProfilePassword] = useState(false);
   const [activityList, setActivityList] = useState<Activity[]>([]);
@@ -336,6 +339,18 @@ export default function Settings() {
       toast({ title: "Erreur", description: "Veuillez remplir tous les champs obligatoires.", variant: "destructive" });
       return;
     }
+    if (!formProfile.role) {
+      toast({ title: "Erreur", description: "Veuillez selectionner un role.", variant: "destructive" });
+      return;
+    }
+    if (formProfile.activities.length === 0) {
+      toast({ title: "Erreur", description: "Veuillez selectionner au moins une activite.", variant: "destructive" });
+      return;
+    }
+    if (formProfile.moduleLinks.length === 0) {
+      toast({ title: "Erreur", description: "Veuillez selectionner au moins un module.", variant: "destructive" });
+      return;
+    }
 
     const password = formProfile.password.trim();
     if (!editingProfile && !password) {
@@ -382,13 +397,25 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteProfile = async (id: string) => {
+  const openDeleteProfile = (profile: ManagedProfile) => {
+    setDeleteTarget(profile);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteProfile = async () => {
+    if (!deleteTarget) {
+      setDeleteOpen(false);
+      return;
+    }
     try {
-      await deleteManagedProfile(id);
-      setProfiles((prev) => prev.filter((item) => item.id !== id));
+      await deleteManagedProfile(deleteTarget.id);
+      setProfiles((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       toast({ title: "Profil supprime" });
     } catch {
       toast({ title: "Erreur", description: "Impossible de supprimer le profil.", variant: "destructive" });
+    } finally {
+      setDeleteOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -572,7 +599,7 @@ export default function Settings() {
                             <Button variant="ghost" size="icon" onClick={() => openEditProfile(profile)} className="h-8 w-8 text-muted-foreground hover:text-primary">
                               <Pencil size={15} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteProfile(profile.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                            <Button variant="ghost" size="icon" onClick={() => openDeleteProfile(profile)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                               <Trash2 size={15} />
                             </Button>
                           </div>
@@ -586,6 +613,21 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={handleDeleteProfile}
+        title="Supprimer ce profil ?"
+        description={deleteTarget
+          ? `Supprimer le profil de \"${deleteTarget.firstName} ${deleteTarget.lastName}\" ? Cette action est irréversible.`
+          : "Cette action est irréversible."}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="border-border max-h-[85vh] overflow-y-auto" style={{ background: "hsl(225, 27%, 10%)" }}>
