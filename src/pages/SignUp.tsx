@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn, signUp } from "@/api/authApi";
+import { resendVerificationCode, signIn, signUp, verifyEmail } from "@/api/authApi";
 import { toast } from "@/hooks/use-toast";
 import { BarChart3, Shield, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 import authHero from "@/assets/auth-hero.jpg";
+import EmailVerificationCodeForm from "@/components/auth/EmailVerificationCodeForm";
 
 const slides = [
   {
@@ -33,6 +34,7 @@ export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<"signup" | "verify">("signup");
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -47,12 +49,39 @@ export default function SignUp() {
     setSubmitting(true);
     try {
       await signUp({ firstName, lastName, email, password });
-      await signIn({ email, password });
-      toast({ title: "Compte créé", description: "Bienvenue sur Pilgo." });
-      navigate("/", { replace: true });
+      toast({ title: "Compte créé", description: "Un code de confirmation a été envoyé par email." });
+      setStep("verify");
     } catch (error) {
       console.error("Erreur de création de compte.", error);
-      toast({ title: "Erreur", description: "Création de compte impossible pour le moment." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Création de compte impossible pour le moment." });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerify = async (code: string) => {
+    setSubmitting(true);
+    try {
+      await verifyEmail({ email, code });
+      await signIn({ email, password });
+      toast({ title: "Email confirmé", description: "Bienvenue sur Pilgo." });
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Erreur de vérification email.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Code invalide ou expiré." });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setSubmitting(true);
+    try {
+      await resendVerificationCode(email);
+      toast({ title: "Code envoyé", description: "Vérifiez votre boîte mail." });
+    } catch (error) {
+      console.error("Erreur renvoi code.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible de renvoyer le code pour le moment." });
     } finally {
       setSubmitting(false);
     }
@@ -109,41 +138,53 @@ export default function SignUp() {
             <span className="font-bold text-xl text-foreground">Pilgo</span>
           </div>
 
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Créer votre compte</h1>
-            <p className="text-muted-foreground mt-2">Rejoignez Pilgo et prenez le contrôle de vos finances.</p>
-          </div>
-
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
-                <Input id="firstName" placeholder="Jean" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-12" />
+          {step === "signup" ? (
+            <>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Créer votre compte</h1>
+                <p className="text-muted-foreground mt-2">Rejoignez Pilgo et prenez le contrôle de vos finances.</p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
-                <Input id="lastName" placeholder="Dupont" value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-12" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Adresse email</Label>
-              <Input id="email" type="email" placeholder="vous@exemple.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-12" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Input id="password" type="password" placeholder="••••••••" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12" />
-            </div>
-            <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={submitting}>
-              {submitting ? "Création..." : "Créer mon compte"}
-            </Button>
-          </form>
 
-          <p className="text-sm text-muted-foreground text-center">
-            Déjà inscrit ?{" "}
-            <Link to="/signin" className="text-primary font-medium hover:underline">
-              Se connecter
-            </Link>
-          </p>
+              <form onSubmit={onSubmit} className="space-y-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">Prénom</Label>
+                    <Input id="firstName" placeholder="Jean" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Nom</Label>
+                    <Input id="lastName" placeholder="Dupont" value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-12" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Adresse email</Label>
+                  <Input id="email" type="email" placeholder="vous@exemple.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-12" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Mot de passe</Label>
+                  <Input id="password" type="password" placeholder="••••••••" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12" />
+                </div>
+                <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={submitting}>
+                  {submitting ? "Création..." : "Créer mon compte"}
+                </Button>
+              </form>
+
+              <p className="text-sm text-muted-foreground text-center">
+                Déjà inscrit ?{" "}
+                <Link to="/signin" className="text-primary font-medium hover:underline">
+                  Se connecter
+                </Link>
+              </p>
+            </>
+          ) : (
+            <EmailVerificationCodeForm
+              email={email}
+              disabled={submitting}
+              onVerify={handleVerify}
+              onResend={handleResend}
+              onBack={() => setStep("signup")}
+            />
+          )}
         </div>
       </div>
     </div>

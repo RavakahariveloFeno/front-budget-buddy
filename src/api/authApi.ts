@@ -32,6 +32,11 @@ interface ChangePasswordPayload {
   newPassword: string;
 }
 
+interface VerifyEmailPayload {
+  email: string;
+  code: string;
+}
+
 type JwtPayload = {
   sub?: string;
   email?: string;
@@ -56,6 +61,40 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+async function readApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0]);
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const text = await response.text();
+    if (text.trim()) {
+      return text;
+    }
+  } catch {
+    // ignore
+  }
+
+  return `HTTP ${response.status}`;
+}
+
+async function assertOk(response: Response): Promise<void> {
+  if (response.ok) {
+    return;
+  }
+  const message = await readApiErrorMessage(response);
+  throw new Error(message);
 }
 
 export function saveSessionToken(token: string): void {
@@ -188,9 +227,7 @@ export async function signUp(payload: SignupPayload): Promise<void> {
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
+  await assertOk(response);
 }
 
 export async function signIn(payload: LoginPayload): Promise<void> {
@@ -200,9 +237,7 @@ export async function signIn(payload: LoginPayload): Promise<void> {
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
+  await assertOk(response);
 
   const data: LoginResponse = await response.json();
   const token = data.access_token;
@@ -214,6 +249,26 @@ export async function signIn(payload: LoginPayload): Promise<void> {
   saveSessionToken(token);
 }
 
+export async function verifyEmail(payload: VerifyEmailPayload): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  await assertOk(response);
+}
+
+export async function resendVerificationCode(email: string): Promise<void> {
+  const response = await fetch(`${AUTH_API_URL}/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  await assertOk(response);
+}
+
 export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
   const response = await fetch(`${AUTH_API_URL}/password`, {
     method: "PUT",
@@ -221,7 +276,5 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<vo
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
+  await assertOk(response);
 }
