@@ -6,6 +6,7 @@ interface ModuleStore {
   setLinks: (activityId: string, moduleIds: string[]) => void;
   getModuleIds: (activityId: string) => string[];
   getActivityIds: (moduleId: string) => string[];
+  reset: () => void;
 }
 
 // Simple in-memory store (static data for now)
@@ -25,4 +26,5 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
     get()
       .links.filter((l) => l.moduleId === moduleId)
       .map((l) => l.activityId),
+  reset: () => set({ links: [] }),
 }));

@@ -6,6 +6,9 @@ import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES, type Activity, type AppModule } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import { useModuleStore } from "@/stores/moduleStore";
+import { getActivityModules } from "@/api/moduleApi";
+import { getCurrentUser } from "@/api/authApi";
+import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 
 function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: React.CSSProperties }) {
   const Icon = (Icons as unknown as Record<string, React.ComponentType<any>>)[name];
@@ -17,6 +20,10 @@ export default function ActivityDetail() {
   const navigate = useNavigate();
   const [activity, setActivity] = useState<Activity | null>(null);
   const getModuleIds = useModuleStore((s) => s.getModuleIds);
+  const setLinks = useModuleStore((s) => s.setLinks);
+  const currentUser = getCurrentUser();
+  const isManagedProfile = Boolean(currentUser?.profileId);
+  const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
 
   useEffect(() => {
     const load = async () => {
@@ -24,6 +31,15 @@ export default function ActivityDetail() {
         const all = await getActivities();
         const found = all.find((a) => a.id === activityId);
         setActivity(found || null);
+
+        if (found) {
+          try {
+            const ids = await getActivityModules(found.id);
+            setLinks(found.id, ids);
+          } catch {
+            setLinks(found.id, []);
+          }
+        }
       } catch {
         setActivity(null);
       }
@@ -43,7 +59,14 @@ export default function ActivityDetail() {
   }
 
   const linkedModuleIds = getModuleIds(activity.id);
-  const linkedModules = PREDEFINED_MODULES.filter((m) => linkedModuleIds.includes(m.id));
+  const allowedModuleIds =
+    !isManagedProfile
+      ? linkedModuleIds
+      : (!managedProfile || isLoadingManagedProfile)
+        ? []
+        : linkedModuleIds.filter((moduleId) => managedProfile.moduleLinks.includes(`${activity.id}::${moduleId}`));
+
+  const linkedModules = PREDEFINED_MODULES.filter((m) => allowedModuleIds.includes(m.id));
 
   return (
     <div className="animate-fade-in">

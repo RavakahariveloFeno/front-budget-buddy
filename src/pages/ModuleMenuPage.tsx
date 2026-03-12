@@ -3,6 +3,8 @@ import { ArrowLeft, LayoutGrid } from "lucide-react";
 import * as Icons from "lucide-react";
 import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES } from "@/data/staticData";
+import { getCurrentUser } from "@/api/authApi";
+import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 
 // ── Vente ──
 import StockPage from "@/pages/modules/sale-management/StockPage";
@@ -61,9 +63,30 @@ function DynamicIcon({ name, ...props }: { name: string; size?: number; classNam
 export default function ModuleMenuPage() {
   const { activityId, moduleId, menuPath } = useParams<{ activityId: string; moduleId: string; menuPath: string }>();
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+  const isManagedProfile = Boolean(currentUser?.profileId);
+  const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
 
   const module = PREDEFINED_MODULES.find((m) => m.id === moduleId);
   const menu = module?.menus.find((m) => m.path === menuPath);
+
+  if (isManagedProfile) {
+    if (isLoadingManagedProfile) {
+      return null;
+    }
+
+    const allowed = Boolean(managedProfile?.moduleLinks?.includes(`${activityId}::${moduleId}`));
+    if (!allowed) {
+      return (
+        <div className="animate-fade-in p-6">
+          <button onClick={() => navigate(`/activities/${activityId}`)} className="flex items-center gap-2 text-sm mb-4" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <ArrowLeft size={16} /> Retour
+          </button>
+          <p style={{ color: "hsl(var(--muted-foreground))" }}>Acces refuse.</p>
+        </div>
+      );
+    }
+  }
 
   if (!module || !menu) {
     return (

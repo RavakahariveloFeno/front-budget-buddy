@@ -23,6 +23,8 @@ import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { useModuleStore } from "@/stores/moduleStore";
 import { getActivityModules } from "@/api/moduleApi";
+import { getCurrentUser } from "@/api/authApi";
+import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 
 const typeColors: Record<string, string> = {
   SALARY: "badge-income",
@@ -55,13 +57,16 @@ function buildStatsMap(stats: ActivityStats[]): Record<string, ActivityStats> {
 export default function Activities() {
   const navigate = useNavigate();
   const [activityList, setActivityList] = useState<Activity[]>([]);
-  const { getModuleIds, setLinks } = useModuleStore();
+  const { getModuleIds, setLinks, reset } = useModuleStore();
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
+  const currentUser = getCurrentUser();
+  const isManagedProfile = Boolean(currentUser?.profileId);
+  const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
 
   const refreshActivityStats = async () => {
     try {
@@ -76,6 +81,7 @@ export default function Activities() {
   useEffect(() => {
     const loadActivities = async () => {
       try {
+        reset();
         const remoteActivities = await getActivities();
         setActivityList(remoteActivities);
         // Charger les modules lies depuis l'API pour chaque activite
@@ -204,9 +210,24 @@ export default function Activities() {
                   <div className="flex items-center gap-1">
                     <span className={typeColors[act.type]}>{typeLabels[act.type]}</span>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                      <button onClick={() => navigate(`/activities/${act.id}`)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors" title="Voir modules">
-                        <Eye size={13} style={{ color: "hsl(var(--info))" }} />
-                      </button>
+                      {(() => {
+                        const canViewModules =
+                          !isManagedProfile
+                          || (!isLoadingManagedProfile
+                            && Boolean(managedProfile?.moduleLinks?.some((link) => link.startsWith(`${act.id}::`))));
+
+                        return (
+                          <button
+                            type="button"
+                            disabled={!canViewModules}
+                            onClick={() => (canViewModules ? navigate(`/activities/${act.id}`) : undefined)}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${canViewModules ? "hover:bg-secondary" : "opacity-40 cursor-not-allowed"}`}
+                            title={canViewModules ? "Voir modules" : "Aucun module autorise pour ce profil"}
+                          >
+                            <Eye size={13} style={{ color: "hsl(var(--info))" }} />
+                          </button>
+                        );
+                      })()}
                       <button onClick={() => handleEdit(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
                         <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
                       </button>

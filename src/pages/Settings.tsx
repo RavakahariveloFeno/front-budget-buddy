@@ -346,18 +346,6 @@ export default function Settings() {
       toast({ title: "Erreur", description: "Veuillez selectionner un role.", variant: "destructive" });
       return;
     }
-    if (formProfile.activities.length === 0) {
-      toast({ title: "Erreur", description: "Veuillez selectionner au moins une activite.", variant: "destructive" });
-      return;
-    }
-    if (formProfile.moduleLinks.length === 0) {
-      toast({ title: "Erreur", description: "Veuillez selectionner au moins un module.", variant: "destructive" });
-      return;
-    }
-    if (formProfile.menuAccess.length === 0) {
-      toast({ title: "Erreur", description: "Veuillez selectionner au moins un menu.", variant: "destructive" });
-      return;
-    }
 
     const password = formProfile.password.trim();
     if (!editingProfile && !password) {
