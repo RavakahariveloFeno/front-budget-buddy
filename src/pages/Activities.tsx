@@ -33,6 +33,7 @@ const typeColors: Record<string, string> = {
   OTHER: "badge-warning",
 };
 
+
 const typeLabels: Record<string, string> = {
   SALARY: "Salaire",
   BUSINESS: "Business",
