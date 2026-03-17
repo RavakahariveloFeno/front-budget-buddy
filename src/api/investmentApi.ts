@@ -1,7 +1,7 @@
 import type { Investment } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const INVESTMENT_API_URL = "http://localhost:3001/investment";
+const INVESTMENT_API_URL = `${import.meta.env.VITE_API_URL}/investment`;
 
 export interface InvestmentPayload {
   amount: number;

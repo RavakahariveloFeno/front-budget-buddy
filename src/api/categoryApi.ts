@@ -1,7 +1,7 @@
 import type { Category } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const CATEGORY_API_URL = "http://localhost:3001/category";
+const CATEGORY_API_URL = `${import.meta.env.VITE_API_URL}/category`;
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
 
 export interface CategoryPayload {

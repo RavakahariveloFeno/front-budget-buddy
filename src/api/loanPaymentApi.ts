@@ -1,7 +1,7 @@
 import type { LoanPayment } from "@/data/staticData";
 import { buildAuthHeaders } from "./authApi";
 
-const LOAN_PAYMENT_API_URL = "http://localhost:3001/loan-payment";
+const LOAN_PAYMENT_API_URL = `${import.meta.env.VITE_API_URL}/loan-payment`;
 
 export interface LoanPaymentPayload {
   amount: number;

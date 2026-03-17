@@ -1,7 +1,7 @@
 import type { Expense } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const EXPENSE_API_URL = "http://localhost:3001/expense";
+const EXPENSE_API_URL = `${import.meta.env.VITE_API_URL}/expense`;
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
 
 export interface ExpensePayload {

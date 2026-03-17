@@ -1,5 +1,5 @@
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
-const STATISTICS_API_URL = "http://localhost:3001/statistics";
+const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface DashboardStats {
   totals: {

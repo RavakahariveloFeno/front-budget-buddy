@@ -1,6 +1,6 @@
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const PROFILE_API_URL = "http://localhost:3001/profile";
+const PROFILE_API_URL = `${import.meta.env.VITE_API_URL}/profile`;
 
 export type ProfileRole = "admin" | "manager" | "user";
 

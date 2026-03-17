@@ -1,6 +1,6 @@
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const USER_API_URL = "http://localhost:3001/user";
+const USER_API_URL = `${import.meta.env.VITE_API_URL}/user`;
 
 export interface UpdateUserProfilePayload {
   firstName: string;

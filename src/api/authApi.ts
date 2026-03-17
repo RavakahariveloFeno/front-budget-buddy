@@ -1,4 +1,4 @@
-const AUTH_API_URL = "http://localhost:3001/auth";
+const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 const TOKEN_STORAGE_KEY = "bb_access_token";
 const USER_PROFILE_STORAGE_KEY = "bb_user_profile";
 

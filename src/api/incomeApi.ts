@@ -1,7 +1,7 @@
 import type { Income, PaymentType } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const INCOME_API_URL = "http://localhost:3001/income";
+const INCOME_API_URL = `${import.meta.env.VITE_API_URL}/income`;
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
 
 export interface IncomePayload {

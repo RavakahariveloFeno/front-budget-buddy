@@ -1,7 +1,7 @@
 import type { Client, Facture, LigneFacture, Produit, StockItem } from "@/data/venteData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const SALE_API_URL = "http://localhost:3001/sale";
+const SALE_API_URL = `${import.meta.env.VITE_API_URL}/sale`;
 
 export interface SaleContextParams {
   activityId: string;

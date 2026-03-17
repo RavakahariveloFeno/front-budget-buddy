@@ -1,8 +1,8 @@
 import type { Activity, ActivityType } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const ACTIVITY_API_URL = "http://localhost:3001/activity";
-const STATISTICS_API_URL = "http://localhost:3001/statistics";
+const ACTIVITY_API_URL = `${import.meta.env.VITE_API_URL}/activity`;
+const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface ActivityPayload {
   name: string;

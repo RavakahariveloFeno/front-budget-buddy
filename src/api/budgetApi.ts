@@ -1,7 +1,7 @@
 import type { Budget, BudgetPeriod } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const BUDGET_API_URL = "http://localhost:3001/budget";
+const BUDGET_API_URL = `${import.meta.env.VITE_API_URL}/budget`;
 const STATISTICS_API_URL = "http://localhost:3001/statistics";
 
 export interface BudgetPayload {

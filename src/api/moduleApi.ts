@@ -1,6 +1,6 @@
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
-const ACTIVITY_API_URL = "http://localhost:3001/activity";
+const ACTIVITY_API_URL = `${import.meta.env.VITE_API_URL}/activity`;
 
 export type BackendModuleType = "SALE_MANAGEMENT" | "PAYROLL" | "ACCOUNTING" | "CASH_MANAGEMENT";
 
