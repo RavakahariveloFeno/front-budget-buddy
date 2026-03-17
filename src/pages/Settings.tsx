@@ -29,7 +29,7 @@ import {
 import type { ManagedProfile, ProfileRole } from "@/api/profileApi";
 
 const ROLE_OPTIONS: { value: ProfileRole; label: string }[] = [
-  { value: "admin", label: "Administrateur" },
+  { value: "admin", label: "Administrateur test" },
   { value: "manager", label: "Manager" },
   { value: "user", label: "Utilisateur" },
 ];
