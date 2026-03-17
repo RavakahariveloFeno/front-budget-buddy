@@ -11,6 +11,7 @@ export interface ActivityPayload {
   startDate: string;
 }
 
+
 export interface ActivityStats {
   activityId: string;
   income: number;
