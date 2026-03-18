@@ -18,6 +18,8 @@ export interface ActivityStats {
   expense: number;
   sentInvestment: number;
   receivedInvestment: number;
+  cardBalance: number;
+  cashBalance: number;
   remainingLoan: number;
 }
 
@@ -60,6 +62,8 @@ function mapActivityStats(item: unknown): ActivityStats | null {
   const expense = Number(record.expense ?? 0);
   const sentInvestment = Number(record.sentInvestment ?? 0);
   const receivedInvestment = Number(record.receivedInvestment ?? 0);
+  const cardBalance = Number(record.cardBalance ?? 0);
+  const cashBalance = Number(record.cashBalance ?? 0);
   const remainingLoan = Number(record.remainingLoan ?? 0);
 
   if (!activityId) {
@@ -72,6 +76,8 @@ function mapActivityStats(item: unknown): ActivityStats | null {
     expense: Number.isFinite(expense) ? expense : 0,
     sentInvestment: Number.isFinite(sentInvestment) ? sentInvestment : 0,
     receivedInvestment: Number.isFinite(receivedInvestment) ? receivedInvestment : 0,
+    cardBalance: Number.isFinite(cardBalance) ? cardBalance : 0,
+    cashBalance: Number.isFinite(cashBalance) ? cashBalance : 0,
     remainingLoan: Number.isFinite(remainingLoan) ? remainingLoan : 0,
   };
 }

@@ -184,6 +184,8 @@ export default function Activities() {
             const stats = statsByActivity[act.id];
             const actIncome = stats?.income ?? 0;
             const actExpenses = stats?.expense ?? 0;
+            const cardBalance = stats?.cardBalance ?? 0;
+            const cashBalance = stats?.cashBalance ?? 0;
             const sentInv = stats?.sentInvestment ?? 0;
             const recvInv = stats?.receivedInvestment ?? 0;
             const remainingLoan = stats?.remainingLoan ?? 0;
@@ -254,6 +256,22 @@ export default function Activities() {
                     </p>
                     <p className="font-semibold" style={{ color: "hsl(var(--destructive))" }}>
                       {formatCurrency(actExpenses)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: "hsl(var(--info-dim))" }}>
+                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Solde carte
+                    </p>
+                    <p className="font-semibold" style={{ color: "hsl(var(--info))" }}>
+                      {formatCurrency(cardBalance)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: "hsl(var(--warning-dim))" }}>
+                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Solde especes
+                    </p>
+                    <p className="font-semibold" style={{ color: "hsl(var(--warning))" }}>
+                      {formatCurrency(cashBalance)}
                     </p>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "hsl(var(--purple-dim))" }}>
