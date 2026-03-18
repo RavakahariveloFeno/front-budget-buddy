@@ -2,7 +2,7 @@ import type { Loan, LoanPayment, LoanStatus, LoanType } from "@/data/staticData"
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const LOAN_API_URL = `${import.meta.env.VITE_API_URL}/loan`;
-const STATISTICS_API_URL = "http://localhost:3001/statistics";
+const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface LoanPayload {
   totalAmount: number;
