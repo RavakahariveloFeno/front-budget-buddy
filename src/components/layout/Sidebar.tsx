@@ -28,12 +28,20 @@ const navItems = [
   { key: "settings", to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  mode = "desktop",
+  onNavigate,
+}: {
+  mode?: "desktop" | "drawer";
+  onNavigate?: () => void;
+}) {
   const currentUser = getCurrentUser();
   const isManagedProfile = Boolean(currentUser?.profileId);
   const { data: managedProfile } = useActiveManagedProfile();
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const isDrawer = mode === "drawer";
+  const effectiveCollapsed = isDrawer ? false : collapsed;
 
   const visibleNavItems = useMemo(() => {
     if (!isManagedProfile) {
@@ -47,7 +55,7 @@ export default function Sidebar() {
     <aside
       className="relative flex flex-col h-screen transition-all duration-300 border-r"
       style={{
-        width: collapsed ? "72px" : "240px",
+        width: effectiveCollapsed ? "72px" : "240px",
         background: "hsl(var(--sidebar-background))",
         borderColor: "hsl(var(--sidebar-border))",
       }}
@@ -59,7 +67,7 @@ export default function Sidebar() {
         >
           <img src="/pilgo-logo.png" alt="Pilgo logo" className="w-full h-full object-cover rounded-lg" />
         </div>
-        {!collapsed && (
+        {!effectiveCollapsed && (
           <div className="animate-fade-in overflow-hidden">
             <p className="font-display font-bold text-sm" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>Pilgo</p>
             <p className="text-xs" style={{ color: "hsl(var(--sidebar-foreground))" }}>Pilotage budgetaire</p>
@@ -72,10 +80,10 @@ export default function Sidebar() {
         {visibleNavItems.map(({ to, icon: Icon, label }) => {
           const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
           return (
-            <NavLink key={to} to={to}>
-              <div className={`nav-item ${isActive ? "active" : ""}`} title={collapsed ? label : undefined}>
+            <NavLink key={to} to={to} onClick={onNavigate}>
+              <div className={`nav-item ${isActive ? "active" : ""}`} title={effectiveCollapsed ? label : undefined}>
                 <Icon size={18} className="flex-shrink-0" />
-                {!collapsed && <span className="animate-fade-in truncate">{label}</span>}
+                {!effectiveCollapsed && <span className="animate-fade-in truncate">{label}</span>}
               </div>
             </NavLink>
           );
@@ -83,17 +91,19 @@ export default function Sidebar() {
       </nav>
 
       {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3.5 top-20 flex items-center justify-center w-7 h-7 rounded-full border z-10 transition-all hover:scale-110"
-        style={{
-          background: "hsl(var(--card))",
-          borderColor: "hsl(var(--border))",
-          color: "hsl(var(--muted-foreground))",
-        }}
-      >
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-      </button>
+      {!isDrawer && (
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3.5 top-20 flex items-center justify-center w-7 h-7 rounded-full border z-10 transition-all hover:scale-110"
+          style={{
+            background: "hsl(var(--card))",
+            borderColor: "hsl(var(--border))",
+            color: "hsl(var(--muted-foreground))",
+          }}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+      )}
     </aside>
   );
 }

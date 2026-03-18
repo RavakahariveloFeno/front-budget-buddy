@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, CalendarClock, LogOut, Search } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, LogOut, Menu, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser } from "@/api/authApi";
 import { getIncomes, getRecurringIncomes } from "@/api/incomeApi";
@@ -11,6 +11,7 @@ import { getLoans } from "@/api/loanApi";
 import { getNotificationState, updateNotificationState } from "@/api/notificationApi";
 import type { Budget, Expense, Income, Loan } from "@/data/staticData";
 import { formatCurrency } from "@/data/staticData";
+import { useMobileMenu } from "./mobile-menu";
 
 interface HeaderProps {
   title: string;
@@ -257,6 +258,7 @@ function buildLoanAlerts(loans: Loan[], today: Date): AppNotification[] {
 export default function Header({ title, subtitle }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toggle: toggleMobileMenu } = useMobileMenu();
   const searchRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -598,9 +600,20 @@ export default function Header({ title, subtitle }: HeaderProps) {
       className="flex items-center justify-between px-6 py-4 border-b"
       style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}
     >
-      <div>
-        <h1 className="text-xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>{title}</h1>
-        {subtitle && <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{subtitle}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleMobileMenu}
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg border transition-colors hover:bg-secondary"
+          style={{ borderColor: "hsl(var(--border))" }}
+          title="Menu"
+        >
+          <Menu size={18} style={{ color: "hsl(var(--muted-foreground))" }} />
+        </button>
+        <div>
+          <h1 className="text-xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>{title}</h1>
+          {subtitle && <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{subtitle}</p>}
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <div ref={wrapperRef} className="relative">
