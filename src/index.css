@@ -130,6 +130,18 @@
   }
 }
 
+@keyframes bb-top-loader {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(90%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+
 @layer components {
   /* Stat cards */
   .stat-card {

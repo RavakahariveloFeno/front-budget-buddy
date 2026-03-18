@@ -8,6 +8,7 @@ import Layout from "@/components/layout/Layout";
 import { getCurrentUser, isSessionAuthenticated } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 import { getFirstAllowedMenuPath, type MenuAccessKey } from "@/data/menuAccess";
+import GlobalTopLoader from "@/components/layout/GlobalTopLoader";
 import Dashboard from "./pages/Dashboard";
 import Activities from "./pages/Activities";
 import ActivityDetail from "./pages/ActivityDetail";
@@ -68,6 +69,7 @@ function MenuRoute({ menuKey, children }: { menuKey: MenuAccessKey; children: Re
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <GlobalTopLoader />
       <Toaster />
       <Sonner />
       <BrowserRouter>

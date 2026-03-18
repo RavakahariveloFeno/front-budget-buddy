@@ -32,7 +32,7 @@ function mapState(data: unknown): NotificationState {
 
 export async function getNotificationState(): Promise<NotificationState> {
   const response = await fetch(`${NOTIFICATION_API_URL}/state`, {
-    headers: buildAuthHeaders(),
+    headers: { ...buildAuthHeaders(), "x-bb-silent-loading": "1" },
   });
 
   if (!response.ok) {
@@ -46,7 +46,7 @@ export async function getNotificationState(): Promise<NotificationState> {
 export async function updateNotificationState(payload: NotificationState): Promise<NotificationState> {
   const response = await fetch(`${NOTIFICATION_API_URL}/state`, {
     method: "PUT",
-    headers: buildAuthHeaders(true),
+    headers: { ...buildAuthHeaders(true), "x-bb-silent-loading": "1" },
     body: JSON.stringify(payload),
   });
 
