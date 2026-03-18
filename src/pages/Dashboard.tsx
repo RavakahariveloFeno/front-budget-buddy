@@ -2,6 +2,7 @@
 import {
   TrendingUp, TrendingDown, CreditCard, ArrowLeftRight,
   Wallet, Activity as ActivityIcon,
+  Banknote,
 } from "lucide-react";
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -92,6 +93,10 @@ const EMPTY_DASHBOARD: DashboardStats = {
     balance: 0,
     activeLoanCount: 0,
   },
+  paymentBalances: {
+    card: 0,
+    cash: 0,
+  },
   monthlyData: [],
   expensesByCategory: [],
   recentTransactions: [],
@@ -152,6 +157,11 @@ export default function Dashboard() {
           <div className="text-right">
             <Wallet size={40} style={{ color: "hsl(var(--primary-foreground) / 0.3)" }} />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
+          <StatCard label="Solde carte" value={formatCurrency(dashboard.paymentBalances.card)} icon={CreditCard} variant="default" />
+          <StatCard label="Solde especes" value={formatCurrency(dashboard.paymentBalances.cash)} icon={Banknote} variant="default" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -292,6 +302,28 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Soldes carte / especes par activite</p>
+              <div className="space-y-2">
+                {dashboard.activities.map((act) => (
+                  <div key={`pay-${act.activityId}`} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
+                      <p className="text-sm truncate" style={{ color: "hsl(var(--foreground))" }}>{act.name}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: "hsl(var(--info))" }}>
+                        <CreditCard size={12} /> {formatCurrency(act.cardBalance)}
+                      </span>
+                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: "hsl(var(--warning))" }}>
+                        <Banknote size={12} /> {formatCurrency(act.cashBalance)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

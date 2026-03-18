@@ -44,11 +44,21 @@ export interface Category {
 export interface Expense {
   id: string;
   amount: number;
+  paymentType?: PaymentType;
   date: string;
   description?: string;
   categoryId?: string;
   activityId?: string;
   recurringExpenseId?: string;
+  userId: string;
+}
+
+export interface Withdrawal {
+  id: string;
+  amount: number;
+  date: string;
+  description?: string;
+  activityId: string;
   userId: string;
 }
 

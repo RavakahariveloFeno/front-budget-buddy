@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
+import { ArrowDownUp, Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
@@ -25,6 +25,7 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { createWithdrawal } from "@/api/withdrawalApi";
 
 const CustomTooltipStyle = {
   contentStyle: {
@@ -52,6 +53,12 @@ export default function Incomes() {
   const [editItem, setEditItem] = useState<Income | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Income | null>(null);
+  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalDescription, setWithdrawalDescription] = useState("");
+  const [withdrawalDate, setWithdrawalDate] = useState(new Date().toISOString().split("T")[0]);
+  const [withdrawalActivityId, setWithdrawalActivityId] = useState("none");
+  const [withdrawalSubmitting, setWithdrawalSubmitting] = useState(false);
   const [recurringList, setRecurringList] = useState<RecurringIncome[]>([]);
   const [recurringEditOpen, setRecurringEditOpen] = useState(false);
   const [recurringEditItem, setRecurringEditItem] = useState<RecurringIncome | null>(null);
@@ -114,6 +121,17 @@ export default function Incomes() {
     refreshIncomeStats();
   }, []);
 
+  useEffect(() => {
+    if (!withdrawalOpen) {
+      return;
+    }
+
+    setWithdrawalAmount("");
+    setWithdrawalDescription("");
+    setWithdrawalDate(new Date().toISOString().split("T")[0]);
+    setWithdrawalActivityId("none");
+  }, [withdrawalOpen]);
+
   const totalIncome = incomeStats.totalIncome;
   const cardTotal = incomeStats.cardTotal;
   const cashTotal = incomeStats.cashTotal;
@@ -154,6 +172,37 @@ export default function Incomes() {
     setIncomeList((prev) => prev.map((income) => (income.id === id ? updated : income)));
     await refreshIncomeStats();
     toast({ title: "Revenu modifie", description: `+${formatCurrency(updated.amount)}` });
+  };
+
+  const submitWithdrawal = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsedAmount = Number(withdrawalAmount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
+      return;
+    }
+    if (withdrawalActivityId === "none") {
+      toast({ title: "Activite requise", description: "Selectionnez une activite pour faire un retrait." });
+      return;
+    }
+
+    try {
+      setWithdrawalSubmitting(true);
+      await createWithdrawal({
+        amount: parsedAmount,
+        date: withdrawalDate,
+        description: withdrawalDescription.trim() || undefined,
+        activityId: withdrawalActivityId,
+      });
+      await refreshIncomeStats();
+      setWithdrawalOpen(false);
+      toast({ title: "Retrait enregistre", description: `-${formatCurrency(parsedAmount)}` });
+    } catch (error) {
+      console.error("Impossible d'enregistrer le retrait.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Retrait impossible pour le moment." });
+    } finally {
+      setWithdrawalSubmitting(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -329,16 +378,25 @@ export default function Incomes() {
                 ({incomeList.length})
               </span>
             </p>
-            <button
-              onClick={() => {
-                setEditItem(null);
-                setFormOpen(true);
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-            >
-              <Plus size={13} /> Ajouter
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setWithdrawalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
+              >
+                <ArrowDownUp size={13} /> Retrait
+              </button>
+              <button
+                onClick={() => {
+                  setEditItem(null);
+                  setFormOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+              >
+                <Plus size={13} /> Ajouter
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full data-table">
@@ -347,7 +405,8 @@ export default function Incomes() {
                   <th className="text-left">Date</th>
                   <th className="text-left">Description</th>
                   <th className="text-left">Activite</th>
-                  <th className="text-left">Paiement</th>
+                  <th className="text-right">Carte</th>
+                  <th className="text-right">Especes</th>
                   <th className="text-left">Type</th>
                   <th className="text-right">Montant</th>
                   <th className="text-right">Actions</th>
@@ -363,8 +422,11 @@ export default function Incomes() {
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(inc.date)}</td>
                       <td style={{ color: "hsl(var(--foreground))" }}>{inc.description || "-"}</td>
                       <td>{act ? <span className="badge-income">{act.name}</span> : "-"}</td>
-                      <td>
-                        <span className={inc.paymentType === "CARD" ? "badge-info" : "badge-warning"}>{inc.paymentType === "CARD" ? "Carte" : "Cash"}</span>
+                      <td className="text-right" style={{ color: "hsl(var(--info))" }}>
+                        {inc.paymentType === "CASH" ? "-" : formatCurrency(inc.amount)}
+                      </td>
+                      <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
+                        {inc.paymentType === "CASH" ? formatCurrency(inc.amount) : "-"}
                       </td>
                       <td>
                         <span className={inc.recurringIncomeId ? "badge-warning text-xs" : "badge-info text-xs"}>
@@ -408,7 +470,8 @@ export default function Incomes() {
                   <th className="text-left">Debut</th>
                   <th className="text-left">Frequence</th>
                   <th className="text-left">Description</th>
-                  <th className="text-left">Paiement</th>
+                  <th className="text-right">Carte</th>
+                  <th className="text-right">Especes</th>
                   <th className="text-left">Activite</th>
                   <th className="text-left">Statut</th>
                   <th className="text-right">Montant</th>
@@ -423,8 +486,11 @@ export default function Incomes() {
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(item.startDate)}</td>
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.frequency === "DAY" ? "Jour" : item.frequency === "WEEK" ? "Semaine" : "Mois"}</td>
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
-                      <td>
-                        <span className={item.paymentType === "CARD" ? "badge-info" : "badge-warning"}>{item.paymentType === "CARD" ? "Carte" : "Cash"}</span>
+                      <td className="text-right" style={{ color: "hsl(var(--info))" }}>
+                        {item.paymentType === "CASH" ? "-" : formatCurrency(item.amount)}
+                      </td>
+                      <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
+                        {item.paymentType === "CASH" ? formatCurrency(item.amount) : "-"}
                       </td>
                       <td>{activity ? <span className="badge-income">{activity.name}</span> : "-"}</td>
                       <td>
@@ -467,6 +533,27 @@ export default function Incomes() {
         onCreateRecurring={handleCreateRecurring}
         onUpdate={handleUpdate}
       />
+      <FormDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} title="Nouveau retrait (Carte → Especes)">
+        <form onSubmit={submitWithdrawal} className="space-y-4">
+          <FormFieldInput label="Montant (EUR)" id="wd-amount" type="number" value={withdrawalAmount} onChange={setWithdrawalAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Date" id="wd-date" type="date" value={withdrawalDate} onChange={setWithdrawalDate} required />
+          <SelectField
+            label="Activite"
+            value={withdrawalActivityId}
+            onValueChange={setWithdrawalActivityId}
+            options={[{ value: "none", label: "Selectionner..." }, ...activityList.map((activity) => ({ value: activity.id, label: activity.name }))]}
+          />
+          <FormFieldInput label="Description (optionnel)" id="wd-desc" value={withdrawalDescription} onChange={setWithdrawalDescription} placeholder="Ex: Retrait ATM" />
+          <button
+            type="submit"
+            disabled={withdrawalSubmitting}
+            className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
+          >
+            {withdrawalSubmitting ? "En cours..." : "Enregistrer le retrait"}
+          </button>
+        </form>
+      </FormDialog>
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

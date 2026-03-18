@@ -60,6 +60,7 @@ export default function Expenses() {
   const [recurringStartDate, setRecurringStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [recurringEndDate, setRecurringEndDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
+  const [recurringPaymentType, setRecurringPaymentType] = useState<"CARD" | "CASH">("CARD");
   const [recurringCategoryId, setRecurringCategoryId] = useState("none");
   const [recurringActivityId, setRecurringActivityId] = useState("none");
   const [recurringActive, setRecurringActive] = useState(true);
@@ -235,6 +236,10 @@ export default function Expenses() {
     { value: "WEEK", label: "Chaque semaine" },
     { value: "MONTH", label: "Chaque mois" },
   ];
+  const paymentOptions = [
+    { value: "CARD", label: "Carte" },
+    { value: "CASH", label: "Especes" },
+  ];
 
   const handleEditRecurring = (item: RecurringExpense) => {
     setRecurringEditItem(item);
@@ -243,6 +248,7 @@ export default function Expenses() {
     setRecurringStartDate(item.startDate.split("T")[0]);
     setRecurringEndDate(item.endDate ? item.endDate.split("T")[0] : "");
     setRecurringFrequency(item.frequency);
+    setRecurringPaymentType(item.paymentType || "CARD");
     setRecurringCategoryId(item.categoryId || "none");
     setRecurringActivityId(item.activityId || "none");
     setRecurringActive(item.isActive);
@@ -266,6 +272,7 @@ export default function Expenses() {
       setIsRecurringSubmitting(true);
       await updateRecurringExpense(recurringEditItem.id, {
         amount,
+        paymentType: recurringPaymentType,
         description: recurringDescription.trim() || undefined,
         startDate: recurringStartDate,
         endDate: recurringEndDate || undefined,
@@ -282,7 +289,7 @@ export default function Expenses() {
       toast({ title: "Depense automatique modifiee" });
     } catch (error) {
       console.error("Impossible de modifier la depense automatique.", error);
-      toast({ title: "Erreur", description: "Modification impossible pour le moment." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Modification impossible pour le moment." });
     } finally {
       setIsRecurringSubmitting(false);
     }
@@ -389,6 +396,7 @@ export default function Expenses() {
                     <th className="text-left">Description</th>
                     <th className="text-left">Categorie</th>
                     <th className="text-left">Activite</th>
+                    <th className="text-left">Paiement</th>
                     <th className="text-left">Type</th>
                     <th className="text-right">Montant</th>
                     <th className="text-right">Actions</th>
@@ -414,6 +422,15 @@ export default function Expenses() {
                           )}
                         </td>
                         <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
+                        <td>
+                          {expense.paymentType ? (
+                            <span className={expense.paymentType === "CARD" ? "badge-info text-xs" : "badge-warning text-xs"}>
+                              {expense.paymentType === "CARD" ? "Carte" : "Cash"}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
                         <td>
                           <span className={expense.recurringExpenseId ? "badge-warning text-xs" : "badge-info text-xs"}>
                             {expense.recurringExpenseId ? "Automatique" : "Manuel"}
@@ -458,6 +475,7 @@ export default function Expenses() {
                   <th className="text-left">Frequence</th>
                   <th className="text-left">Description</th>
                   <th className="text-left">Activite</th>
+                  <th className="text-left">Paiement</th>
                   <th className="text-left">Statut</th>
                   <th className="text-right">Montant</th>
                   <th className="text-right">Actions</th>
@@ -472,6 +490,15 @@ export default function Expenses() {
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.frequency === "DAY" ? "Jour" : item.frequency === "WEEK" ? "Semaine" : "Mois"}</td>
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
                       <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
+                      <td>
+                        {item.paymentType ? (
+                          <span className={item.paymentType === "CARD" ? "badge-info text-xs" : "badge-warning text-xs"}>
+                            {item.paymentType === "CARD" ? "Carte" : "Cash"}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                       <td>
                         <span className={item.isActive ? "badge-income" : "badge-warning"}>{item.isActive ? "Active" : "Pause"}</span>
                       </td>
@@ -536,6 +563,7 @@ export default function Expenses() {
           <FormFieldInput label="Date de debut" id="rec-exp-start" type="date" value={recurringStartDate} onChange={setRecurringStartDate} required />
           <FormFieldInput label="Date de fin (optionnel)" id="rec-exp-end" type="date" value={recurringEndDate} onChange={setRecurringEndDate} />
           <SelectField label="Frequence" value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as "DAY" | "WEEK" | "MONTH")} options={frequencyOptions} />
+          <SelectField label="Paiement" value={recurringPaymentType} onValueChange={(v) => setRecurringPaymentType(v as "CARD" | "CASH")} options={paymentOptions} />
           <SelectField
             label="Categorie"
             value={recurringCategoryId}

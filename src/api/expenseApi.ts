@@ -1,11 +1,13 @@
 import type { Expense } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
+import type { PaymentType } from "@/data/staticData";
 
 const EXPENSE_API_URL = `${import.meta.env.VITE_API_URL}/expense`;
 const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface ExpensePayload {
   amount: number;
+  paymentType?: PaymentType;
   date: string;
   description?: string;
   categoryId?: string;
@@ -16,6 +18,7 @@ export type ExpenseRecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
 
 export interface RecurringExpensePayload {
   amount: number;
+  paymentType?: PaymentType;
   startDate: string;
   endDate?: string;
   frequency: ExpenseRecurrenceFrequency;
@@ -27,6 +30,7 @@ export interface RecurringExpensePayload {
 export interface RecurringExpense {
   id: string;
   amount: number;
+  paymentType?: PaymentType;
   startDate: string;
   endDate?: string;
   frequency: ExpenseRecurrenceFrequency;
@@ -39,6 +43,7 @@ export interface RecurringExpense {
 
 export interface UpdateRecurringExpensePayload {
   amount?: number;
+  paymentType?: PaymentType;
   startDate?: string;
   endDate?: string;
   frequency?: ExpenseRecurrenceFrequency;
@@ -68,17 +73,36 @@ function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
 
+async function readApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0]);
+    }
+  } catch {
+    // ignore
+  }
+
+  return `HTTP ${response.status}`;
+}
+
 function mapExpense(item: unknown): Expense | null {
   if (!item || typeof item !== "object") {
     return null;
   }
 
   const record = item as Record<string, unknown>;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     userId: String(record.userId ?? ""),
+    ...(paymentType ? { paymentType } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
     ...(record.categoryId ? { categoryId: String(record.categoryId) } : {}),
     ...(record.activityId ? { activityId: String(record.activityId) } : {}),
@@ -96,6 +120,7 @@ function mapRecurringExpense(item: unknown): RecurringExpense | null {
   const amount = Number(record.amount ?? 0);
   const startDate = String(record.startDate ?? "");
   const frequency = String(record.frequency ?? "") as ExpenseRecurrenceFrequency;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
 
   if (!id || !Number.isFinite(amount) || !startDate || !["DAY", "WEEK", "MONTH"].includes(frequency)) {
     return null;
@@ -104,6 +129,7 @@ function mapRecurringExpense(item: unknown): RecurringExpense | null {
   return {
     id,
     amount,
+    ...(paymentType ? { paymentType } : {}),
     startDate,
     frequency,
     isActive: Boolean(record.isActive),
@@ -206,6 +232,7 @@ export async function createExpense(payload: ExpensePayload): Promise<Expense> {
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
+      paymentType: payload.paymentType,
       date: toIsoDate(payload.date),
       description: payload.description || undefined,
       categoryId: payload.categoryId || undefined,
@@ -215,7 +242,7 @@ export async function createExpense(payload: ExpensePayload): Promise<Expense> {
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -234,6 +261,7 @@ export async function createRecurringExpense(payload: RecurringExpensePayload): 
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
+      paymentType: payload.paymentType,
       startDate: toIsoDate(payload.startDate),
       endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
       frequency: payload.frequency,
@@ -245,7 +273,7 @@ export async function createRecurringExpense(payload: RecurringExpensePayload): 
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -280,6 +308,7 @@ export async function updateRecurringExpense(id: string, payload: UpdateRecurrin
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
+      paymentType: payload.paymentType,
       startDate: payload.startDate ? toIsoDate(payload.startDate) : undefined,
       endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
       frequency: payload.frequency,
@@ -292,7 +321,7 @@ export async function updateRecurringExpense(id: string, payload: UpdateRecurrin
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -319,6 +348,7 @@ export async function updateExpense(id: string, payload: ExpensePayload): Promis
   const userId = getRequiredUserId();
   const body = JSON.stringify({
     amount: payload.amount,
+    paymentType: payload.paymentType,
     date: toIsoDate(payload.date),
     description: payload.description || undefined,
     categoryId: payload.categoryId || undefined,
@@ -340,7 +370,7 @@ export async function updateExpense(id: string, payload: ExpensePayload): Promis
   }
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();

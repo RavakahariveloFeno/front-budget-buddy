@@ -47,6 +47,7 @@ export default function ExpenseForm({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [paymentType, setPaymentType] = useState<"CARD" | "CASH">("CARD");
   const [categoryId, setCategoryId] = useState("none");
   const [activityId, setActivityId] = useState("none");
   const [isRecurring, setIsRecurring] = useState(false);
@@ -72,6 +73,13 @@ export default function ExpenseForm({
     ],
     [],
   );
+  const paymentOptions = useMemo(
+    () => [
+      { value: "CARD", label: "Carte" },
+      { value: "CASH", label: "Especes" },
+    ],
+    [],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -81,6 +89,7 @@ export default function ExpenseForm({
     setAmount(expense?.amount ? String(expense.amount) : "");
     setDescription(expense?.description || "");
     setDate(expense?.date ? expense.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setPaymentType(expense?.paymentType || "CARD");
     setCategoryId(expense?.categoryId || "none");
     setActivityId(expense?.activityId || "none");
     setIsRecurring(false);
@@ -101,7 +110,7 @@ export default function ExpenseForm({
       setOverBudgetConfirm(null);
     } catch (error) {
       console.error("Echec de l'enregistrement de depense.", error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer la depense." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer la depense." });
     } finally {
       setIsSubmitting(false);
     }
@@ -118,6 +127,7 @@ export default function ExpenseForm({
 
     const payloadBase = {
       amount: parsedAmount,
+      paymentType,
       description: description.trim() || undefined,
       categoryId: categoryId === "none" ? undefined : categoryId,
       activityId: activityId === "none" ? undefined : activityId,
@@ -163,7 +173,7 @@ export default function ExpenseForm({
       onOpenChange(false);
     } catch (error) {
       console.error("Echec de l'enregistrement de depense.", error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer la depense." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer la depense." });
     } finally {
       setIsSubmitting(false);
     }
@@ -176,6 +186,7 @@ export default function ExpenseForm({
         <FormFieldInput label="Montant (EUR)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
+        <SelectField label="Paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as "CARD" | "CASH")} options={paymentOptions} />
         <SelectField label="Categorie" value={categoryId} onValueChange={setCategoryId} options={catOptions} onAddClick={onCreateCategory ? () => setCategoryFormOpen(true) : undefined} />
         <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={actOptions} />
         {!isEdit ? (

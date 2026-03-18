@@ -10,6 +10,10 @@ export interface DashboardStats {
     balance: number;
     activeLoanCount: number;
   };
+  paymentBalances: {
+    card: number;
+    cash: number;
+  };
   monthlyData: Array<{
     month: string;
     revenus: number;
@@ -47,6 +51,8 @@ export interface DashboardStats {
     sentInvestment: number;
     receivedInvestment: number;
     netAvailable: number;
+    cardBalance: number;
+    cashBalance: number;
   }>;
 }
 
@@ -141,10 +147,20 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
             sentInvestment: Number(row.sentInvestment ?? 0),
             receivedInvestment: Number(row.receivedInvestment ?? 0),
             netAvailable: Number(row.netAvailable ?? 0),
+            cardBalance: Number(row.cardBalance ?? 0),
+            cashBalance: Number(row.cashBalance ?? 0),
           };
         })
         .filter((entry): entry is DashboardStats["activities"][number] => Boolean(entry && entry.activityId && entry.name))
     : [];
+
+  const paymentBalancesRaw = record.paymentBalances as Record<string, unknown> | undefined;
+  const paymentBalances = paymentBalancesRaw && typeof paymentBalancesRaw === "object"
+    ? {
+        card: Number(paymentBalancesRaw.card ?? 0),
+        cash: Number(paymentBalancesRaw.cash ?? 0),
+      }
+    : { card: 0, cash: 0 };
 
   return {
     totals: {
@@ -154,6 +170,10 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
       investments: Number(totals.investments ?? 0),
       balance: Number(totals.balance ?? 0),
       activeLoanCount: Number(totals.activeLoanCount ?? 0),
+    },
+    paymentBalances: {
+      card: Number.isFinite(paymentBalances.card) ? paymentBalances.card : 0,
+      cash: Number.isFinite(paymentBalances.cash) ? paymentBalances.cash : 0,
     },
     monthlyData,
     expensesByCategory,
