@@ -2,6 +2,53 @@ const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 const TOKEN_STORAGE_KEY = "bb_access_token";
 const USER_PROFILE_STORAGE_KEY = "bb_user_profile";
 
+function tryGetLocalStorage(): Storage | null {
+  try {
+    return typeof window !== "undefined" ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+function tryGetSessionStorage(): Storage | null {
+  try {
+    return typeof window !== "undefined" ? window.sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStoredItem(key: string): string | null {
+  const local = tryGetLocalStorage();
+  const session = tryGetSessionStorage();
+
+  const fromLocal = local?.getItem(key) ?? null;
+  if (fromLocal) {
+    return fromLocal;
+  }
+
+  const fromSession = session?.getItem(key) ?? null;
+  if (fromSession && local) {
+    local.setItem(key, fromSession);
+    session?.removeItem(key);
+  }
+
+  return fromSession;
+}
+
+function setStoredItem(key: string, value: string): void {
+  const local = tryGetLocalStorage();
+  const session = tryGetSessionStorage();
+
+  local?.setItem(key, value);
+  session?.removeItem(key);
+}
+
+function removeStoredItem(key: string): void {
+  tryGetLocalStorage()?.removeItem(key);
+  tryGetSessionStorage()?.removeItem(key);
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -98,20 +145,20 @@ async function assertOk(response: Response): Promise<void> {
 }
 
 export function saveSessionToken(token: string): void {
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+  setStoredItem(TOKEN_STORAGE_KEY, token);
 }
 
 export function getSessionToken(): string | null {
-  return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  return getStoredItem(TOKEN_STORAGE_KEY);
 }
 
 export function clearSessionToken(): void {
-  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-  sessionStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+  removeStoredItem(TOKEN_STORAGE_KEY);
+  removeStoredItem(USER_PROFILE_STORAGE_KEY);
 }
 
 function readCachedUserProfile(): AuthUser | null {
-  const raw = sessionStorage.getItem(USER_PROFILE_STORAGE_KEY);
+  const raw = getStoredItem(USER_PROFILE_STORAGE_KEY);
   if (!raw) {
     return null;
   }
@@ -135,7 +182,7 @@ function readCachedUserProfile(): AuthUser | null {
 }
 
 function writeCachedUserProfile(profile: AuthUser): void {
-  sessionStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  setStoredItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
 }
 
 export function getCurrentUser(): AuthUser | null {
@@ -213,6 +260,7 @@ export function isSessionAuthenticated(): boolean {
   if (typeof payload.exp === "number") {
     const nowEpoch = Math.floor(Date.now() / 1000);
     if (payload.exp <= nowEpoch) {
+      clearSessionToken();
       return false;
     }
   }
@@ -245,7 +293,7 @@ export async function signIn(payload: LoginPayload): Promise<void> {
     throw new Error("Missing access token");
   }
 
-  sessionStorage.removeItem(USER_PROFILE_STORAGE_KEY);
+  removeStoredItem(USER_PROFILE_STORAGE_KEY);
   saveSessionToken(token);
 }
 
