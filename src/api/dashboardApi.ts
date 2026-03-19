@@ -44,6 +44,12 @@ export interface DashboardStats {
     totalAmount: number;
     remainingAmount: number;
   }>;
+  toRecoverLoans: Array<{
+    id: string;
+    lenderName: string;
+    totalAmount: number;
+    remainingAmount: number;
+  }>;
   activities: Array<{
     activityId: string;
     name: string;
@@ -135,6 +141,21 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
         .filter((entry): entry is DashboardStats["activeLoans"][number] => Boolean(entry && entry.id && entry.lenderName))
     : [];
 
+  const toRecoverLoans = Array.isArray(record.toRecoverLoans)
+    ? record.toRecoverLoans
+        .map((entry) => {
+          if (!entry || typeof entry !== "object") return null;
+          const row = entry as Record<string, unknown>;
+          return {
+            id: String(row.id ?? ""),
+            lenderName: String(row.lenderName ?? ""),
+            totalAmount: Number(row.totalAmount ?? 0),
+            remainingAmount: Number(row.remainingAmount ?? 0),
+          };
+        })
+        .filter((entry): entry is DashboardStats["toRecoverLoans"][number] => Boolean(entry && entry.id && entry.lenderName))
+    : [];
+
   const activities = Array.isArray(record.activities)
     ? record.activities
         .map((entry) => {
@@ -183,6 +204,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
     expensesByCategory,
     recentTransactions,
     activeLoans,
+    toRecoverLoans,
     activities,
   };
 }

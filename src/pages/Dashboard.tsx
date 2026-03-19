@@ -104,6 +104,7 @@ const EMPTY_DASHBOARD: DashboardStats = {
   expensesByCategory: [],
   recentTransactions: [],
   activeLoans: [],
+  toRecoverLoans: [],
   activities: [],
 };
 
@@ -273,6 +274,27 @@ export default function Dashboard() {
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-warning)" }} />
                       </div>
                       <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{pct}% rembourse</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Prets a recuperer</p>
+              <div className="space-y-3">
+                {dashboard.toRecoverLoans.map((loan) => {
+                  const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
+                  return (
+                    <div key={`recover-${loan.id}`}>
+                      <div className="flex justify-between mb-1">
+                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</p>
+                        <p className="text-sm" style={{ color: "hsl(var(--purple))" }}>{formatCurrency(loan.remainingAmount)}</p>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-purple)" }} />
+                      </div>
+                      <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{pct}% recupere</p>
                     </div>
                   );
                 })}
