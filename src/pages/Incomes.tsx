@@ -535,7 +535,7 @@ export default function Incomes() {
       />
       <FormDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} title="Nouveau retrait (Carte → Especes)">
         <form onSubmit={submitWithdrawal} className="space-y-4">
-          <FormFieldInput label="Montant (EUR)" id="wd-amount" type="number" value={withdrawalAmount} onChange={setWithdrawalAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Montant (MGA)" id="wd-amount" type="number" value={withdrawalAmount} onChange={setWithdrawalAmount} required step="0.01" min="0" />
           <FormFieldInput label="Date" id="wd-date" type="date" value={withdrawalDate} onChange={setWithdrawalDate} required />
           <SelectField
             label="Activite"
@@ -570,7 +570,7 @@ export default function Incomes() {
       />
       <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier le revenu automatique">
         <form onSubmit={submitRecurringUpdate} className="space-y-4">
-          <FormFieldInput label="Montant (EUR)" id="rec-inc-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Montant (MGA)" id="rec-inc-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
           <FormFieldInput label="Description" id="rec-inc-desc" value={recurringDescription} onChange={setRecurringDescription} />
           <FormFieldInput label="Date de debut" id="rec-inc-start" type="date" value={recurringStartDate} onChange={setRecurringStartDate} required />
           <FormFieldInput label="Date de fin (optionnel)" id="rec-inc-end" type="date" value={recurringEndDate} onChange={setRecurringEndDate} />

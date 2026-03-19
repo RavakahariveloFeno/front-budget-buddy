@@ -71,7 +71,7 @@ export default function BudgetForm({ open, onOpenChange, budget, onCreate, onUpd
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier le budget" : "Nouveau budget"}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormFieldInput label="Montant (EUR)" id="bud-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <FormFieldInput label="Montant (MGA)" id="bud-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <SelectField label="Periode" value={period} onValueChange={(value) => setPeriod(value as BudgetPeriod)} options={periodOptions} />
         <FormFieldInput label="Date de debut" id="bud-date" type="date" value={startDate} onChange={setStartDate} required />
         <button

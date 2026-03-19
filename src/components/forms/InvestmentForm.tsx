@@ -92,7 +92,7 @@ export default function InvestmentForm({ open, onOpenChange, investment, activit
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier le transfert" : "Nouveau transfert"}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormFieldInput label="Montant (EUR)" id="inv-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <FormFieldInput label="Montant (MGA)" id="inv-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <SelectField label="Activite source" value={fromActivityId} onValueChange={setFromActivityId} options={actOptions} placeholder="De..." />
         <SelectField label="Activite destination" value={toActivityId} onValueChange={setToActivityId} options={actOptions} placeholder="Vers..." />

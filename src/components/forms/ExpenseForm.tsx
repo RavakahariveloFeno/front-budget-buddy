@@ -183,7 +183,7 @@ export default function ExpenseForm({
     <>
       <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier la depense" : "Nouvelle depense"}>
         <form onSubmit={handleSubmit} className="space-y-4">
-        <FormFieldInput label="Montant (EUR)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <FormFieldInput label="Montant (MGA)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
         <SelectField label="Paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as "CARD" | "CASH")} options={paymentOptions} />

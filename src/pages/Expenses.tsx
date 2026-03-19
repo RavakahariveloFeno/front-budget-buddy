@@ -558,7 +558,7 @@ export default function Expenses() {
       />
       <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier la depense automatique">
         <form onSubmit={submitRecurringUpdate} className="space-y-4">
-          <FormFieldInput label="Montant (EUR)" id="rec-exp-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Montant (MGA)" id="rec-exp-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
           <FormFieldInput label="Description" id="rec-exp-desc" value={recurringDescription} onChange={setRecurringDescription} />
           <FormFieldInput label="Date de debut" id="rec-exp-start" type="date" value={recurringStartDate} onChange={setRecurringStartDate} required />
           <FormFieldInput label="Date de fin (optionnel)" id="rec-exp-end" type="date" value={recurringEndDate} onChange={setRecurringEndDate} />

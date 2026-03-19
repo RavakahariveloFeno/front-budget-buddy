@@ -71,7 +71,7 @@ export default function LoanPaymentForm({ open, onOpenChange, loanId, onCreate }
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title="Nouveau paiement">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormFieldInput label="Montant (EUR)" id="pay-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <FormFieldInput label="Montant (MGA)" id="pay-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <FormFieldInput label="Date" id="pay-date" type="date" value={date} onChange={setDate} required />
         <FormFieldInput label="Note" id="pay-note" value={note} onChange={setNote} placeholder="Ex: Mensualite mars" />

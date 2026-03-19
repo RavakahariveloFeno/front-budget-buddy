@@ -144,8 +144,8 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
         <SelectField label="Type" value={type} onValueChange={(value) => setType(value as LoanType)} options={typeOptions} />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <div className="grid grid-cols-2 gap-3">
-          <FormFieldInput label="Montant total (EUR)" id="loan-total" type="number" value={totalAmount} onChange={setTotalAmount} required step="0.01" min="0" />
-          <FormFieldInput label="Restant (EUR)" id="loan-remaining" type="number" value={remainingAmount} onChange={setRemainingAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Montant total (MGA)" id="loan-total" type="number" value={totalAmount} onChange={setTotalAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Restant (MGA)" id="loan-remaining" type="number" value={remainingAmount} onChange={setRemainingAmount} required step="0.01" min="0" />
         </div>
         <FormFieldInput label="Taux d'interet (%)" id="loan-rate" type="number" value={interestRate} onChange={setInterestRate} step="0.1" min="0" />
         <div className="grid grid-cols-2 gap-3">
