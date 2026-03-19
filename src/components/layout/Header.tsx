@@ -618,7 +618,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
       <div className="flex items-center gap-3">
         <div ref={wrapperRef} className="relative">
           <div
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border w-[170px] sm:w-[260px]"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border w-[140px] sm:w-[260px]"
             style={{
               background: "hsl(var(--secondary))",
               color: "hsl(var(--muted-foreground))",
