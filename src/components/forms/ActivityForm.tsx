@@ -17,6 +17,8 @@ const typeOptions = [
   { value: "OTHER", label: "Autre" },
 ];
 
+const AVAILABLE_MODULE_IDS = new Set(["mod-vente", "mod-comptabilite"]);
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,7 +48,7 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
     setStartDate(activity?.startDate ? activity.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
     if (activity && activity.id) {
       getActivityModules(activity.id)
-        .then((ids) => setSelectedModules(ids))
+        .then((ids) => setSelectedModules(ids.filter((id) => AVAILABLE_MODULE_IDS.has(id))))
         .catch(() => setSelectedModules([]));
     } else {
       setSelectedModules([]);
@@ -55,6 +57,9 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
   }, [activity, open]);
 
   const toggleModule = (moduleId: string) => {
+    if (!AVAILABLE_MODULE_IDS.has(moduleId)) {
+      return;
+    }
     setSelectedModules((prev) =>
       prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
     );
@@ -77,14 +82,16 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
     try {
       setIsSubmitting(true);
       if (isEdit && activity) {
+        const safeModules = selectedModules.filter((id) => AVAILABLE_MODULE_IDS.has(id));
         await onUpdate(activity.id, payload);
-        await setActivityModules(activity.id, selectedModules);
-        setLinks(activity.id, selectedModules);
+        await setActivityModules(activity.id, safeModules);
+        setLinks(activity.id, safeModules);
       } else {
         const created = await onCreate(payload);
         if (created && created.id) {
-          await setActivityModules(created.id, selectedModules);
-          setLinks(created.id, selectedModules);
+          const safeModules = selectedModules.filter((id) => AVAILABLE_MODULE_IDS.has(id));
+          await setActivityModules(created.id, safeModules);
+          setLinks(created.id, safeModules);
         }
       }
       onOpenChange(false);
@@ -114,12 +121,14 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
           <div className="space-y-2">
             {modulesToDisplay.map((mod) => {
               const isSelected = selectedModules.includes(mod.id);
+              const isAvailable = AVAILABLE_MODULE_IDS.has(mod.id);
               return (
                 <button
                   key={mod.id}
                   type="button"
                   onClick={() => toggleModule(mod.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all"
+                  disabled={!isAvailable}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{
                     borderColor: isSelected ? `hsl(var(--${mod.color}))` : "hsl(var(--border))",
                     background: isSelected ? `hsl(var(--${mod.color}-dim))` : "transparent",
@@ -136,7 +145,7 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
                   >
                     {isSelected ? <Check size={13} strokeWidth={3} /> : null}
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                       {mod.name}
                     </p>
@@ -144,6 +153,11 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
                       {mod.menus.map((m) => m.label).join(", ")}
                     </p>
                   </div>
+                  {!isAvailable && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full border flex-shrink-0" style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                      Bientôt
+                    </span>
+                  )}
                 </button>
               );
             })}
