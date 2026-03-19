@@ -189,7 +189,8 @@ export default function Activities() {
             const sentInv = stats?.sentInvestment ?? 0;
             const recvInv = stats?.receivedInvestment ?? 0;
             const remainingLoan = stats?.remainingLoan ?? 0;
-            const netAvailable = actIncome - actExpenses - sentInv + recvInv;
+            const remainingToRecover = stats?.remainingToRecover ?? 0;
+            const netAvailable = cardBalance + cashBalance;
             const netPositive = netAvailable >= 0;
 
             return (
@@ -282,23 +283,31 @@ export default function Activities() {
                       {formatCurrency(sentInv)}
                     </p>
                   </div>
-                  <div className="rounded-lg p-3" style={{ background: "hsl(var(--info-dim))" }}>
+                  <div className="rounded-lg p-3" style={{ background: "hsl(var(--primary-dim))" }}>
                     <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                       Invest. recus
                     </p>
-                    <p className="font-semibold" style={{ color: "hsl(var(--info))" }}>
+                    <p className="font-semibold" style={{ color: "hsl(var(--primary))" }}>
                       {formatCurrency(recvInv)}
                     </p>
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "hsl(var(--warning-dim))" }}>
                     <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      Prêt restant
+                      Restant a rembourser
                     </p>
                     <p className="font-semibold" style={{ color: "hsl(var(--warning))" }}>
                       {formatCurrency(remainingLoan)}
                     </p>
                   </div>
-                  <div className="rounded-lg p-3" style={{ background: netPositive ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}>
+	                  <div className="rounded-lg p-3" style={{ background: "hsl(var(--purple-dim))" }}>
+	                    <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+	                      Restant a recuperer
+	                    </p>
+	                    <p className="font-semibold" style={{ color: "hsl(var(--purple))" }}>
+	                      {formatCurrency(remainingToRecover)}
+	                    </p>
+	                  </div>
+	                  <div className="rounded-lg p-3" style={{ background: netPositive ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}>
                     <p className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                       Solde net dispo
                     </p>

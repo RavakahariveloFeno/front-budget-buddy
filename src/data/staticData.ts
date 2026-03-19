@@ -3,6 +3,7 @@ export type PaymentType = "CASH" | "CARD";
 export type BudgetPeriod = "DAY" | "WEEK" | "MONTH";
 export type LoanType = "BANK" | "FRIEND" | "COMPANY" | "OTHER";
 export type LoanStatus = "ACTIVE" | "PAID";
+export type LoanDirection = "BORROWED" | "LENT";
 
 export interface Activity {
   id: string;
@@ -85,6 +86,7 @@ export interface Loan {
   totalAmount: number;
   remainingAmount: number;
   paymentType?: PaymentType;
+  direction?: LoanDirection;
   type: LoanType;
   lenderName: string;
   interestRate?: number;

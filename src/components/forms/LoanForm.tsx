@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
-import type { Activity, Loan, LoanType, PaymentType } from "@/data/staticData";
+import type { Activity, Loan, LoanDirection, LoanType, PaymentType } from "@/data/staticData";
 import type { LoanPayload } from "@/api/loanApi";
 import { toast } from "@/hooks/use-toast";
 
@@ -16,6 +16,11 @@ const typeOptions = [
 const paymentTypeOptions = [
   { value: "CARD", label: "Carte" },
   { value: "CASH", label: "Espèces" },
+];
+
+const directionOptions = [
+  { value: "BORROWED", label: "Je suis emprunteur" },
+  { value: "LENT", label: "Je suis prêteur" },
 ];
 
 interface Props {
@@ -32,6 +37,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
   const [totalAmount, setTotalAmount] = useState("");
   const [remainingAmount, setRemainingAmount] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("CARD");
+  const [direction, setDirection] = useState<LoanDirection>("BORROWED");
   const [type, setType] = useState<LoanType>("BANK");
   const [lenderName, setLenderName] = useState("");
   const [interestRate, setInterestRate] = useState("0");
@@ -53,6 +59,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
     setTotalAmount(loan?.totalAmount ? String(loan.totalAmount) : "");
     setRemainingAmount(loan?.remainingAmount ? String(loan.remainingAmount) : "");
     setPaymentType(loan?.paymentType || "CARD");
+    setDirection(loan?.direction || "BORROWED");
     setType(loan?.type || "BANK");
     setLenderName(loan?.lenderName || "");
     setInterestRate(String(loan?.interestRate ?? 0));
@@ -68,7 +75,10 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
     const parsedRate = Number(interestRate);
 
     if (!lenderName.trim()) {
-      toast({ title: "Preteur requis", description: "Veuillez renseigner le nom du preteur." });
+      toast({
+        title: direction === "LENT" ? "Emprunteur requis" : "Preteur requis",
+        description: direction === "LENT" ? "Veuillez renseigner le nom de l'emprunteur." : "Veuillez renseigner le nom du preteur.",
+      });
       return;
     }
     if (!Number.isFinite(parsedTotal) || parsedTotal <= 0) {
@@ -84,10 +94,16 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
       return;
     }
 
+    if (direction === "LENT" && activityId === "none") {
+      toast({ title: "Activite requise", description: "Selectionnez une activite pour un pret accorde." });
+      return;
+    }
+
     const payload: LoanPayload = {
       totalAmount: parsedTotal,
       remainingAmount: parsedRemaining,
       paymentType,
+      direction,
       type,
       lenderName: lenderName.trim(),
       interestRate: parsedRate,
@@ -116,7 +132,15 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier le pret" : "Nouveau pret"}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormFieldInput label="Preteur" id="loan-lender" value={lenderName} onChange={setLenderName} placeholder="Ex: Credit Agricole" required />
+        <FormFieldInput
+          label={direction === "LENT" ? "Emprunteur" : "Preteur"}
+          id="loan-lender"
+          value={lenderName}
+          onChange={setLenderName}
+          placeholder={direction === "LENT" ? "Ex: Paul" : "Ex: Credit Agricole"}
+          required
+        />
+        <SelectField label="Direction" value={direction} onValueChange={(value) => setDirection(value as LoanDirection)} options={directionOptions} />
         <SelectField label="Type" value={type} onValueChange={(value) => setType(value as LoanType)} options={typeOptions} />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <div className="grid grid-cols-2 gap-3">

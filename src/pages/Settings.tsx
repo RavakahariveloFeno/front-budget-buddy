@@ -27,6 +27,7 @@ import {
   updateManagedProfile,
 } from "@/api/profileApi";
 import type { ManagedProfile, ProfileRole } from "@/api/profileApi";
+import { resetAccountHistory } from "@/api/accountApi";
 
 const ROLE_OPTIONS: { value: ProfileRole; label: string }[] = [
   { value: "admin", label: "Administrateur" },
@@ -69,6 +70,8 @@ export default function Settings() {
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
   const [activityModulesById, setActivityModulesById] = useState<Record<string, string[]>>({});
   const [isLoadingModulesById, setIsLoadingModulesById] = useState<Record<string, boolean>>({});
+  const [resetOpen, setResetOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [formProfile, setFormProfile] = useState<ManagedProfileFormState>({
     firstName: "",
     lastName: "",
@@ -610,6 +613,23 @@ export default function Settings() {
         </TabsContent>
       </Tabs>
 
+      <Card className="border-border mt-6" style={{ background: "hsl(var(--card))" }}>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+            <Shield size={20} /> Zone dangereuse
+          </CardTitle>
+          <CardDescription>Remettre les donnees a zero (irreversible)</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="text-sm text-muted-foreground">
+            Supprime revenus, depenses, retraits, investissements, prets, remboursements, budgets et recurrents. Conserve les activites et categories.
+          </div>
+          <Button variant="destructive" onClick={() => setResetOpen(true)} disabled={isResetting}>
+            {isResetting ? "Reset..." : "Reset historique"}
+          </Button>
+        </CardContent>
+      </Card>
+
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={(open) => {
@@ -623,6 +643,26 @@ export default function Settings() {
         description={deleteTarget
           ? `Supprimer le profil de \"${deleteTarget.firstName} ${deleteTarget.lastName}\" ? Cette action est irréversible.`
           : "Cette action est irréversible."}
+      />
+
+      <DeleteConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Reset historique"
+        description="Cette action va supprimer tout votre historique financier (irreversible). Continuer ?"
+        onConfirm={async () => {
+          try {
+            setIsResetting(true);
+            await resetAccountHistory();
+            toast({ title: "OK", description: "Historique supprime. Recharge la page." });
+            setResetOpen(false);
+            navigate(0);
+          } catch (error) {
+            toast({ title: "Erreur", description: error instanceof Error ? error.message : "Reset impossible.", variant: "destructive" });
+          } finally {
+            setIsResetting(false);
+          }
+        }}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

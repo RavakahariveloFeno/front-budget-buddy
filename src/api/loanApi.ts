@@ -1,4 +1,4 @@
-import type { Loan, LoanPayment, LoanStatus, LoanType, PaymentType } from "@/data/staticData";
+import type { Loan, LoanDirection, LoanPayment, LoanStatus, LoanType, PaymentType } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const LOAN_API_URL = `${import.meta.env.VITE_API_URL}/loan`;
@@ -8,6 +8,7 @@ export interface LoanPayload {
   totalAmount: number;
   remainingAmount: number;
   paymentType?: PaymentType;
+  direction?: LoanDirection;
   type: LoanType;
   lenderName: string;
   interestRate?: number;
@@ -53,6 +54,10 @@ function isValidLoanStatus(status: unknown): status is LoanStatus {
   return status === "ACTIVE" || status === "PAID";
 }
 
+function isValidLoanDirection(direction: unknown): direction is LoanDirection {
+  return direction === "BORROWED" || direction === "LENT";
+}
+
 function mapLoanPayment(item: unknown): LoanPayment | null {
   if (!item || typeof item !== "object") {
     return null;
@@ -83,6 +88,7 @@ function mapLoan(item: unknown): Loan | null {
   const rawStatus = record.status;
   const status: LoanStatus = isValidLoanStatus(rawStatus) ? rawStatus : Number(record.remainingAmount ?? 0) <= 0 ? "PAID" : "ACTIVE";
   const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
+  const direction: LoanDirection = isValidLoanDirection(record.direction) ? (record.direction as LoanDirection) : "BORROWED";
   const paymentsRaw = Array.isArray(record.payments) ? record.payments : [];
   const payments = paymentsRaw.map((payment): LoanPayment | null => mapLoanPayment(payment)).filter((payment): payment is LoanPayment => Boolean(payment && payment.id && Number.isFinite(payment.amount) && payment.date && payment.loanId));
 
@@ -91,6 +97,7 @@ function mapLoan(item: unknown): Loan | null {
     totalAmount: Number(record.totalAmount ?? 0),
     remainingAmount: Number(record.remainingAmount ?? 0),
     ...(paymentType ? { paymentType } : {}),
+    direction,
     type: record.type,
     lenderName: String(record.lenderName ?? ""),
     startDate: String(record.startDate ?? ""),
@@ -176,6 +183,7 @@ function buildLoanBody(payload: LoanPayload): string {
     totalAmount: payload.totalAmount,
     remainingAmount: payload.remainingAmount,
     paymentType: payload.paymentType,
+    direction: payload.direction,
     type: payload.type,
     lenderName: payload.lenderName,
     interestRate: payload.interestRate ?? undefined,

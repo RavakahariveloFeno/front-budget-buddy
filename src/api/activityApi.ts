@@ -21,6 +21,7 @@ export interface ActivityStats {
   cardBalance: number;
   cashBalance: number;
   remainingLoan: number;
+  remainingToRecover: number;
 }
 
 function isValidActivityType(type: unknown): type is ActivityType {
@@ -65,6 +66,7 @@ function mapActivityStats(item: unknown): ActivityStats | null {
   const cardBalance = Number(record.cardBalance ?? 0);
   const cashBalance = Number(record.cashBalance ?? 0);
   const remainingLoan = Number(record.remainingLoan ?? 0);
+  const remainingToRecover = Number(record.remainingToRecover ?? 0);
 
   if (!activityId) {
     return null;
@@ -79,6 +81,7 @@ function mapActivityStats(item: unknown): ActivityStats | null {
     cardBalance: Number.isFinite(cardBalance) ? cardBalance : 0,
     cashBalance: Number.isFinite(cashBalance) ? cashBalance : 0,
     remainingLoan: Number.isFinite(remainingLoan) ? remainingLoan : 0,
+    remainingToRecover: Number.isFinite(remainingToRecover) ? remainingToRecover : 0,
   };
 }
 
