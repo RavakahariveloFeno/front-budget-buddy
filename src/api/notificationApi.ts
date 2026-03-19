@@ -1,6 +1,6 @@
 import { buildAuthHeaders } from "./authApi";
 
-const NOTIFICATION_API_URL = `${import.meta.env.VITE_API_URL}/notification`;
+const NOTIFICATION_API_URL = `${import.meta.env.VITE_API_URL}/notifications`;
 
 export interface NotificationState {
   readIds: string[];
