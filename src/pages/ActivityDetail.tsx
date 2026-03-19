@@ -99,16 +99,24 @@ export default function ActivityDetail() {
 }
 
 function ModuleCard({ module, activityId }: { module: AppModule; activityId: string }) {
+  const isAccounting = module.id === "mod-comptabilite";
+  const isSaleManagement = module.id === "mod-vente";
   return (
     <div className="stat-card">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `hsl(var(--${module.color}-dim))` }}>
           <DynamicIcon name={module.icon} size={18} style={{ color: `hsl(var(--${module.color}))` }} />
         </div>
-        <div>
-          <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-            {module.name}
-          </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-display font-semibold truncate" style={{ color: "hsl(var(--foreground))" }}>
+              {module.name}
+            </p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isAccounting && <span className="badge-warning text-[10px]">En cours</span>}
+              {isSaleManagement && <span className="badge-income text-[10px]">Disponible</span>}
+            </div>
+          </div>
           <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
             {module.description}
           </p>

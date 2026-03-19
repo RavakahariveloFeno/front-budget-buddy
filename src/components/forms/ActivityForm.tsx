@@ -146,16 +146,20 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
                     {isSelected ? <Check size={13} strokeWidth={3} /> : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                      {mod.name}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium flex-1 truncate" style={{ color: "hsl(var(--foreground))" }}>
+                        {mod.name}
+                      </p>
+                      {mod.id === "mod-comptabilite" && <span className="badge-warning text-[10px]">En cours</span>}
+                      {mod.id === "mod-vente" && <span className="badge-income text-[10px]">Disponible</span>}
+                    </div>
                     <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
                       {mod.menus.map((m) => m.label).join(", ")}
                     </p>
                   </div>
                   {!isAvailable && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full border flex-shrink-0" style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                      Bientôt
+                      À venir
                     </span>
                   )}
                 </button>

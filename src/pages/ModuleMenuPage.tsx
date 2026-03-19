@@ -113,9 +113,13 @@ export default function ModuleMenuPage() {
           <ArrowLeft size={14} /> Retour
         </button>
         <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>|</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <DynamicIcon name={module.icon} size={16} style={{ color: `hsl(var(--${module.color}))` }} />
-          <span className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>{module.name}</span>
+          <span className="text-sm font-semibold truncate" style={{ color: "hsl(var(--foreground))" }}>{module.name}</span>
+          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+            {moduleId === "mod-comptabilite" && <span className="badge-warning text-[10px]">En cours</span>}
+            {moduleId === "mod-vente" && <span className="badge-income text-[10px]">Disponible</span>}
+          </div>
         </div>
       </div>
 
