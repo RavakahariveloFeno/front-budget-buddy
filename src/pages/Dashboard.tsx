@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import {
   TrendingUp, TrendingDown, CreditCard, ArrowLeftRight,
+  HandCoins,
   Wallet, Activity as ActivityIcon,
   Banknote,
 } from "lucide-react";
@@ -89,9 +90,11 @@ const EMPTY_DASHBOARD: DashboardStats = {
     income: 0,
     expense: 0,
     activeLoans: 0,
+    toRecoverLoans: 0,
     investments: 0,
     balance: 0,
     activeLoanCount: 0,
+    toRecoverLoanCount: 0,
   },
   paymentBalances: {
     card: 0,
@@ -140,10 +143,17 @@ export default function Dashboard() {
       <Header title="Tableau de bord" subtitle="Vue d'ensemble de vos finances" />
 
       <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Revenus totaux" value={formatCurrency(dashboard.totals.income)} icon={TrendingUp} variant="income" />
           <StatCard label="Depenses totales" value={formatCurrency(dashboard.totals.expense)} icon={TrendingDown} variant="expense" />
           <StatCard label="Prets en cours" value={formatCurrency(dashboard.totals.activeLoans)} icon={CreditCard} variant="loan" trendLabel={`${dashboard.totals.activeLoanCount} prets actifs`} />
+          <StatCard
+            label="Restant a recuperer"
+            value={formatCurrency(dashboard.totals.toRecoverLoans)}
+            icon={HandCoins}
+            variant="invest"
+            trendLabel={`${dashboard.totals.toRecoverLoanCount} prets accordes`}
+          />
           <StatCard label="Investissements" value={formatCurrency(dashboard.totals.investments)} icon={ArrowLeftRight} variant="invest" />
         </div>
 

@@ -6,9 +6,11 @@ export interface DashboardStats {
     income: number;
     expense: number;
     activeLoans: number;
+    toRecoverLoans: number;
     investments: number;
     balance: number;
     activeLoanCount: number;
+    toRecoverLoanCount: number;
   };
   paymentBalances: {
     card: number;
@@ -167,9 +169,11 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
       income: Number(totals.income ?? 0),
       expense: Number(totals.expense ?? 0),
       activeLoans: Number(totals.activeLoans ?? 0),
+      toRecoverLoans: Number(totals.toRecoverLoans ?? 0),
       investments: Number(totals.investments ?? 0),
       balance: Number(totals.balance ?? 0),
       activeLoanCount: Number(totals.activeLoanCount ?? 0),
+      toRecoverLoanCount: Number(totals.toRecoverLoanCount ?? 0),
     },
     paymentBalances: {
       card: Number.isFinite(paymentBalances.card) ? paymentBalances.card : 0,
