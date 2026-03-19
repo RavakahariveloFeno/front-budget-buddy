@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
-import type { Activity, Loan, LoanType } from "@/data/staticData";
+import type { Activity, Loan, LoanType, PaymentType } from "@/data/staticData";
 import type { LoanPayload } from "@/api/loanApi";
 import { toast } from "@/hooks/use-toast";
 
@@ -11,6 +11,11 @@ const typeOptions = [
   { value: "FRIEND", label: "Ami" },
   { value: "COMPANY", label: "Entreprise" },
   { value: "OTHER", label: "Autre" },
+];
+
+const paymentTypeOptions = [
+  { value: "CARD", label: "Carte" },
+  { value: "CASH", label: "Espèces" },
 ];
 
 interface Props {
@@ -26,6 +31,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
   const isEdit = Boolean(loan);
   const [totalAmount, setTotalAmount] = useState("");
   const [remainingAmount, setRemainingAmount] = useState("");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CARD");
   const [type, setType] = useState<LoanType>("BANK");
   const [lenderName, setLenderName] = useState("");
   const [interestRate, setInterestRate] = useState("0");
@@ -46,6 +52,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
 
     setTotalAmount(loan?.totalAmount ? String(loan.totalAmount) : "");
     setRemainingAmount(loan?.remainingAmount ? String(loan.remainingAmount) : "");
+    setPaymentType(loan?.paymentType || "CARD");
     setType(loan?.type || "BANK");
     setLenderName(loan?.lenderName || "");
     setInterestRate(String(loan?.interestRate ?? 0));
@@ -80,6 +87,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
     const payload: LoanPayload = {
       totalAmount: parsedTotal,
       remainingAmount: parsedRemaining,
+      paymentType,
       type,
       lenderName: lenderName.trim(),
       interestRate: parsedRate,
@@ -99,7 +107,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
       onOpenChange(false);
     } catch (error) {
       console.error("Echec de l'enregistrement du pret.", error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer le pret." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer le pret." });
     } finally {
       setIsSubmitting(false);
     }
@@ -110,6 +118,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Preteur" id="loan-lender" value={lenderName} onChange={setLenderName} placeholder="Ex: Credit Agricole" required />
         <SelectField label="Type" value={type} onValueChange={(value) => setType(value as LoanType)} options={typeOptions} />
+        <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <div className="grid grid-cols-2 gap-3">
           <FormFieldInput label="Montant total (EUR)" id="loan-total" type="number" value={totalAmount} onChange={setTotalAmount} required step="0.01" min="0" />
           <FormFieldInput label="Restant (EUR)" id="loan-remaining" type="number" value={remainingAmount} onChange={setRemainingAmount} required step="0.01" min="0" />

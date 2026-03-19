@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
-import type { Activity, Investment } from "@/data/staticData";
+import type { Activity, Investment, PaymentType } from "@/data/staticData";
 import type { InvestmentPayload } from "@/api/investmentApi";
 import { toast } from "@/hooks/use-toast";
+
+const paymentTypeOptions = [
+  { value: "CARD", label: "Carte" },
+  { value: "CASH", label: "Espèces" },
+];
 
 interface Props {
   open: boolean;
@@ -18,6 +23,7 @@ interface Props {
 export default function InvestmentForm({ open, onOpenChange, investment, activities, onCreate, onUpdate }: Props) {
   const isEdit = Boolean(investment);
   const [amount, setAmount] = useState("");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CARD");
   const [fromActivityId, setFromActivityId] = useState("");
   const [toActivityId, setToActivityId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -32,6 +38,7 @@ export default function InvestmentForm({ open, onOpenChange, investment, activit
     }
 
     setAmount(investment?.amount ? String(investment.amount) : "");
+    setPaymentType(investment?.paymentType || "CARD");
     setFromActivityId(investment?.fromActivityId || "");
     setToActivityId(investment?.toActivityId || "");
     setDate(investment?.date ? investment.date.split("T")[0] : new Date().toISOString().split("T")[0]);
@@ -59,6 +66,7 @@ export default function InvestmentForm({ open, onOpenChange, investment, activit
 
     const payload: InvestmentPayload = {
       amount: parsedAmount,
+      paymentType,
       fromActivityId,
       toActivityId,
       date,
@@ -75,7 +83,7 @@ export default function InvestmentForm({ open, onOpenChange, investment, activit
       onOpenChange(false);
     } catch (error) {
       console.error("Echec de l'enregistrement du transfert.", error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer le transfert." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer le transfert." });
     } finally {
       setIsSubmitting(false);
     }
@@ -85,6 +93,7 @@ export default function InvestmentForm({ open, onOpenChange, investment, activit
     <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier le transfert" : "Nouveau transfert"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (EUR)" id="inv-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <SelectField label="Activite source" value={fromActivityId} onValueChange={setFromActivityId} options={actOptions} placeholder="De..." />
         <SelectField label="Activite destination" value={toActivityId} onValueChange={setToActivityId} options={actOptions} placeholder="Vers..." />
         <FormFieldInput label="Date" id="inv-date" type="date" value={date} onChange={setDate} required />

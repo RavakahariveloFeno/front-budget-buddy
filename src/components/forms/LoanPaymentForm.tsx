@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
+import SelectField from "@/components/dialogs/SelectField";
 import type { LoanPaymentPayload } from "@/api/loanPaymentApi";
+import type { PaymentType } from "@/data/staticData";
 import { toast } from "@/hooks/use-toast";
+
+const paymentTypeOptions = [
+  { value: "CARD", label: "Carte" },
+  { value: "CASH", label: "Espèces" },
+];
 
 interface Props {
   open: boolean;
@@ -13,6 +20,7 @@ interface Props {
 
 export default function LoanPaymentForm({ open, onOpenChange, loanId, onCreate }: Props) {
   const [amount, setAmount] = useState("");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CARD");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,6 +30,7 @@ export default function LoanPaymentForm({ open, onOpenChange, loanId, onCreate }
       return;
     }
     setAmount("");
+    setPaymentType("CARD");
     setDate(new Date().toISOString().split("T")[0]);
     setNote("");
   }, [open, loanId]);
@@ -41,6 +50,7 @@ export default function LoanPaymentForm({ open, onOpenChange, loanId, onCreate }
 
     const payload: LoanPaymentPayload = {
       amount: parsedAmount,
+      paymentType,
       date,
       note: note.trim() || undefined,
       loanId,
@@ -52,7 +62,7 @@ export default function LoanPaymentForm({ open, onOpenChange, loanId, onCreate }
       onOpenChange(false);
     } catch (error) {
       console.error("Echec de l'enregistrement du paiement.", error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer le paiement." });
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer le paiement." });
     } finally {
       setIsSubmitting(false);
     }
@@ -62,6 +72,7 @@ export default function LoanPaymentForm({ open, onOpenChange, loanId, onCreate }
     <FormDialog open={open} onOpenChange={onOpenChange} title="Nouveau paiement">
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (EUR)" id="pay-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
         <FormFieldInput label="Date" id="pay-date" type="date" value={date} onChange={setDate} required />
         <FormFieldInput label="Note" id="pay-note" value={note} onChange={setNote} placeholder="Ex: Mensualite mars" />
         <button

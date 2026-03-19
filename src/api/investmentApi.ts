@@ -1,10 +1,12 @@
 import type { Investment } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
+import type { PaymentType } from "@/data/staticData";
 
 const INVESTMENT_API_URL = `${import.meta.env.VITE_API_URL}/investment`;
 
 export interface InvestmentPayload {
   amount: number;
+  paymentType?: PaymentType;
   date: string;
   note?: string;
   fromActivityId: string;
@@ -15,18 +17,37 @@ function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
 
+async function readApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0]);
+    }
+  } catch {
+    // ignore
+  }
+
+  return `HTTP ${response.status}`;
+}
+
 function mapInvestment(item: unknown): Investment | null {
   if (!item || typeof item !== "object") {
     return null;
   }
 
   const record = item as Record<string, unknown>;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     fromActivityId: String(record.fromActivityId ?? ""),
     toActivityId: String(record.toActivityId ?? ""),
+    ...(paymentType ? { paymentType } : {}),
     ...(record.note ? { note: String(record.note) } : {}),
   };
 }
@@ -56,6 +77,7 @@ export async function createInvestment(payload: InvestmentPayload): Promise<Inve
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       amount: payload.amount,
+      paymentType: payload.paymentType,
       date: toIsoDate(payload.date),
       note: payload.note || undefined,
       fromActivityId: payload.fromActivityId,
@@ -64,7 +86,7 @@ export async function createInvestment(payload: InvestmentPayload): Promise<Inve
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -79,6 +101,7 @@ export async function createInvestment(payload: InvestmentPayload): Promise<Inve
 export async function updateInvestment(id: string, payload: InvestmentPayload): Promise<Investment> {
   const body = JSON.stringify({
     amount: payload.amount,
+    paymentType: payload.paymentType,
     date: toIsoDate(payload.date),
     note: payload.note || undefined,
     fromActivityId: payload.fromActivityId,
@@ -99,7 +122,7 @@ export async function updateInvestment(id: string, payload: InvestmentPayload): 
   }
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();

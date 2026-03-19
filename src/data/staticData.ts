@@ -16,6 +16,7 @@ export interface Activity {
 export interface Investment {
   id: string;
   amount: number;
+  paymentType?: PaymentType;
   date: string;
   note?: string;
   fromActivityId: string;
@@ -73,6 +74,7 @@ export interface Budget {
 export interface LoanPayment {
   id: string;
   amount: number;
+  paymentType?: PaymentType;
   date: string;
   note?: string;
   loanId: string;
@@ -82,6 +84,7 @@ export interface Loan {
   id: string;
   totalAmount: number;
   remainingAmount: number;
+  paymentType?: PaymentType;
   type: LoanType;
   lenderName: string;
   interestRate?: number;

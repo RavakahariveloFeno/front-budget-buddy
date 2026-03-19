@@ -15,6 +15,12 @@ import { toast } from "@/hooks/use-toast";
 
 const loanTypeLabels: Record<string, string> = { BANK: "Banque", FRIEND: "Ami", COMPANY: "Entreprise", OTHER: "Autre" };
 const loanTypeColors: Record<string, string> = { BANK: "badge-info", FRIEND: "badge-warning", COMPANY: "badge-purple", OTHER: "badge-income" };
+const paymentTypeBadge = (paymentType?: string) => {
+  if (paymentType === "CASH") {
+    return { label: "Espèces", className: "badge-income" };
+  }
+  return { label: "Carte", className: "badge-info" };
+};
 
 export default function Loans() {
   const [loanList, setLoanList] = useState<Loan[]>([]);
@@ -189,6 +195,7 @@ export default function Loans() {
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={loanTypeColors[loan.type]}>{loanTypeLabels[loan.type]}</span>
+                          <span className={paymentTypeBadge(loan.paymentType).className}>{paymentTypeBadge(loan.paymentType).label}</span>
                           {loan.interestRate && loan.interestRate > 0 && <span className="badge-info">{loan.interestRate}% / an</span>}
                           {activity && <span className="badge-purple text-xs">{activity.name}</span>}
                         </div>
@@ -246,9 +253,12 @@ export default function Loans() {
                               <p className="text-sm" style={{ color: "hsl(var(--foreground))" }}>
                                 {payment.note || "Paiement"}
                               </p>
-                              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                                {formatDate(payment.date)}
-                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                                  {formatDate(payment.date)}
+                                </p>
+                                <span className={paymentTypeBadge(payment.paymentType).className}>{paymentTypeBadge(payment.paymentType).label}</span>
+                              </div>
                             </div>
                             <span className="font-semibold text-sm" style={{ color: "hsl(var(--primary))" }}>
                               -{formatCurrency(payment.amount)}

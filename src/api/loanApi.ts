@@ -1,4 +1,4 @@
-import type { Loan, LoanPayment, LoanStatus, LoanType } from "@/data/staticData";
+import type { Loan, LoanPayment, LoanStatus, LoanType, PaymentType } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const LOAN_API_URL = `${import.meta.env.VITE_API_URL}/loan`;
@@ -7,6 +7,7 @@ const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 export interface LoanPayload {
   totalAmount: number;
   remainingAmount: number;
+  paymentType?: PaymentType;
   type: LoanType;
   lenderName: string;
   interestRate?: number;
@@ -27,6 +28,23 @@ function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
 
+async function readApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0]);
+    }
+  } catch {
+    // ignore
+  }
+
+  return `HTTP ${response.status}`;
+}
+
 function isValidLoanType(type: unknown): type is LoanType {
   return type === "BANK" || type === "FRIEND" || type === "COMPANY" || type === "OTHER";
 }
@@ -41,11 +59,13 @@ function mapLoanPayment(item: unknown): LoanPayment | null {
   }
 
   const record = item as Record<string, unknown>;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     loanId: String(record.loanId ?? ""),
+    ...(paymentType ? { paymentType } : {}),
     ...(record.note ? { note: String(record.note) } : {}),
   };
 }
@@ -62,6 +82,7 @@ function mapLoan(item: unknown): Loan | null {
 
   const rawStatus = record.status;
   const status: LoanStatus = isValidLoanStatus(rawStatus) ? rawStatus : Number(record.remainingAmount ?? 0) <= 0 ? "PAID" : "ACTIVE";
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
   const paymentsRaw = Array.isArray(record.payments) ? record.payments : [];
   const payments = paymentsRaw.map((payment): LoanPayment | null => mapLoanPayment(payment)).filter((payment): payment is LoanPayment => Boolean(payment && payment.id && Number.isFinite(payment.amount) && payment.date && payment.loanId));
 
@@ -69,6 +90,7 @@ function mapLoan(item: unknown): Loan | null {
     id: String(record.id ?? ""),
     totalAmount: Number(record.totalAmount ?? 0),
     remainingAmount: Number(record.remainingAmount ?? 0),
+    ...(paymentType ? { paymentType } : {}),
     type: record.type,
     lenderName: String(record.lenderName ?? ""),
     startDate: String(record.startDate ?? ""),
@@ -153,6 +175,7 @@ function buildLoanBody(payload: LoanPayload): string {
   return JSON.stringify({
     totalAmount: payload.totalAmount,
     remainingAmount: payload.remainingAmount,
+    paymentType: payload.paymentType,
     type: payload.type,
     lenderName: payload.lenderName,
     interestRate: payload.interestRate ?? undefined,
@@ -172,7 +195,7 @@ export async function createLoan(payload: LoanPayload): Promise<Loan> {
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -201,7 +224,7 @@ export async function updateLoan(id: string, payload: LoanPayload): Promise<Loan
   }
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();

@@ -15,6 +15,13 @@ const CustomTooltipStyle = {
   contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
 };
 
+const paymentTypeBadge = (paymentType?: string) => {
+  if (paymentType === "CASH") {
+    return { label: "Espèces", className: "badge-income" };
+  }
+  return { label: "Carte", className: "badge-info" };
+};
+
 export default function Investments() {
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
@@ -199,6 +206,7 @@ export default function Investments() {
                   <th className="text-left">Source</th>
                   <th className="text-center">{"->"}</th>
                   <th className="text-left">Destination</th>
+                  <th className="text-left">Paiement</th>
                   <th className="text-left">Note</th>
                   <th className="text-right">Montant</th>
                   <th className="text-right">Actions</th>
@@ -216,6 +224,7 @@ export default function Investments() {
                         <ArrowRight size={14} style={{ color: "hsl(var(--muted-foreground))" }} className="mx-auto" />
                       </td>
                       <td><span className="badge-purple">{to?.name}</span></td>
+                      <td><span className={paymentTypeBadge(investment.paymentType).className}>{paymentTypeBadge(investment.paymentType).label}</span></td>
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{investment.note || "-"}</td>
                       <td className="text-right font-semibold" style={{ color: "hsl(var(--purple))" }}>{formatCurrency(investment.amount)}</td>
                       <td className="text-right">
