@@ -157,6 +157,11 @@ export function clearSessionToken(): void {
   removeStoredItem(TOKEN_STORAGE_KEY);
   removeStoredItem(USER_PROFILE_STORAGE_KEY);
   removeStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY);
+  try {
+    (window as unknown as { __bbAccountDisabledNotified?: boolean }).__bbAccountDisabledNotified = false;
+  } catch {
+    // ignore
+  }
 }
 
 function readCachedUserProfile(): AuthUser | null {

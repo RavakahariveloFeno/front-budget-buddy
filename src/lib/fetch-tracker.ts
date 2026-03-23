@@ -51,6 +51,46 @@ function shouldIgnoreFetchInput(input: RequestInfo | URL): boolean {
   return url.includes("/@vite/") || url.includes("@vite/client") || url.includes("vite-hmr");
 }
 
+async function readResponseMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.clone().json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0] ?? "");
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const text = await response.clone().text();
+    return text.trim();
+  } catch {
+    return "";
+  }
+}
+
+function dispatchAccountDisabled(message: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const anyWindow = window as unknown as { __bbAccountDisabledNotified?: boolean };
+  if (anyWindow.__bbAccountDisabledNotified) {
+    return;
+  }
+  anyWindow.__bbAccountDisabledNotified = true;
+
+  window.dispatchEvent(
+    new CustomEvent("bb:account-disabled", {
+      detail: { message },
+    }),
+  );
+}
+
 export function initFetchTracking(): void {
   if (typeof window === "undefined") {
     return;
@@ -72,7 +112,14 @@ export function initFetchTracking(): void {
     }
 
     try {
-      return await originalFetch(input, init);
+      const response = await originalFetch(input, init);
+      if (response.status === 401) {
+        const message = await readResponseMessage(response);
+        if (message.toLowerCase().includes("account disabled")) {
+          dispatchAccountDisabled(message);
+        }
+      }
+      return response;
     } finally {
       if (!silent) {
         pendingCount = Math.max(0, pendingCount - 1);
@@ -81,4 +128,3 @@ export function initFetchTracking(): void {
     }
   };
 }
-
