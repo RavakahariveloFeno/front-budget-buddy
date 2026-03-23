@@ -10,11 +10,14 @@ import {
   CreditCard,
   ArrowLeftRight,
   Settings,
+  Shield,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
+
+const superAdminNavItem = { key: "superadmin", to: "/superadmin", icon: Shield, label: "Superadmin" };
 
 const navItems = [
   { key: "dashboard", to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
@@ -37,6 +40,7 @@ export default function Sidebar({
 }) {
   const currentUser = getCurrentUser();
   const isManagedProfile = Boolean(currentUser?.profileId);
+  const isSuperAdminUser = currentUser?.role === "SUPERADMIN";
   const { data: managedProfile } = useActiveManagedProfile();
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
@@ -44,12 +48,13 @@ export default function Sidebar({
   const effectiveCollapsed = isDrawer ? false : collapsed;
 
   const visibleNavItems = useMemo(() => {
+    const baseItems = [...navItems, ...(isSuperAdminUser ? [superAdminNavItem] : [])];
     if (!isManagedProfile) {
-      return navItems;
+      return baseItems;
     }
     const allowed = new Set(managedProfile?.menuAccess ?? []);
-    return navItems.filter((item) => allowed.has(item.key));
-  }, [isManagedProfile, managedProfile?.menuAccess]);
+    return baseItems.filter((item) => allowed.has(item.key));
+  }, [isManagedProfile, isSuperAdminUser, managedProfile?.menuAccess]);
 
   return (
     <aside

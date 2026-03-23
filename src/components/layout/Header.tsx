@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Bell, CalendarClock, LogOut, Menu, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { clearSessionToken, getCurrentUser } from "@/api/authApi";
+import { clearSessionToken, getCurrentUser, getSuperAdminActingUserId, isSuperAdmin, setSuperAdminActingUserId } from "@/api/authApi";
+import { useQuery } from "@tanstack/react-query";
 import { getIncomes, getRecurringIncomes } from "@/api/incomeApi";
 import type { RecurringIncome } from "@/api/incomeApi";
 import { getExpenses, getRecurringExpenses } from "@/api/expenseApi";
@@ -12,6 +13,8 @@ import { getNotificationState, updateNotificationState } from "@/api/notificatio
 import type { Budget, Expense, Income, Loan } from "@/data/staticData";
 import { formatCurrency } from "@/data/staticData";
 import { useMobileMenu } from "./mobile-menu";
+import { getSuperAdminUsers } from "@/api/superAdminApi";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface HeaderProps {
   title: string;
@@ -275,11 +278,20 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.id ?? null;
+  const superAdmin = isSuperAdmin();
+  const [actingUserId, setActingUserId] = useState<string>(() => getSuperAdminActingUserId() ?? "");
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
   const userEmail = currentUser?.email ?? "-";
   const userInitials = currentUser
     ? `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.toUpperCase()
     : "U";
+
+  const { data: superAdminUsers = [], isLoading: superAdminUsersLoading } = useQuery({
+    queryKey: ["superadminUsers"],
+    queryFn: getSuperAdminUsers,
+    enabled: superAdmin,
+    staleTime: 30_000,
+  });
 
   const searchItems = useMemo(
     () => [
@@ -292,8 +304,9 @@ export default function Header({ title, subtitle }: HeaderProps) {
       { to: "/loans", title: "Prets", subtitle: "Emprunts et remboursements", keywords: ["loan", "credit"] },
       { to: "/investments", title: "Investissements", subtitle: "Transferts entre activites", keywords: ["investment", "transfert"] },
       { to: "/settings", title: "Parametres", subtitle: "Preferences et compte", keywords: ["settings", "parametre", "configuration"] },
+      ...(superAdmin ? [{ to: "/superadmin", title: "Superadmin", subtitle: "Gestion utilisateurs", keywords: ["admin", "superadmin", "utilisateur"] }] : []),
     ],
-    [],
+    [superAdmin],
   );
 
   const filteredItems = useMemo(() => {
@@ -676,6 +689,33 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </div>
           )}
         </div>
+        {superAdmin && (
+          <Select
+            value={actingUserId ? actingUserId : "__self__"}
+            onValueChange={(value) => {
+              const next = value === "__self__" ? "" : value;
+              setActingUserId(next);
+              setSuperAdminActingUserId(next ? next : null);
+              window.location.reload();
+            }}
+          >
+            <SelectTrigger
+              className="hidden lg:flex w-[260px]"
+              style={{ background: "hsl(var(--secondary))", borderColor: "hsl(var(--border))" }}
+              title="Selectionner un utilisateur"
+            >
+              <SelectValue placeholder={superAdminUsersLoading ? "Chargement..." : "Selectionner un utilisateur"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__self__">Mon compte</SelectItem>
+              {superAdminUsers.map((user) => (
+                <SelectItem key={user.id} value={user.id} disabled={user.isSuperAdmin}>
+                  {user.firstName} {user.lastName} - {user.email}{user.isDisabled ? " (desactive)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <div ref={notificationMenuRef} className="relative">
           <button
             onClick={() => {

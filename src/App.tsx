@@ -23,6 +23,7 @@ import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
+import SuperAdmin from "./pages/SuperAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,15 @@ function MenuRoute({ menuKey, children }: { menuKey: MenuAccessKey; children: Re
   return <Navigate to={redirectTo} replace />;
 }
 
+function SuperAdminRoute({ children }: { children: ReactNode }) {
+  const currentUser = getCurrentUser();
+  const isSuperAdmin = currentUser?.role === "SUPERADMIN" && !currentUser?.profileId;
+  if (!isSuperAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -86,6 +96,7 @@ const App = () => (
             <Route path="/loans" element={<MenuRoute menuKey="loans"><Loans /></MenuRoute>} />
             <Route path="/investments" element={<MenuRoute menuKey="investments"><Investments /></MenuRoute>} />
             <Route path="/settings" element={<MenuRoute menuKey="settings"><Settings /></MenuRoute>} />
+            <Route path="/superadmin" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
           </Route>
           <Route element={<PublicOnlyRoute />}>
             <Route path="/signin" element={<SignIn />} />

@@ -1,6 +1,7 @@
 const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 const TOKEN_STORAGE_KEY = "bb_access_token";
 const USER_PROFILE_STORAGE_KEY = "bb_user_profile";
+const SUPERADMIN_ACTING_USER_STORAGE_KEY = "bb_superadmin_acting_user_id";
 
 function tryGetLocalStorage(): Storage | null {
   try {
@@ -155,6 +156,7 @@ export function getSessionToken(): string | null {
 export function clearSessionToken(): void {
   removeStoredItem(TOKEN_STORAGE_KEY);
   removeStoredItem(USER_PROFILE_STORAGE_KEY);
+  removeStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY);
 }
 
 function readCachedUserProfile(): AuthUser | null {
@@ -213,6 +215,31 @@ export function getCurrentUser(): AuthUser | null {
   return user;
 }
 
+export function isSuperAdmin(): boolean {
+  return getCurrentUser()?.role === "SUPERADMIN";
+}
+
+export function getSuperAdminActingUserId(): string | null {
+  if (!isSuperAdmin()) {
+    return null;
+  }
+  return getStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY);
+}
+
+export function setSuperAdminActingUserId(userId: string | null): void {
+  if (!isSuperAdmin()) {
+    removeStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY);
+    return;
+  }
+
+  if (!userId || !userId.trim()) {
+    removeStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY);
+    return;
+  }
+
+  setStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY, userId.trim());
+}
+
 export function updateCachedCurrentUserProfile(payload: Pick<AuthUser, "firstName" | "lastName">): void {
   const current = getCurrentUser();
   if (!current) {
@@ -227,7 +254,17 @@ export function updateCachedCurrentUserProfile(payload: Pick<AuthUser, "firstNam
 }
 
 export function getCurrentUserId(): string | null {
-  return getCurrentUser()?.id ?? null;
+  const current = getCurrentUser();
+  if (!current) {
+    return null;
+  }
+
+  const actingUserId = getSuperAdminActingUserId();
+  if (actingUserId) {
+    return actingUserId;
+  }
+
+  return current.id;
 }
 
 export function getRequiredUserId(): string {
@@ -240,9 +277,11 @@ export function getRequiredUserId(): string {
 
 export function buildAuthHeaders(contentType = false): HeadersInit {
   const token = getSessionToken();
+  const actingUserId = getSuperAdminActingUserId();
   return {
     ...(contentType ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(actingUserId ? { "x-bb-acting-user-id": actingUserId } : {}),
   };
 }
 
@@ -294,6 +333,7 @@ export async function signIn(payload: LoginPayload): Promise<void> {
   }
 
   removeStoredItem(USER_PROFILE_STORAGE_KEY);
+  removeStoredItem(SUPERADMIN_ACTING_USER_STORAGE_KEY);
   saveSessionToken(token);
 }
 
