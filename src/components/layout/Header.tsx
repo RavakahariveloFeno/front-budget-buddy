@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, CalendarClock, LogOut, Menu, Search } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, LogOut, Menu, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser, getSuperAdminActingUserId, isSuperAdmin, setSuperAdminActingUserId } from "@/api/authApi";
 import { useQuery } from "@tanstack/react-query";
@@ -628,7 +628,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           {subtitle && <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{subtitle}</p>}
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap justify-end">
         <div ref={wrapperRef} className="relative">
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border w-[140px] sm:w-[260px]"
@@ -700,11 +700,17 @@ export default function Header({ title, subtitle }: HeaderProps) {
             }}
           >
             <SelectTrigger
-              className="hidden lg:flex w-[260px]"
+              className="w-10 px-0 justify-center [&>svg]:hidden md:w-[260px] md:px-3 md:justify-between md:[&>svg]:block"
               style={{ background: "hsl(var(--secondary))", borderColor: "hsl(var(--border))" }}
               title="Selectionner un utilisateur"
             >
-              <SelectValue placeholder={superAdminUsersLoading ? "Chargement..." : "Selectionner un utilisateur"} />
+              <span className="md:hidden" aria-hidden="true">
+                <Users size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
+              </span>
+              <SelectValue
+                className="hidden md:inline"
+                placeholder={superAdminUsersLoading ? "Chargement..." : "Selectionner un utilisateur"}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__self__">Mon compte</SelectItem>
