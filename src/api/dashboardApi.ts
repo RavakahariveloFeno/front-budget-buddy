@@ -124,6 +124,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
           };
         })
         .filter((entry): entry is DashboardStats["recentTransactions"][number] => Boolean(entry && entry.id && entry.date))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     : [];
 
   const activeLoans = Array.isArray(record.activeLoans)

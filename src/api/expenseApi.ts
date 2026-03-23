@@ -203,9 +203,11 @@ export async function getExpenses(userId: string = getRequiredUserId()): Promise
     return [];
   }
 
-  return data
+  const items = data
     .map((item): Expense | null => mapExpense(item))
     .filter((item): item is Expense => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
+
+  return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getExpenseStatistics(userId: string = getRequiredUserId()): Promise<ExpenseStatistics> {

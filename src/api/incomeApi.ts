@@ -168,9 +168,11 @@ export async function getIncomes(userId: string = getRequiredUserId()): Promise<
     return [];
   }
 
-  return data
+  const items = data
     .map((item): Income | null => mapIncome(item))
     .filter((item): item is Income => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
+
+  return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function getIncomeStatistics(userId: string = getRequiredUserId(), year?: number): Promise<IncomeStatistics> {
