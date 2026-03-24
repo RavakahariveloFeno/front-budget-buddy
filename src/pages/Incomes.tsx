@@ -414,7 +414,22 @@ export default function Incomes() {
               </thead>
               <tbody>
                 {[...incomeList]
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .sort((a, b) => {
+                    const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+                    const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+
+                    if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt)) {
+                      return bCreatedAt - aCreatedAt;
+                    }
+                    if (Number.isFinite(aCreatedAt)) {
+                      return -1;
+                    }
+                    if (Number.isFinite(bCreatedAt)) {
+                      return 1;
+                    }
+
+                    return new Date(b.date).getTime() - new Date(a.date).getTime();
+                  })
                   .map((inc) => {
                   const act = activityList.find((activity) => activity.id === inc.activityId);
                   return (

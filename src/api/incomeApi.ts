@@ -83,6 +83,7 @@ function mapIncome(item: unknown): Income | null {
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     userId: String(record.userId ?? ""),
+    ...(record.createdAt ? { createdAt: String(record.createdAt) } : {}),
     ...(paymentType ? { paymentType } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
     ...(record.activityId ? { activityId: String(record.activityId) } : {}),
@@ -172,7 +173,17 @@ export async function getIncomes(userId: string = getRequiredUserId()): Promise<
     .map((item): Income | null => mapIncome(item))
     .filter((item): item is Income => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
 
-  return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortKey = (income: Income) => {
+    const createdAtTime = income.createdAt ? new Date(income.createdAt).getTime() : Number.NaN;
+    if (Number.isFinite(createdAtTime)) {
+      return createdAtTime;
+    }
+
+    const dateTime = new Date(income.date).getTime();
+    return Number.isFinite(dateTime) ? dateTime : 0;
+  };
+
+  return items.sort((a, b) => sortKey(b) - sortKey(a));
 }
 
 export async function getIncomeStatistics(userId: string = getRequiredUserId(), year?: number): Promise<IncomeStatistics> {

@@ -29,6 +29,7 @@ export interface Income {
   amount: number;
   paymentType?: PaymentType;
   date: string;
+  createdAt?: string;
   description?: string;
   activityId?: string;
   recurringIncomeId?: string;
