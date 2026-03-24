@@ -67,6 +67,7 @@ export default function Activities() {
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
   const currentUser = getCurrentUser();
   const isManagedProfile = Boolean(currentUser?.profileId);
+  const canManageActivities = !isManagedProfile;
   const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
 
   const refreshActivityStats = async () => {
@@ -167,16 +168,22 @@ export default function Activities() {
       <Header title="Activites" subtitle="Sources de revenus et activites financieres" />
       <div className="p-6 space-y-6">
         <div className="flex justify-end">
-          <button
-            onClick={() => {
-              setEditItem(null);
-              setFormOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-          >
-            <Plus size={16} /> Nouvelle activite
-          </button>
+          {canManageActivities ? (
+            <button
+              onClick={() => {
+                setEditItem(null);
+                setFormOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+            >
+              <Plus size={16} /> Nouvelle activite
+            </button>
+          ) : (
+            <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+              Creation d'activite reservee au compte principal.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -232,12 +239,16 @@ export default function Activities() {
                           </button>
                         );
                       })()}
-                      <button onClick={() => handleEdit(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
-                        <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
-                      </button>
-                      <button onClick={() => handleDelete(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                        <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
-                      </button>
+                      {canManageActivities && (
+                        <>
+                          <button onClick={() => handleEdit(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                            <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                          </button>
+                          <button onClick={() => handleDelete(act)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                            <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -386,7 +397,9 @@ export default function Activities() {
         </div>
       </div>
 
-      <ActivityForm open={formOpen} onOpenChange={setFormOpen} activity={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
+      {canManageActivities && (
+        <ActivityForm open={formOpen} onOpenChange={setFormOpen} activity={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
+      )}
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

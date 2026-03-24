@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import type { ActivityPayload } from "@/api/activityApi";
 import { useModuleStore } from "@/stores/moduleStore";
 import { getActivityModules, setActivityModules } from "@/api/moduleApi";
+import { getCurrentUser } from "@/api/authApi";
 
 const typeOptions = [
   { value: "SALARY", label: "Salaire" },
@@ -30,6 +31,7 @@ interface Props {
 export default function ActivityForm({ open, onOpenChange, activity, onCreate, onUpdate }: Props) {
   const defaultVisibleModules = 3;
   const isEdit = Boolean(activity);
+  const isManagedProfile = Boolean(getCurrentUser()?.profileId);
   const [name, setName] = useState("");
   const [type, setType] = useState<ActivityType>("SALARY");
   const [description, setDescription] = useState("");
@@ -67,6 +69,11 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isManagedProfile) {
+      toast({ title: "Acces refuse", description: "Seul le compte principal peut gerer les activites." });
+      onOpenChange(false);
+      return;
+    }
     const payload: ActivityPayload = {
       name: name.trim(),
       type,
