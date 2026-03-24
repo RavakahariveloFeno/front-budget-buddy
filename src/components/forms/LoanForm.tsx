@@ -40,6 +40,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
   const [direction, setDirection] = useState<LoanDirection>("BORROWED");
   const [type, setType] = useState<LoanType>("BANK");
   const [lenderName, setLenderName] = useState("");
+  const [description, setDescription] = useState("");
   const [interestRate, setInterestRate] = useState("0");
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState("");
@@ -62,6 +63,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
     setDirection(loan?.direction || "BORROWED");
     setType(loan?.type || "BANK");
     setLenderName(loan?.lenderName || "");
+    setDescription(loan?.description || "");
     setInterestRate(String(loan?.interestRate ?? 0));
     setStartDate(loan?.startDate ? loan.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
     setEndDate(loan?.endDate ? loan.endDate.split("T")[0] : "");
@@ -106,6 +108,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
       direction,
       type,
       lenderName: lenderName.trim(),
+      description: description.trim() || undefined,
       interestRate: parsedRate,
       startDate,
       endDate: endDate || undefined,
@@ -143,6 +146,13 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
         <SelectField label="Direction" value={direction} onValueChange={(value) => setDirection(value as LoanDirection)} options={directionOptions} />
         <SelectField label="Type" value={type} onValueChange={(value) => setType(value as LoanType)} options={typeOptions} />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentTypeOptions} />
+        <FormFieldInput
+          label="Description"
+          id="loan-description"
+          value={description}
+          onChange={setDescription}
+          placeholder="Optionnel"
+        />
         <div className="grid grid-cols-2 gap-3">
           <FormFieldInput label="Montant total (MGA)" id="loan-total" type="number" value={totalAmount} onChange={setTotalAmount} required step="0.01" min="0" />
           <FormFieldInput label="Restant (MGA)" id="loan-remaining" type="number" value={remainingAmount} onChange={setRemainingAmount} required step="0.01" min="0" />

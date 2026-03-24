@@ -91,6 +91,7 @@ export interface Loan {
   direction?: LoanDirection;
   type: LoanType;
   lenderName: string;
+  description?: string;
   interestRate?: number;
   startDate: string;
   endDate?: string;
