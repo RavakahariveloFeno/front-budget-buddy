@@ -12,6 +12,7 @@ import LoanForm from "@/components/forms/LoanForm";
 import LoanPaymentForm from "@/components/forms/LoanPaymentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { compareByMostRecent } from "@/lib/recent-sort";
 
 const loanTypeLabels: Record<string, string> = { BANK: "Banque", FRIEND: "Ami", COMPANY: "Entreprise", OTHER: "Autre" };
 const loanTypeColors: Record<string, string> = { BANK: "badge-info", FRIEND: "badge-warning", COMPANY: "badge-purple", OTHER: "badge-income" };
@@ -45,7 +46,7 @@ export default function Loans() {
       const paymentsByLoanId = new Map(paymentHistory.map((item) => [item.loanId, item.payments]));
 
       const mergedLoans = remoteLoans.map((loan) => {
-        const payments = paymentsByLoanId.get(loan.id) || loan.payments || [];
+        const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])].sort(compareByMostRecent(["createdAt", "date"]));
         const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
         const remainingAmount = Math.max(loan.totalAmount - totalPaid, 0);
         return {
@@ -87,10 +88,24 @@ export default function Loans() {
   }, [activityList]);
 
   const normalizedLoans = loanList.map((loan) => ({ ...loan, direction: loan.direction || "BORROWED" }));
-  const activeBorrowedLoans = normalizedLoans.filter((loan) => loan.status === "ACTIVE" && loan.direction !== "LENT");
-  const activeLentLoans = normalizedLoans.filter((loan) => loan.status === "ACTIVE" && loan.direction === "LENT");
-  const paidBorrowedLoans = normalizedLoans.filter((loan) => loan.status === "PAID" && loan.direction !== "LENT");
-  const paidLentLoans = normalizedLoans.filter((loan) => loan.status === "PAID" && loan.direction === "LENT");
+  const loanSort = compareByMostRecent<Loan>(["createdAt", "endDate", "startDate", "date"]);
+
+  const activeBorrowedLoans = useMemo(
+    () => [...normalizedLoans].filter((loan) => loan.status === "ACTIVE" && loan.direction !== "LENT").sort(loanSort),
+    [normalizedLoans],
+  );
+  const activeLentLoans = useMemo(
+    () => [...normalizedLoans].filter((loan) => loan.status === "ACTIVE" && loan.direction === "LENT").sort(loanSort),
+    [normalizedLoans],
+  );
+  const paidBorrowedLoans = useMemo(
+    () => [...normalizedLoans].filter((loan) => loan.status === "PAID" && loan.direction !== "LENT").sort(loanSort),
+    [normalizedLoans],
+  );
+  const paidLentLoans = useMemo(
+    () => [...normalizedLoans].filter((loan) => loan.status === "PAID" && loan.direction === "LENT").sort(loanSort),
+    [normalizedLoans],
+  );
   const totalBorrowedRemaining = activeBorrowedLoans.reduce((sum, loan) => sum + loan.remainingAmount, 0);
   const totalLentRemaining = activeLentLoans.reduce((sum, loan) => sum + loan.remainingAmount, 0);
   const totalPaid = [...paidBorrowedLoans, ...paidLentLoans].reduce((sum, loan) => sum + loan.totalAmount, 0);
@@ -403,7 +418,7 @@ export default function Loans() {
             Prets rembourses <span className="badge-income ml-2">{paidBorrowedLoans.length + paidLentLoans.length}</span>
           </h2>
           <div className="space-y-3">
-            {[...paidBorrowedLoans, ...paidLentLoans].map((loan) => (
+            {[...paidBorrowedLoans, ...paidLentLoans].sort(loanSort).map((loan) => (
               <div key={loan.id} className="stat-card opacity-60 group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

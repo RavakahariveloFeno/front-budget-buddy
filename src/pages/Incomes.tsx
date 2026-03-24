@@ -26,6 +26,7 @@ import SelectField from "@/components/dialogs/SelectField";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { createWithdrawal } from "@/api/withdrawalApi";
+import { compareByMostRecent } from "@/lib/recent-sort";
 
 const CustomTooltipStyle = {
   contentStyle: {
@@ -412,24 +413,9 @@ export default function Incomes() {
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+                <tbody>
                 {[...incomeList]
-                  .sort((a, b) => {
-                    const aCreatedAt = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
-                    const bCreatedAt = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
-
-                    if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt)) {
-                      return bCreatedAt - aCreatedAt;
-                    }
-                    if (Number.isFinite(aCreatedAt)) {
-                      return -1;
-                    }
-                    if (Number.isFinite(bCreatedAt)) {
-                      return 1;
-                    }
-
-                    return new Date(b.date).getTime() - new Date(a.date).getTime();
-                  })
+                  .sort(compareByMostRecent(["createdAt", "date"]))
                   .map((inc) => {
                   const act = activityList.find((activity) => activity.id === inc.activityId);
                   return (
@@ -494,7 +480,7 @@ export default function Incomes() {
                 </tr>
               </thead>
               <tbody>
-                {recurringList.map((item) => {
+                {[...recurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
                   const activity = item.activityId ? activityList.find((a) => a.id === item.activityId) : undefined;
                   return (
                     <tr key={item.id}>

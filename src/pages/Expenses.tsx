@@ -24,6 +24,7 @@ import ExpenseForm from "@/components/forms/ExpenseForm";
 import CategoryForm from "@/components/forms/CategoryForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { compareByMostRecent } from "@/lib/recent-sort";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
@@ -404,7 +405,7 @@ export default function Expenses() {
                 </thead>
                 <tbody>
                   {[...expenseList]
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .sort(compareByMostRecent(["createdAt", "date"]))
                     .map((expense) => {
                     const category = expense.categoryId ? categoryById.get(expense.categoryId) : undefined;
                     const activity = expense.activityId ? activityById.get(expense.activityId) : undefined;
@@ -482,7 +483,7 @@ export default function Expenses() {
                 </tr>
               </thead>
               <tbody>
-                {recurringList.map((item) => {
+                {[...recurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
                   const activity = item.activityId ? activityById.get(item.activityId) : undefined;
                   return (
                     <tr key={item.id}>

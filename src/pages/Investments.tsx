@@ -10,6 +10,7 @@ import type { InvestmentPayload } from "@/api/investmentApi";
 import InvestmentForm from "@/components/forms/InvestmentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { compareByMostRecent } from "@/lib/recent-sort";
 
 const CustomTooltipStyle = {
   contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
@@ -62,6 +63,8 @@ export default function Investments() {
     }
     return map;
   }, [activityList]);
+
+  const sortedInvestments = useMemo(() => [...investmentList].sort(compareByMostRecent(["createdAt", "date"])), [investmentList]);
 
   const handleEdit = (investment: Investment) => {
     setEditItem(investment);
@@ -213,7 +216,7 @@ export default function Investments() {
                 </tr>
               </thead>
               <tbody>
-                {[...investmentList].reverse().map((investment) => {
+                {sortedInvestments.map((investment) => {
                   const from = activityById.get(investment.fromActivityId);
                   const to = activityById.get(investment.toActivityId);
                   return (

@@ -1,4 +1,6 @@
+import { compareByMostRecent } from "@/lib/recent-sort";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
+
 const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface DashboardStats {
@@ -33,6 +35,7 @@ export interface DashboardStats {
     kind: "income" | "expense";
     amount: number;
     date: string;
+    createdAt?: string;
     description?: string;
     activityName?: string;
     categoryName?: string;
@@ -117,6 +120,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
             kind,
             amount: Number(row.amount ?? 0),
             date: String(row.date ?? ""),
+            ...(row.createdAt ? { createdAt: String(row.createdAt) } : {}),
             ...(row.description ? { description: String(row.description) } : {}),
             ...(row.activityName ? { activityName: String(row.activityName) } : {}),
             ...(row.categoryName ? { categoryName: String(row.categoryName) } : {}),
@@ -124,7 +128,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
           };
         })
         .filter((entry): entry is DashboardStats["recentTransactions"][number] => Boolean(entry && entry.id && entry.date))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort(compareByMostRecent(["createdAt", "date"]))
     : [];
 
   const activeLoans = Array.isArray(record.activeLoans)

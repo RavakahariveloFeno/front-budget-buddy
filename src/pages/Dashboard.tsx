@@ -5,6 +5,7 @@ import {
   Wallet, Activity as ActivityIcon,
   Banknote,
 } from "lucide-react";
+import { useMemo } from "react";
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -13,6 +14,7 @@ import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import { getDashboardStats } from "@/api/dashboardApi";
 import type { DashboardStats } from "@/api/dashboardApi";
+import { compareByMostRecent } from "@/lib/recent-sort";
 
 function StatCard({
   label, value, icon: Icon, variant, trend, trendLabel,
@@ -125,6 +127,21 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 export default function Dashboard() {
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
 
+  const recentTransactions = useMemo(
+    () => [...dashboard.recentTransactions].sort(compareByMostRecent(["createdAt", "date"])),
+    [dashboard.recentTransactions],
+  );
+
+  const activeLoans = useMemo(
+    () => [...dashboard.activeLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])),
+    [dashboard.activeLoans],
+  );
+
+  const toRecoverLoans = useMemo(
+    () => [...dashboard.toRecoverLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])),
+    [dashboard.toRecoverLoans],
+  );
+
   useEffect(() => {
     const loadDashboard = async () => {
       try {
@@ -231,7 +248,7 @@ export default function Dashboard() {
           <div className="stat-card">
             <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Transactions recentes</p>
             <div className="space-y-2">
-              {dashboard.recentTransactions.map((tx) => {
+              {recentTransactions.map((tx) => {
                 const isIncome = tx.kind === "income";
                 return (
                   <div key={`${tx.kind}-${tx.id}`} className="flex items-center justify-between py-2 border-b" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
@@ -262,7 +279,7 @@ export default function Dashboard() {
             <div className="stat-card">
               <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Prets actifs</p>
               <div className="space-y-3">
-                {dashboard.activeLoans.map((loan) => {
+                {activeLoans.map((loan) => {
                   const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
                   return (
                     <div key={loan.id}>
@@ -283,7 +300,7 @@ export default function Dashboard() {
             <div className="stat-card">
               <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Prets a recuperer</p>
               <div className="space-y-3">
-                {dashboard.toRecoverLoans.map((loan) => {
+                {toRecoverLoans.map((loan) => {
                   const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
                   return (
                     <div key={`recover-${loan.id}`}>

@@ -49,6 +49,7 @@ export interface Expense {
   amount: number;
   paymentType?: PaymentType;
   date: string;
+  createdAt?: string;
   description?: string;
   categoryId?: string;
   activityId?: string;

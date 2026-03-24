@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, PiggyBank, Calendar, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Budget } from "@/data/staticData";
@@ -14,6 +15,7 @@ import type { BudgetPayload, BudgetStatistics } from "@/api/budgetApi";
 import BudgetForm from "@/components/forms/BudgetForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { compareByMostRecent } from "@/lib/recent-sort";
 
 const periodLabels: Record<string, string> = { DAY: "Jour", WEEK: "Semaine", MONTH: "Mois" };
 const periodGradients: Record<string, string> = { DAY: "var(--gradient-primary)", WEEK: "var(--gradient-warning)", MONTH: "var(--gradient-purple)" };
@@ -70,6 +72,8 @@ export default function Budgets() {
     setDeleteOpen(true);
   };
 
+  const sortedBudgets = useMemo(() => [...budgetList].sort(compareByMostRecent(["createdAt", "startDate", "date"])), [budgetList]);
+
   const handleCreate = async (payload: BudgetPayload) => {
     const created = await createBudget(payload);
     setBudgetList((prev) => [created, ...prev]);
@@ -120,7 +124,7 @@ export default function Budgets() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {budgetList.map((budget) => {
+          {sortedBudgets.map((budget) => {
             const spent = budgetStats.spentByPeriod[budget.period] ?? 0;
             const pct = budget.amount > 0 ? Math.min(100, Math.round((spent / budget.amount) * 100)) : 0;
             const isOver = spent > budget.amount;

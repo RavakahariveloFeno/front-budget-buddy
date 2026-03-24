@@ -102,6 +102,7 @@ function mapExpense(item: unknown): Expense | null {
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     userId: String(record.userId ?? ""),
+    ...(record.createdAt ? { createdAt: String(record.createdAt) } : {}),
     ...(paymentType ? { paymentType } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
     ...(record.categoryId ? { categoryId: String(record.categoryId) } : {}),
