@@ -101,7 +101,11 @@ export interface Loan {
 }
 
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("fr-MG", { style: "currency", currency: "MGA" }).format(amount);
+  const formatted = new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+  return `${formatted} MGA`;
 }
 
 export function formatDate(date: string): string {

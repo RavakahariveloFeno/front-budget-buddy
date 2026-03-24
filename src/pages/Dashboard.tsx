@@ -15,6 +15,8 @@ import { formatCurrency, formatDate } from "@/data/staticData";
 import { getDashboardStats } from "@/api/dashboardApi";
 import type { DashboardStats } from "@/api/dashboardApi";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import { getBudgets, getBudgetStatistics, type BudgetStatistics } from "@/api/budgetApi";
+import type { Budget, BudgetPeriod } from "@/data/staticData";
 
 function StatCard({
   label, value, icon: Icon, variant, trend, trendLabel,
@@ -110,6 +112,32 @@ const EMPTY_DASHBOARD: DashboardStats = {
   activities: [],
 };
 
+const EMPTY_BUDGET_STATS: BudgetStatistics = {
+  spentByPeriod: {
+    DAY: 0,
+    WEEK: 0,
+    MONTH: 0,
+  },
+};
+
+const BUDGET_LABELS: Record<BudgetPeriod, string> = {
+  DAY: "Jour",
+  WEEK: "Semaine",
+  MONTH: "Mois",
+};
+
+const BUDGET_COLORS: Record<BudgetPeriod, string> = {
+  DAY: "hsl(var(--primary))",
+  WEEK: "hsl(var(--warning))",
+  MONTH: "hsl(var(--purple))",
+};
+
+const BUDGET_BACKGROUNDS: Record<BudgetPeriod, string> = {
+  DAY: "hsl(var(--primary-dim))",
+  WEEK: "hsl(var(--warning-dim))",
+  MONTH: "hsl(var(--purple-dim))",
+};
+
 const ACTIVITY_TYPE_COLORS: Record<string, string> = {
   SALARY: "badge-income",
   BUSINESS: "badge-purple",
@@ -126,6 +154,8 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 
 export default function Dashboard() {
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
 
   const recentTransactions = useMemo(
     () => [...dashboard.recentTransactions].sort(compareByMostRecent(["createdAt", "date"])),
@@ -142,14 +172,40 @@ export default function Dashboard() {
     [dashboard.toRecoverLoans],
   );
 
+  const budgetCards = useMemo(() => {
+    return (["DAY", "WEEK", "MONTH"] as BudgetPeriod[]).map((period) => {
+      const budget = budgets.find((item) => item.period === period);
+      const amount = budget?.amount ?? 0;
+      const spent = budgetStats.spentByPeriod[period] ?? 0;
+      const remaining = amount - spent;
+      const progress = amount > 0 ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
+
+      return {
+        period,
+        amount,
+        spent,
+        remaining,
+        progress,
+      };
+    });
+  }, [budgetStats.spentByPeriod, budgets]);
+
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const stats = await getDashboardStats();
+        const [stats, budgetList, budgetStatistics] = await Promise.all([
+          getDashboardStats(),
+          getBudgets(),
+          getBudgetStatistics(),
+        ]);
         setDashboard(stats);
+        setBudgets(budgetList);
+        setBudgetStats(budgetStatistics);
       } catch (error) {
         console.error("Impossible de charger les statistiques dashboard depuis l'API.", error);
         setDashboard(EMPTY_DASHBOARD);
+        setBudgets([]);
+        setBudgetStats(EMPTY_BUDGET_STATS);
       }
     };
 
@@ -175,21 +231,70 @@ export default function Dashboard() {
           <StatCard label="Investissements" value={formatCurrency(dashboard.totals.investments)} icon={ArrowLeftRight} variant="invest" />
         </div>
 
-        <div className="rounded-xl p-5 flex items-center justify-between" style={{ background: "var(--gradient-primary)" }}>
+        <div
+          className="rounded-xl p-5 flex items-center justify-between border"
+          style={{
+            background: "linear-gradient(135deg, hsl(225, 27%, 12%), hsl(222, 24%, 16%))",
+            borderColor: "hsl(var(--border))",
+          }}
+        >
           <div>
-            <p className="text-sm font-medium opacity-80" style={{ color: "hsl(var(--primary-foreground))" }}>Solde net disponible</p>
-            <p className="text-3xl font-display font-bold mt-1" style={{ color: "hsl(var(--primary-foreground))" }}>
+            <p className="text-sm font-medium opacity-80" style={{ color: "hsl(var(--muted-foreground))" }}>Solde net disponible</p>
+            <p className="text-3xl font-display font-bold mt-1" style={{ color: "hsl(var(--foreground))" }}>
               {formatCurrency(dashboard.totals.balance)}
             </p>
           </div>
           <div className="text-right">
-            <Wallet size={40} style={{ color: "hsl(var(--primary-foreground) / 0.3)" }} />
+            <Wallet size={40} style={{ color: "hsl(var(--foreground) / 0.22)" }} />
           </div>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
           <StatCard label="Solde carte" value={formatCurrency(dashboard.paymentBalances.card)} icon={CreditCard} variant="default" />
           <StatCard label="Solde especes" value={formatCurrency(dashboard.paymentBalances.cash)} icon={Banknote} variant="default" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {budgetCards.map((budget) => {
+            const isOver = budget.amount > 0 && budget.spent > budget.amount;
+            return (
+              <div key={budget.period} className="stat-card">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BUDGET_BACKGROUNDS[budget.period] }}>
+                    <Wallet size={18} style={{ color: BUDGET_COLORS[budget.period] }} />
+                  </div>
+                  <span
+                    className="text-xs font-medium px-2 py-0.5 rounded-full"
+                    style={{ background: BUDGET_BACKGROUNDS[budget.period], color: BUDGET_COLORS[budget.period] }}
+                  >
+                    {BUDGET_LABELS[budget.period]}
+                  </span>
+                </div>
+                <p className="text-xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>
+                  {formatCurrency(budget.amount)}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  Depense {formatCurrency(budget.spent)}
+                </p>
+                <div className="h-2 rounded-full mt-4 mb-2" style={{ background: "hsl(var(--border))" }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${budget.progress}%`,
+                      background: isOver ? "hsl(var(--destructive))" : BUDGET_COLORS[budget.period],
+                    }}
+                  />
+                </div>
+                <p className="text-xs" style={{ color: isOver ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
+                  {budget.amount > 0
+                    ? isOver
+                      ? `Depasse de ${formatCurrency(Math.abs(budget.remaining))}`
+                      : `Reste ${formatCurrency(budget.remaining)}`
+                    : "Aucun budget defini"}
+                </p>
+              </div>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
