@@ -10,6 +10,8 @@ export interface ManagedProfile {
   lastName: string;
   email: string;
   role: ProfileRole;
+  isDisabled: boolean;
+  disabledAt: string | null;
   activities: string[];
   moduleLinks: string[];
   menuAccess: string[];
@@ -91,6 +93,8 @@ function mapManagedProfile(item: unknown): ManagedProfile | null {
     lastName,
     email,
     role: mapRole(record.role),
+    isDisabled: Boolean(record.isDisabled),
+    disabledAt: record.disabledAt ? String(record.disabledAt) : null,
     activities,
     moduleLinks,
     menuAccess,
@@ -190,6 +194,25 @@ export async function getManagedProfile(id: string): Promise<ManagedProfile> {
   const userId = getRequiredUserId();
   const response = await fetch(`${PROFILE_API_URL}/${id}?userId=${userId}`, {
     headers: buildAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  const data: unknown = await response.json();
+  const profile = mapManagedProfile(data);
+  if (!profile) {
+    throw new Error("Invalid profile response");
+  }
+  return profile;
+}
+
+export async function setManagedProfileDisabled(id: string, isDisabled: boolean): Promise<ManagedProfile> {
+  const userId = getRequiredUserId();
+  const response = await fetch(`${PROFILE_API_URL}/${id}/disabled`, {
+    method: "PATCH",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({ userId, isDisabled }),
   });
   if (!response.ok) {
     throw new Error(await readApiErrorMessage(response));

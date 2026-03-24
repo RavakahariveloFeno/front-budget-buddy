@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
@@ -24,6 +25,7 @@ import {
   createManagedProfile,
   deleteManagedProfile,
   getManagedProfiles,
+  setManagedProfileDisabled,
   updateManagedProfile,
 } from "@/api/profileApi";
 import type { ManagedProfile, ProfileRole } from "@/api/profileApi";
@@ -43,7 +45,7 @@ const ROLE_COLORS: Record<ProfileRole, string> = {
   user: "bg-primary/20 text-primary border-primary/30",
 };
 
-type ManagedProfileFormState = Omit<ManagedProfile, "id"> & { password: string };
+type ManagedProfileFormState = Omit<ManagedProfile, "id" | "isDisabled" | "disabledAt"> & { password: string };
 
 export default function Settings() {
   const { toast } = useToast();
@@ -63,6 +65,7 @@ export default function Settings() {
   const [profiles, setProfiles] = useState<ManagedProfile[]>([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [isSavingManagedProfile, setIsSavingManagedProfile] = useState(false);
+  const [isTogglingManagedProfile, setIsTogglingManagedProfile] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ManagedProfile | null>(null);
@@ -420,6 +423,26 @@ export default function Settings() {
     }
   };
 
+  const handleToggleProfileDisabled = async (profile: ManagedProfile, isDisabled: boolean) => {
+    try {
+      setIsTogglingManagedProfile(true);
+      const updated = await setManagedProfileDisabled(profile.id, isDisabled);
+      setProfiles((prev) => prev.map((item) => (item.id === profile.id ? updated : item)));
+      toast({
+        title: "Profil mis a jour",
+        description: isDisabled ? "Le profil a ete desactive." : "Le profil a ete reactive.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Action impossible.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTogglingManagedProfile(false);
+    }
+  };
+
   const toggleModule = (activityId: string, moduleId: string) => {
     const linkId = `${activityId}::${moduleId}`;
     setFormProfile((prev) => ({
@@ -540,10 +563,11 @@ export default function Settings() {
               <div className="rounded-lg border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-border hover:bg-transparent">
+                      <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="text-muted-foreground">Nom</TableHead>
                       <TableHead className="text-muted-foreground">Email</TableHead>
                       <TableHead className="text-muted-foreground">Role</TableHead>
+                      <TableHead className="text-muted-foreground">Acces</TableHead>
                       <TableHead className="text-muted-foreground">Activities</TableHead>
                       <TableHead className="text-muted-foreground">Modules</TableHead>
                       <TableHead className="text-muted-foreground text-right">Actions</TableHead>
@@ -552,20 +576,32 @@ export default function Settings() {
                   <TableBody>
                     {isLoadingProfiles ? (
                       <TableRow className="border-border">
-                        <TableCell className="text-muted-foreground" colSpan={6}>Chargement des profils...</TableCell>
+                        <TableCell className="text-muted-foreground" colSpan={7}>Chargement des profils...</TableCell>
                       </TableRow>
                     ) : profiles.length === 0 ? (
                       <TableRow className="border-border">
-                        <TableCell className="text-muted-foreground" colSpan={6}>Aucun profil disponible.</TableCell>
+                        <TableCell className="text-muted-foreground" colSpan={7}>Aucun profil disponible.</TableCell>
                       </TableRow>
                     ) : profiles.map((profile) => (
-                      <TableRow key={profile.id} className="border-border">
+                      <TableRow key={profile.id} className={`border-border ${profile.isDisabled ? "opacity-70" : ""}`}>
                         <TableCell className="font-medium">{profile.firstName} {profile.lastName}</TableCell>
                         <TableCell className="text-muted-foreground">{profile.email}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={ROLE_COLORS[profile.role]}>
                             {ROLE_OPTIONS.find((r) => r.value === profile.role)?.label}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="inline-flex items-center gap-2">
+                            <Switch
+                              checked={!profile.isDisabled}
+                              disabled={isTogglingManagedProfile || isSavingManagedProfile}
+                              onCheckedChange={(checked) => void handleToggleProfileDisabled(profile, !checked)}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {profile.isDisabled ? "Desactive" : "Actif"}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -597,10 +633,22 @@ export default function Settings() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditProfile(profile)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditProfile(profile)}
+                              disabled={isTogglingManagedProfile}
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            >
                               <Pencil size={15} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openDeleteProfile(profile)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openDeleteProfile(profile)}
+                              disabled={isTogglingManagedProfile}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
                               <Trash2 size={15} />
                             </Button>
                           </div>

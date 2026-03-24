@@ -115,7 +115,11 @@ export function initFetchTracking(): void {
       const response = await originalFetch(input, init);
       if (response.status === 401) {
         const message = await readResponseMessage(response);
-        if (message.toLowerCase().includes("account disabled")) {
+        const normalized = message.toLowerCase();
+        if (
+          normalized.includes("account disabled") ||
+          normalized.includes("profile disabled")
+        ) {
           dispatchAccountDisabled(message);
         }
       }
