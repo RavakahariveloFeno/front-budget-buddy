@@ -387,8 +387,8 @@ export default function Settings() {
 
       setDialogOpen(false);
     } catch (error) {
-      const message = error instanceof Error && error.message.includes("409")
-        ? "Cet email existe deja."
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
         : "Impossible d'enregistrer le profil.";
       toast({ title: "Erreur", description: message, variant: "destructive" });
     } finally {

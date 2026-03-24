@@ -33,6 +33,32 @@ export interface UpdateManagedProfilePayload extends ManagedProfilePayloadBase {
   password?: string;
 }
 
+async function readApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0]);
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const text = await response.text();
+    if (text.trim()) {
+      return text;
+    }
+  } catch {
+    // ignore
+  }
+
+  return `HTTP ${response.status}`;
+}
+
 function mapRole(value: unknown): ProfileRole {
   const normalized = String(value ?? "").toLowerCase();
   if (normalized === "admin" || normalized === "manager" || normalized === "user") {
@@ -77,7 +103,7 @@ export async function getManagedProfiles(): Promise<ManagedProfile[]> {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -108,7 +134,7 @@ export async function createManagedProfile(payload: CreateManagedProfilePayload)
     }),
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -138,7 +164,7 @@ export async function updateManagedProfile(id: string, payload: UpdateManagedPro
     }),
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
@@ -156,7 +182,7 @@ export async function deleteManagedProfile(id: string): Promise<void> {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 }
 
@@ -166,7 +192,7 @@ export async function getManagedProfile(id: string): Promise<ManagedProfile> {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error(await readApiErrorMessage(response));
   }
 
   const data: unknown = await response.json();
