@@ -11,6 +11,7 @@ export interface LoanPayload {
   direction?: LoanDirection;
   type: LoanType;
   lenderName: string;
+  description?: string;
   interestRate?: number;
   startDate: string;
   endDate?: string;
@@ -100,6 +101,7 @@ function mapLoan(item: unknown): Loan | null {
     direction,
     type: record.type,
     lenderName: String(record.lenderName ?? ""),
+    ...(record.description ? { description: String(record.description) } : {}),
     startDate: String(record.startDate ?? ""),
     status,
     userId: String(record.userId ?? ""),
@@ -186,6 +188,7 @@ function buildLoanBody(payload: LoanPayload): string {
     direction: payload.direction,
     type: payload.type,
     lenderName: payload.lenderName,
+    description: payload.description || undefined,
     interestRate: payload.interestRate ?? undefined,
     startDate: toIsoDate(payload.startDate),
     endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
