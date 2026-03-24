@@ -35,6 +35,8 @@ const ROLE_OPTIONS: { value: ProfileRole; label: string }[] = [
   { value: "user", label: "Utilisateur" },
 ];
 
+const MANAGED_PROFILE_MENU_ITEMS = MENU_ACCESS_ITEMS.filter((item) => item.key !== "settings");
+
 const ROLE_COLORS: Record<ProfileRole, string> = {
   admin: "bg-destructive/20 text-destructive border-destructive/30",
   manager: "bg-warning/20 text-warning border-warning/30",
@@ -335,7 +337,7 @@ export default function Settings() {
       role: profile.role,
       activities: [...profile.activities],
       moduleLinks: [...profile.moduleLinks],
-      menuAccess: [...profile.menuAccess],
+      menuAccess: profile.menuAccess.filter((key) => key !== "settings"),
     });
     setDialogOpen(true);
   };
@@ -369,7 +371,7 @@ export default function Settings() {
         role: formProfile.role,
         activities: formProfile.activities,
         moduleLinks: formProfile.moduleLinks,
-        menuAccess: formProfile.menuAccess,
+        menuAccess: formProfile.menuAccess.filter((key) => key !== "settings"),
       };
 
       if (editingProfile) {
@@ -736,7 +738,7 @@ export default function Settings() {
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">Acces aux menus</Label>
               <div className="space-y-2 rounded-lg border border-border p-3" style={{ background: "hsl(var(--input))" }}>
-                {MENU_ACCESS_ITEMS.map((item) => (
+                {MANAGED_PROFILE_MENU_ITEMS.map((item) => (
                   <label key={item.key} className="flex items-center gap-3 cursor-pointer py-1">
                     <Checkbox
                       checked={formProfile.menuAccess.includes(item.key)}
