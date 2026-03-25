@@ -71,12 +71,16 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
       toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
       return;
     }
+    if (activityId === "none") {
+      toast({ title: "Activite requise", description: "Selectionnez une activite avant d'enregistrer le revenu." });
+      return;
+    }
 
     const payloadBase = {
       amount: parsedAmount,
       paymentType,
       description: description.trim() || undefined,
-      activityId: activityId === "none" ? undefined : activityId,
+      activityId,
     };
     const payload: IncomePayload = { ...payloadBase, date };
 
@@ -115,7 +119,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
         <FormFieldInput label="Description" id="inc-desc" value={description} onChange={setDescription} placeholder="Ex: Salaire janvier" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="inc-date" type="date" value={date} onChange={setDate} required />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentOptions} />
-        <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={activityOptions} placeholder="Selectionner une activite" />
+        <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={activityOptions} placeholder="Selectionner une activite" required />
         {!isEdit ? (
           <div className="space-y-2 rounded-lg border border-border p-3">
             <div className="flex items-center justify-between">

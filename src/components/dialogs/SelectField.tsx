@@ -14,9 +14,10 @@ interface SelectFieldProps {
   options: Option[];
   placeholder?: string;
   onAddClick?: () => void;
+  required?: boolean;
 }
 
-export default function SelectField({ label, value, onValueChange, options, placeholder, onAddClick }: SelectFieldProps) {
+export default function SelectField({ label, value, onValueChange, options, placeholder, onAddClick, required = false }: SelectFieldProps) {
   const handleAddClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -25,8 +26,30 @@ export default function SelectField({ label, value, onValueChange, options, plac
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</Label>
-      <div className={onAddClick ? "flex gap-2" : ""}>
+      <Label className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+        {label}
+        {required ? " *" : ""}
+      </Label>
+      <div className={`relative ${onAddClick ? "flex gap-2" : ""}`}>
+        {required ? (
+          <select
+            aria-hidden="true"
+            tabIndex={-1}
+            required
+            value={value === "none" ? "" : value}
+            onChange={() => {}}
+            className="absolute h-0 w-0 opacity-0 pointer-events-none"
+          >
+            <option value="">Selectionner</option>
+            {options
+              .filter((opt) => opt.value !== "none")
+              .map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+          </select>
+        ) : null}
         <Select value={value} onValueChange={onValueChange}>
           <SelectTrigger className={`border-border ${onAddClick ? "flex-1" : ""}`} style={{ background: "hsl(var(--input))", color: "hsl(var(--foreground))" }}>
             <SelectValue placeholder={placeholder || "Sélectionner"} />

@@ -1,32 +1,49 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  TrendingUp, TrendingDown, CreditCard, ArrowLeftRight,
-  HandCoins,
-  Wallet, Activity as ActivityIcon,
+  Activity as ActivityIcon,
+  ArrowLeftRight,
   Banknote,
+  CreditCard,
+  HandCoins,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
-import { useMemo } from "react";
 import {
-  AreaChart, Area, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import Header from "@/components/layout/Header";
-import { formatCurrency, formatDate } from "@/data/staticData";
-import { getDashboardStats } from "@/api/dashboardApi";
-import type { DashboardStats } from "@/api/dashboardApi";
-import { compareByMostRecent } from "@/lib/recent-sort";
+import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
 import { getBudgets, getBudgetStatistics, type BudgetStatistics } from "@/api/budgetApi";
-import type { Budget, BudgetPeriod } from "@/data/staticData";
+import { formatCurrency, formatDate, type Budget, type BudgetPeriod } from "@/data/staticData";
+import { compareByMostRecent } from "@/lib/recent-sort";
 
 function StatCard({
-  label, value, icon: Icon, variant, trend, trendLabel,
+  label,
+  value,
+  icon: Icon,
+  variant,
+  hint,
+  delay = 0,
 }: {
   label: string;
   value: string;
   icon: React.ElementType;
   variant: "income" | "expense" | "loan" | "invest" | "default";
-  trend?: number;
-  trendLabel?: string;
+  hint?: string;
+  delay?: number;
 }) {
   const variantClass = {
     income: "stat-card-income",
@@ -53,26 +70,29 @@ function StatCard({
   }[variant];
 
   return (
-    <div className={`stat-card ${variantClass} animate-fade-in`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: iconBg }}>
+    <div
+      className={`stat-card ${variantClass} animate-fade-in group transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl`}
+      style={{ animationDelay: `${delay}ms`, animationFillMode: "both" }}
+    >
+      <div className="mb-4 flex items-start justify-between">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+          style={{ background: iconBg }}
+        >
           <Icon size={18} style={{ color: iconColors }} />
         </div>
-        {trend !== undefined && (
-          <span
-            className="text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{
-              background: trend >= 0 ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))",
-              color: trend >= 0 ? "hsl(var(--primary))" : "hsl(var(--destructive))",
-            }}
-          >
-            {trend >= 0 ? "+" : ""}{trend}%
-          </span>
-        )}
       </div>
-      <p className="text-2xl font-display font-bold mb-1" style={{ color: "hsl(var(--foreground))" }}>{value}</p>
-      <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
-      {trendLabel && <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{trendLabel}</p>}
+      <p className="mb-1 text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+        {label}
+      </p>
+      <p className="text-2xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>
+        {value}
+      </p>
+      {hint ? (
+        <p className="mt-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -158,17 +178,17 @@ export default function Dashboard() {
   const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
 
   const recentTransactions = useMemo(
-    () => [...dashboard.recentTransactions].sort(compareByMostRecent(["createdAt", "date"])),
+    () => [...dashboard.recentTransactions].sort(compareByMostRecent(["createdAt", "date"])).slice(0, 6),
     [dashboard.recentTransactions],
   );
 
   const activeLoans = useMemo(
-    () => [...dashboard.activeLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])),
+    () => [...dashboard.activeLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])).slice(0, 4),
     [dashboard.activeLoans],
   );
 
   const toRecoverLoans = useMemo(
-    () => [...dashboard.toRecoverLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])),
+    () => [...dashboard.toRecoverLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])).slice(0, 4),
     [dashboard.toRecoverLoans],
   );
 
@@ -189,6 +209,36 @@ export default function Dashboard() {
       };
     });
   }, [budgetStats.spentByPeriod, budgets]);
+
+  const insights = useMemo(() => {
+    const savingsRate = dashboard.totals.income > 0
+      ? Math.round((dashboard.totals.balance / dashboard.totals.income) * 100)
+      : 0;
+    const expenseRatio = dashboard.totals.income > 0
+      ? Math.round((dashboard.totals.expense / dashboard.totals.income) * 100)
+      : 0;
+    const cashShare = (dashboard.paymentBalances.card + dashboard.paymentBalances.cash) > 0
+      ? Math.round((dashboard.paymentBalances.cash / (dashboard.paymentBalances.card + dashboard.paymentBalances.cash)) * 100)
+      : 0;
+
+    return [
+      { label: "Taux d'epargne", value: `${savingsRate}%`, icon: Sparkles },
+      { label: "Poids des depenses", value: `${expenseRatio}%`, icon: Target },
+      { label: "Part en especes", value: `${cashShare}%`, icon: Banknote },
+    ];
+  }, [dashboard]);
+
+  const topActivities = useMemo(() => {
+    const maxNet = Math.max(...dashboard.activities.map((activity) => Math.abs(activity.netAvailable)), 0);
+
+    return [...dashboard.activities]
+      .sort((left, right) => Math.abs(right.netAvailable) - Math.abs(left.netAvailable))
+      .slice(0, 5)
+      .map((activity) => ({
+        ...activity,
+        progress: maxNet > 0 ? Math.max(8, Math.round((Math.abs(activity.netAvailable) / maxNet) * 100)) : 0,
+      }));
+  }, [dashboard.activities]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -216,55 +266,124 @@ export default function Dashboard() {
     <div className="animate-fade-in">
       <Header title="Tableau de bord" subtitle="Vue d'ensemble de vos finances" />
 
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label="Revenus totaux" value={formatCurrency(dashboard.totals.income)} icon={TrendingUp} variant="income" />
-          <StatCard label="Depenses totales" value={formatCurrency(dashboard.totals.expense)} icon={TrendingDown} variant="expense" />
-          <StatCard label="Prets en cours" value={formatCurrency(dashboard.totals.activeLoans)} icon={CreditCard} variant="loan" trendLabel={`${dashboard.totals.activeLoanCount} prets actifs`} />
-          <StatCard
-            label="Restant a recuperer"
-            value={formatCurrency(dashboard.totals.toRecoverLoans)}
-            icon={HandCoins}
-            variant="invest"
-            trendLabel={`${dashboard.totals.toRecoverLoanCount} prets accordes`}
-          />
-          <StatCard label="Investissements" value={formatCurrency(dashboard.totals.investments)} icon={ArrowLeftRight} variant="invest" />
-        </div>
+      <div className="space-y-6 p-6">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
+          <section
+            className="relative overflow-hidden rounded-2xl border p-6 animate-fade-in"
+            style={{
+              background: "radial-gradient(circle at top left, hsl(158 64% 52% / 0.16), transparent 32%), linear-gradient(135deg, hsl(225, 27%, 12%), hsl(222, 24%, 16%))",
+              borderColor: "hsl(var(--border))",
+            }}
+          >
+            <div className="absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl" style={{ background: "hsl(var(--primary) / 0.16)" }} />
+            <div className="relative space-y-6">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Solde net disponible
+                  </p>
+                  <p className="mt-3 text-4xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>
+                    {formatCurrency(dashboard.totals.balance)}
+                  </p>
+                  <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Vue rapide de la tresorerie avec la repartition carte, especes et quelques indicateurs de sante financiere.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[360px]">
+                  <div className="rounded-xl border p-3 transition-transform duration-300 hover:-translate-y-1" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background) / 0.28)" }}>
+                    <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      <CreditCard size={13} />
+                      Carte
+                    </div>
+                    <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                      {formatCurrency(dashboard.paymentBalances.card)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border p-3 transition-transform duration-300 hover:-translate-y-1" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background) / 0.28)" }}>
+                    <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      <Banknote size={13} />
+                      Especes
+                    </div>
+                    <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                      {formatCurrency(dashboard.paymentBalances.cash)}
+                    </p>
+                  </div>
+                  {insights.slice(0, 2).map((item) => (
+                    <div key={item.label} className="rounded-xl border p-3 transition-transform duration-300 hover:-translate-y-1" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background) / 0.28)" }}>
+                      <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        <item.icon size={13} />
+                        {item.label}
+                      </div>
+                      <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        <div
-          className="rounded-xl p-5 flex items-center justify-between border"
-          style={{
-            background: "linear-gradient(135deg, hsl(225, 27%, 12%), hsl(222, 24%, 16%))",
-            borderColor: "hsl(var(--border))",
-          }}
-        >
-          <div>
-            <p className="text-sm font-medium opacity-80" style={{ color: "hsl(var(--muted-foreground))" }}>Solde net disponible</p>
-            <p className="text-3xl font-display font-bold mt-1" style={{ color: "hsl(var(--foreground))" }}>
-              {formatCurrency(dashboard.totals.balance)}
-            </p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {insights.map((item, index) => (
+                  <div
+                    key={item.label}
+                    className="rounded-xl border px-4 py-3 animate-fade-in transition-all duration-300 hover:border-primary/50 hover:shadow-lg"
+                    style={{
+                      animationDelay: `${120 + index * 60}ms`,
+                      animationFillMode: "both",
+                      borderColor: "hsl(var(--border))",
+                      background: "hsl(var(--background) / 0.2)",
+                    }}
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      <item.icon size={14} />
+                      {item.label}
+                    </div>
+                    <p className="text-lg font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <StatCard label="Revenus totaux" value={formatCurrency(dashboard.totals.income)} icon={TrendingUp} variant="income" hint="Encaissements cumules" delay={40} />
+            <StatCard label="Depenses totales" value={formatCurrency(dashboard.totals.expense)} icon={TrendingDown} variant="expense" hint="Sorties cumulees" delay={90} />
+            <StatCard
+              label="Prets en cours"
+              value={formatCurrency(dashboard.totals.activeLoans)}
+              icon={CreditCard}
+              variant="loan"
+              hint={`${dashboard.totals.activeLoanCount} prets actifs`}
+              delay={140}
+            />
+            <StatCard
+              label="A recuperer"
+              value={formatCurrency(dashboard.totals.toRecoverLoans)}
+              icon={HandCoins}
+              variant="invest"
+              hint={`${dashboard.totals.toRecoverLoanCount} prets accordes`}
+              delay={190}
+            />
           </div>
-          <div className="text-right">
-            <Wallet size={40} style={{ color: "hsl(var(--foreground) / 0.22)" }} />
-          </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
-          <StatCard label="Solde carte" value={formatCurrency(dashboard.paymentBalances.card)} icon={CreditCard} variant="default" />
-          <StatCard label="Solde especes" value={formatCurrency(dashboard.paymentBalances.cash)} icon={Banknote} variant="default" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {budgetCards.map((budget) => {
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {budgetCards.map((budget, index) => {
             const isOver = budget.amount > 0 && budget.spent > budget.amount;
             return (
-              <div key={budget.period} className="stat-card">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BUDGET_BACKGROUNDS[budget.period] }}>
+              <div
+                key={budget.period}
+                className="stat-card animate-fade-in transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                style={{ animationDelay: `${70 * index}ms`, animationFillMode: "both" }}
+              >
+                <div className="mb-4 flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: BUDGET_BACKGROUNDS[budget.period] }}>
                     <Wallet size={18} style={{ color: BUDGET_COLORS[budget.period] }} />
                   </div>
                   <span
-                    className="text-xs font-medium px-2 py-0.5 rounded-full"
+                    className="rounded-full px-2 py-0.5 text-xs font-medium"
                     style={{ background: BUDGET_BACKGROUNDS[budget.period], color: BUDGET_COLORS[budget.period] }}
                   >
                     {BUDGET_LABELS[budget.period]}
@@ -273,34 +392,42 @@ export default function Dashboard() {
                 <p className="text-xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>
                   {formatCurrency(budget.amount)}
                 </p>
-                <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  Depense {formatCurrency(budget.spent)}
-                </p>
-                <div className="h-2 rounded-full mt-4 mb-2" style={{ background: "hsl(var(--border))" }}>
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${budget.progress}%`,
-                      background: isOver ? "hsl(var(--destructive))" : BUDGET_COLORS[budget.period],
-                    }}
-                  />
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    <span>Depense</span>
+                    <span>{formatCurrency(budget.spent)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${budget.progress}%`,
+                        background: isOver ? "hsl(var(--destructive))" : BUDGET_COLORS[budget.period],
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs" style={{ color: isOver ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
+                    {budget.amount > 0
+                      ? isOver
+                        ? `Depasse de ${formatCurrency(Math.abs(budget.remaining))}`
+                        : `Reste ${formatCurrency(budget.remaining)}`
+                      : "Aucun budget defini"}
+                  </p>
                 </div>
-                <p className="text-xs" style={{ color: isOver ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
-                  {budget.amount > 0
-                    ? isOver
-                      ? `Depasse de ${formatCurrency(Math.abs(budget.remaining))}`
-                      : `Reste ${formatCurrency(budget.remaining)}`
-                    : "Aucun budget defini"}
-                </p>
               </div>
             );
           })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="stat-card lg:col-span-2">
-            <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Revenus vs Depenses</p>
-            <ResponsiveContainer width="100%" height={220}>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                Revenus vs Depenses
+              </p>
+              <span className="badge-info">Tendance mensuelle</span>
+            </div>
+            <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={dashboard.monthlyData}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -314,8 +441,8 @@ export default function Dashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(224,22%,18%)" />
                 <XAxis dataKey="month" tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip {...CustomTooltipStyle} formatter={(v: number) => formatCurrency(v)} />
+                <YAxis tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${value / 1000}k`} />
+                <Tooltip {...CustomTooltipStyle} formatter={(value: number) => formatCurrency(value)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Area type="monotone" dataKey="revenus" name="Revenus" stroke="hsl(158,64%,52%)" fill="url(#colorRev)" strokeWidth={2} />
                 <Area type="monotone" dataKey="depenses" name="Depenses" stroke="hsl(351,75%,58%)" fill="url(#colorDep)" strokeWidth={2} />
@@ -324,162 +451,262 @@ export default function Dashboard() {
           </div>
 
           <div className="stat-card">
-            <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Depenses par categorie</p>
-            <ResponsiveContainer width="100%" height={180}>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                Depenses par categorie
+              </p>
+              <span className="badge-warning">{dashboard.expensesByCategory.length} postes</span>
+            </div>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={dashboard.expensesByCategory} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={3}>
+                <Pie data={dashboard.expensesByCategory} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" paddingAngle={3}>
                   {dashboard.expensesByCategory.map((entry, index) => (
                     <Cell key={entry.id} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip {...CustomTooltipStyle} formatter={(v: number) => formatCurrency(v)} />
+                <Tooltip {...CustomTooltipStyle} formatter={(value: number) => formatCurrency(value)} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-1.5 mt-2">
-              {dashboard.expensesByCategory.slice(0, 4).map((cat, i) => (
-                <div key={cat.id} className="flex items-center justify-between text-xs">
+            <div className="mt-3 space-y-2">
+              {dashboard.expensesByCategory.slice(0, 5).map((category, index) => (
+                <div key={category.id} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color || CHART_COLORS[i] }} />
-                    <span style={{ color: "hsl(var(--muted-foreground))" }}>{cat.icon || ""} {cat.name}</span>
+                    <div className="h-2 w-2 rounded-full" style={{ background: category.color || CHART_COLORS[index % CHART_COLORS.length] }} />
+                    <span style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {category.icon || ""} {category.name}
+                    </span>
                   </div>
-                  <span className="font-medium" style={{ color: "hsl(var(--foreground))" }}>{formatCurrency(cat.value)}</span>
+                  <span className="font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                    {formatCurrency(category.value)}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="stat-card">
-            <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>Transactions recentes</p>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                Transactions recentes
+              </p>
+              <span className="badge-info">{recentTransactions.length} lignes</span>
+            </div>
             <div className="space-y-2">
-              {recentTransactions.map((tx) => {
-                const isIncome = tx.kind === "income";
-                return (
-                  <div key={`${tx.kind}-${tx.id}`} className="flex items-center justify-between py-2 border-b" style={{ borderColor: "hsl(var(--border) / 0.5)" }}>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
-                        style={{ background: isIncome ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}
-                      >
-                        {tx.categoryIcon || (isIncome ? "$$" : "--")}
+              {recentTransactions.length ? (
+                recentTransactions.map((tx, index) => {
+                  const isIncome = tx.kind === "income";
+                  return (
+                    <div
+                      key={`${tx.kind}-${tx.id}`}
+                      className="flex items-center justify-between rounded-xl border px-3 py-3 transition-all duration-300 hover:-translate-y-0.5"
+                      style={{
+                        borderColor: "hsl(var(--border) / 0.6)",
+                        background: "hsl(var(--background) / 0.18)",
+                        animationDelay: `${index * 50}ms`,
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-sm"
+                          style={{ background: isIncome ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}
+                        >
+                          {tx.categoryIcon || (isIncome ? "$$" : "--")}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                            {tx.description || (isIncome ? "Revenu" : "Depense")}
+                          </p>
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            {formatDate(tx.date)} · {tx.activityName || tx.categoryName || "-"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{tx.description || (isIncome ? "Revenu" : "Depense")}</p>
-                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                          {formatDate(tx.date)} · {tx.activityName || tx.categoryName || "-"}
-                        </p>
-                      </div>
+                      <span className="text-sm font-semibold" style={{ color: isIncome ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                        {isIncome ? "+" : "-"}
+                        {formatCurrency(tx.amount)}
+                      </span>
                     </div>
-                    <span className="text-sm font-semibold" style={{ color: isIncome ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
-                      {isIncome ? "+" : "-"}{formatCurrency(tx.amount)}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  Aucune transaction recente.
+                </p>
+              )}
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="stat-card">
-              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Prets actifs</p>
-              <div className="space-y-3">
-                {activeLoans.map((loan) => {
-                  const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
-                  return (
-                    <div key={loan.id}>
-                      <div className="flex justify-between mb-1">
-                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</p>
-                        <p className="text-sm" style={{ color: "hsl(var(--warning))" }}>{formatCurrency(loan.remainingAmount)}</p>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-warning)" }} />
-                      </div>
-                      <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{pct}% rembourse</p>
-                    </div>
-                  );
-                })}
+              <div className="mb-4 flex items-center justify-between">
+                <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                  Emprunts et recuperations
+                </p>
+                <span className="badge-purple">{formatCurrency(dashboard.totals.investments)}</span>
               </div>
-            </div>
-
-            <div className="stat-card">
-              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Prets a recuperer</p>
-              <div className="space-y-3">
-                {toRecoverLoans.map((loan) => {
-                  const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
-                  return (
-                    <div key={`recover-${loan.id}`}>
-                      <div className="flex justify-between mb-1">
-                        <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</p>
-                        <p className="text-sm" style={{ color: "hsl(var(--purple))" }}>{formatCurrency(loan.remainingAmount)}</p>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-purple)" }} />
-                      </div>
-                      <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{pct}% recupere</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Revenus par activite</p>
-              <div className="space-y-2">
-                {dashboard.activities.map((act) => (
-                  <div key={act.activityId} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
-                      <p className="text-sm" style={{ color: "hsl(var(--foreground))" }}>{act.name}</p>
-                      <span className={ACTIVITY_TYPE_COLORS[act.type] || "badge-income"}>{ACTIVITY_TYPE_LABELS[act.type] || act.type}</span>
-                    </div>
-                    <span className="text-sm font-medium" style={{ color: "hsl(var(--primary))" }}>{formatCurrency(act.income)}</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border p-4" style={{ borderColor: "hsl(var(--warning-dim))", background: "hsl(var(--warning-dim) / 0.08)" }}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                      Prets actifs
+                    </p>
+                    <span className="badge-warning">{activeLoans.length}</span>
                   </div>
-                ))}
+                  <div className="space-y-3">
+                    {activeLoans.length ? activeLoans.map((loan) => {
+                      const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
+                      return (
+                        <div key={loan.id}>
+                          <div className="mb-1 flex justify-between text-sm">
+                            <span style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</span>
+                            <span style={{ color: "hsl(var(--warning))" }}>{formatCurrency(loan.remainingAmount)}</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "var(--gradient-warning)" }} />
+                          </div>
+                        </div>
+                      );
+                    }) : <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Aucun pret actif.</p>}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4" style={{ borderColor: "hsl(var(--purple-dim))", background: "hsl(var(--purple-dim) / 0.08)" }}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                      A recuperer
+                    </p>
+                    <span className="badge-purple">{toRecoverLoans.length}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {toRecoverLoans.length ? toRecoverLoans.map((loan) => {
+                      const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
+                      return (
+                        <div key={`recover-${loan.id}`}>
+                          <div className="mb-1 flex justify-between text-sm">
+                            <span style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</span>
+                            <span style={{ color: "hsl(var(--purple))" }}>{formatCurrency(loan.remainingAmount)}</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "var(--gradient-purple)" }} />
+                          </div>
+                        </div>
+                      );
+                    }) : <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Aucun montant a recuperer.</p>}
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="stat-card">
-              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Soldes nets par activite</p>
-              <div className="space-y-2">
-                {dashboard.activities.map((act) => {
-                  const isPositive = act.netAvailable >= 0;
+              <div className="mb-4 flex items-center justify-between">
+                <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                  Activites les plus exposees
+                </p>
+                <span className="badge-income">{dashboard.activities.length} activites</span>
+              </div>
+              <div className="space-y-4">
+                {topActivities.length ? topActivities.map((activity, index) => {
+                  const isPositive = activity.netAvailable >= 0;
                   return (
-                    <div key={`net-${act.activityId}`} className="flex items-center justify-between">
+                    <div key={activity.activityId} className="animate-fade-in" style={{ animationDelay: `${index * 80}ms`, animationFillMode: "both" }}>
+                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            <p className="truncate text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                              {activity.name}
+                            </p>
+                            <span className={ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"}>
+                              {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                            <span className="badge-income">Rev. {formatCurrency(activity.income)}</span>
+                            <span className="badge-expense">Dep. {formatCurrency(activity.expense)}</span>
+                            <span className="badge-info">Carte {formatCurrency(activity.cardBalance)}</span>
+                            <span className="badge-warning">Cash {formatCurrency(activity.cashBalance)}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            Net disponible
+                          </p>
+                          <p className="text-sm font-semibold" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                            {formatCurrency(activity.netAvailable)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${activity.progress}%`,
+                            background: isPositive ? "var(--gradient-primary)" : "var(--gradient-danger)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Aucune activite disponible.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+              Repartition des activites
+            </p>
+            <span className="badge-info">Vue compacte</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {dashboard.activities.map((activity, index) => {
+              const isPositive = activity.netAvailable >= 0;
+              return (
+                <div
+                  key={`activity-summary-${activity.activityId}`}
+                  className="rounded-xl border p-4 animate-fade-in transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                  style={{
+                    animationDelay: `${index * 40}ms`,
+                    animationFillMode: "both",
+                    borderColor: "hsl(var(--border) / 0.7)",
+                    background: "hsl(var(--background) / 0.2)",
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
-                        <p className="text-sm" style={{ color: "hsl(var(--foreground))" }}>{act.name}</p>
+                        <ActivityIcon size={15} style={{ color: "hsl(var(--muted-foreground))" }} />
+                        <p className="truncate text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                          {activity.name}
+                        </p>
                       </div>
-                      <span className="text-sm font-medium" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
-                        {formatCurrency(act.netAvailable)}
-                      </span>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className={ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"}>
+                          {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
+                        </span>
+                        <span className="badge-purple">Invest. {formatCurrency(activity.receivedInvestment - activity.sentInvestment)}</span>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <p className="font-display font-semibold mb-3" style={{ color: "hsl(var(--foreground))" }}>Soldes carte / especes par activite</p>
-              <div className="space-y-2">
-                {dashboard.activities.map((act) => (
-                  <div key={`pay-${act.activityId}`} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
-                      <p className="text-sm truncate" style={{ color: "hsl(var(--foreground))" }}>{act.name}</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: "hsl(var(--info))" }}>
-                        <CreditCard size={12} /> {formatCurrency(act.cardBalance)}
-                      </span>
-                      <span className="text-xs font-medium flex items-center gap-1" style={{ color: "hsl(var(--warning))" }}>
-                        <Banknote size={12} /> {formatCurrency(act.cashBalance)}
-                      </span>
+                    <div className="text-right">
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        Net
+                      </p>
+                      <p className="text-sm font-semibold" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                        {formatCurrency(activity.netAvailable)}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -96,8 +96,8 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
       return;
     }
 
-    if (direction === "LENT" && activityId === "none") {
-      toast({ title: "Activite requise", description: "Selectionnez une activite pour un pret accorde." });
+    if (activityId === "none") {
+      toast({ title: "Activite requise", description: "Selectionnez une activite avant d'enregistrer le pret." });
       return;
     }
 
@@ -112,7 +112,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
       interestRate: parsedRate,
       startDate,
       endDate: endDate || undefined,
-      activityId: activityId === "none" ? undefined : activityId,
+      activityId,
       status: parsedRemaining <= 0 ? "PAID" : "ACTIVE",
     };
 
@@ -162,7 +162,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
           <FormFieldInput label="Date debut" id="loan-start" type="date" value={startDate} onChange={setStartDate} required />
           <FormFieldInput label="Date fin" id="loan-end" type="date" value={endDate} onChange={setEndDate} />
         </div>
-        <SelectField label="Activite liee" value={activityId} onValueChange={setActivityId} options={actOptions} />
+        <SelectField label="Activite liee" value={activityId} onValueChange={setActivityId} options={actOptions} required />
         <button
           type="submit"
           disabled={isSubmitting}
