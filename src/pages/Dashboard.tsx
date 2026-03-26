@@ -277,48 +277,46 @@ export default function Dashboard() {
           >
             <div className="absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl" style={{ background: "hsl(var(--primary) / 0.16)" }} />
             <div className="relative space-y-6">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+
+                {/* LEFT: main balance */}
                 <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Solde net disponible
                   </p>
-                  <p className="mt-3 text-4xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>
+                  <p className="text-5xl font-bold mt-2">
                     {formatCurrency(dashboard.totals.balance)}
                   </p>
-                  <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Vue rapide de la tresorerie avec la repartition carte, especes et quelques indicateurs de sante financiere.
-                  </p>
+
+                  <div className="mt-4 flex gap-4 text-sm">
+                    <span className="badge-income">
+                      + {formatCurrency(dashboard.totals.income)}
+                    </span>
+                    <span className="badge-expense">
+                      - {formatCurrency(dashboard.totals.expense)}
+                    </span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[360px]">
-                  <div className="rounded-xl border p-3 transition-transform duration-300 hover:-translate-y-1" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background) / 0.28)" }}>
-                    <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      <CreditCard size={13} />
-                      Carte
-                    </div>
-                    <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                      {formatCurrency(dashboard.paymentBalances.card)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border p-3 transition-transform duration-300 hover:-translate-y-1" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background) / 0.28)" }}>
-                    <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      <Banknote size={13} />
-                      Especes
-                    </div>
-                    <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                      {formatCurrency(dashboard.paymentBalances.cash)}
-                    </p>
-                  </div>
-                  {insights.slice(0, 2).map((item) => (
-                    <div key={item.label} className="rounded-xl border p-3 transition-transform duration-300 hover:-translate-y-1" style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background) / 0.28)" }}>
-                      <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                        <item.icon size={13} />
-                        {item.label}
-                      </div>
-                      <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                        {item.value}
-                      </p>
-                    </div>
-                  ))}
+
+                {/* RIGHT: visual */}
+                <div className="w-full max-w-[260px] h-[160px]">
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Carte", value: dashboard.paymentBalances.card },
+                          { name: "Cash", value: dashboard.paymentBalances.cash },
+                        ]}
+                        innerRadius={50}
+                        outerRadius={70}
+                        dataKey="value"
+                      >
+                        <Cell fill="#3b82f6" />
+                        <Cell fill="#10b981" />
+                      </Pie>
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
@@ -606,54 +604,48 @@ export default function Dashboard() {
                 </p>
                 <span className="badge-income">{dashboard.activities.length} activites</span>
               </div>
-              <div className="space-y-4">
-                {topActivities.length ? topActivities.map((activity, index) => {
+              <div className="space-y-3 max-h-[320px] overflow-auto pr-1">
+                {topActivities.map((activity, index) => {
                   const isPositive = activity.netAvailable >= 0;
+
                   return (
-                    <div key={activity.activityId} className="animate-fade-in" style={{ animationDelay: `${index * 80}ms`, animationFillMode: "both" }}>
-                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <ActivityIcon size={14} style={{ color: "hsl(var(--muted-foreground))" }} />
-                            <p className="truncate text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                              {activity.name}
-                            </p>
-                            <span className={ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"}>
-                              {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
-                            </span>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                            <span className="badge-income">Rev. {formatCurrency(activity.income)}</span>
-                            <span className="badge-expense">Dep. {formatCurrency(activity.expense)}</span>
-                            <span className="badge-info">Carte {formatCurrency(activity.cardBalance)}</span>
-                            <span className="badge-warning">Cash {formatCurrency(activity.cashBalance)}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                            Net disponible
-                          </p>
-                          <p className="text-sm font-semibold" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
-                            {formatCurrency(activity.netAvailable)}
-                          </p>
+                    <div key={activity.activityId} className="flex items-center gap-3">
+
+                      {/* rank */}
+                      <span className="text-xs w-5 text-muted-foreground">
+                        #{index + 1}
+                      </span>
+
+                      {/* name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {activity.name}
+                        </p>
+
+                        {/* bar */}
+                        <div className="h-1.5 bg-border rounded-full mt-1">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${activity.progress}%`,
+                              background: isPositive
+                                ? "var(--gradient-primary)"
+                                : "var(--gradient-danger)",
+                            }}
+                          />
                         </div>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            width: `${activity.progress}%`,
-                            background: isPositive ? "var(--gradient-primary)" : "var(--gradient-danger)",
-                          }}
-                        />
-                      </div>
+
+                      {/* value */}
+                      <span
+                        className={`text-xs font-semibold ${isPositive ? "text-green-500" : "text-red-500"
+                          }`}
+                      >
+                        {formatCurrency(activity.netAvailable)}
+                      </span>
                     </div>
                   );
-                }) : (
-                  <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Aucune activite disponible.
-                  </p>
-                )}
+                })}
               </div>
             </div>
           </div>
