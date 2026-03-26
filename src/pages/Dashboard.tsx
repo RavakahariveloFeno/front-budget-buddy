@@ -303,10 +303,10 @@ export default function Dashboard() {
     const cashShare =
       dashboard.paymentBalances.card + dashboard.paymentBalances.cash > 0
         ? Math.round(
-            (dashboard.paymentBalances.cash /
-              (dashboard.paymentBalances.card + dashboard.paymentBalances.cash)) *
-              100,
-          )
+          (dashboard.paymentBalances.cash /
+            (dashboard.paymentBalances.card + dashboard.paymentBalances.cash)) *
+          100,
+        )
         : 0;
 
     return [
@@ -381,13 +381,14 @@ export default function Dashboard() {
               style={{ background: "hsl(var(--primary) / 0.16)" }}
             />
             <div className="relative space-y-6">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-6">
 
-                {/* LEFT: main balance */}
-                <div className="flex-1">
+                {/* TOP: solde */}
+                <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Solde net disponible
                   </p>
+
                   <p className="text-5xl font-bold mt-2">
                     {formatCurrency(dashboard.totals.balance)}
                   </p>
@@ -400,66 +401,85 @@ export default function Dashboard() {
                       - {formatCurrency(dashboard.totals.expense)}
                     </span>
                   </div>
+                </div>
 
-                  {/* Income / Expense proportion bar */}
-                  <div className="mt-4 space-y-1.5">
-                    <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
-                      <div
-                        className="h-full transition-all duration-700"
-                        style={{
-                          width: `${expenseBarWidth.income}%`,
-                          background: "var(--gradient-primary)",
-                        }}
-                      />
-                      <div
-                        className="h-full transition-all duration-700"
-                        style={{
-                          width: `${expenseBarWidth.expense}%`,
-                          background: "var(--gradient-danger)",
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      <span>💵 Revenus {expenseBarWidth.income}%</span>
-                      <span>Dépenses {expenseBarWidth.expense}% 💸</span>
-                    </div>
+                {/* MIDDLE: proportion revenus / dépenses */}
+                <div className="space-y-2">
+                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full transition-all duration-700"
+                      style={{
+                        width: `${expenseBarWidth.income}%`,
+                        background: "var(--gradient-primary)",
+                      }}
+                    />
+                    <div
+                      className="h-full transition-all duration-700"
+                      style={{
+                        width: `${expenseBarWidth.expense}%`,
+                        background: "var(--gradient-danger)",
+                      }}
+                    />
                   </div>
 
-                  <div className="mt-3 flex gap-4 text-sm">
-                    <span>💵 {formatCurrency(dashboard.paymentBalances.cash)}</span>
-                    <span>💳 {formatCurrency(dashboard.paymentBalances.card)}</span>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>💵 Revenus {expenseBarWidth.income}%</span>
+                    <span>💸 Dépenses {expenseBarWidth.expense}%</span>
                   </div>
                 </div>
 
-                {/* RIGHT: payment repartition donut */}
-                <div className="w-full max-w-[220px] h-[160px]">
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: "Carte", value: dashboard.paymentBalances.card },
-                          { name: "Cash", value: dashboard.paymentBalances.cash },
-                        ]}
-                        innerRadius={50}
-                        outerRadius={70}
-                        dataKey="value"
-                        paddingAngle={3}
-                      >
-                        <Cell fill="#3b82f6" />
-                        <Cell fill="#10b981" />
-                      </Pie>
-                      <Tooltip
-                        {...CustomTooltipStyle}
-                        formatter={(v: number) => formatCurrency(v)}
+                {/* BOTTOM: répartition paiement (REMPLACE le pie chart) */}
+                <div className="grid grid-cols-2 gap-4">
+
+                  {/* CASH */}
+                  <div className="p-4 rounded-xl border border-border bg-muted/30">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">Cash</span>
+                      <span className="text-lg">💵</span>
+                    </div>
+
+                    <p className="text-lg font-semibold mt-2">
+                      {formatCurrency(dashboard.paymentBalances.cash)}
+                    </p>
+
+                    <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
+                      <div
+                        className="h-full bg-green-500"
+                        style={{
+                          width: `${(dashboard.paymentBalances.cash /
+                              (dashboard.paymentBalances.cash +
+                                dashboard.paymentBalances.card || 1)) *
+                            100
+                            }%`,
+                        }}
                       />
-                      <Legend
-                        wrapperStyle={{ fontSize: 11 }}
-                        formatter={(value) => (
-                          <span style={{ color: "hsl(213, 31%, 80%)" }}>{value}</span>
-                        )}
+                    </div>
+                  </div>
+
+                  {/* CARD */}
+                  <div className="p-4 rounded-xl border border-border bg-muted/30">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">Carte</span>
+                      <span className="text-lg">💳</span>
+                    </div>
+
+                    <p className="text-lg font-semibold mt-2">
+                      {formatCurrency(dashboard.paymentBalances.card)}
+                    </p>
+
+                    <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500"
+                        style={{
+                          width: `${(dashboard.paymentBalances.card /
+                              (dashboard.paymentBalances.cash +
+                                dashboard.paymentBalances.card || 1)) *
+                            100
+                            }%`,
+                        }}
                       />
-                    </PieChart>
-                  </ResponsiveContainer>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -925,10 +945,10 @@ export default function Dashboard() {
                         const pct =
                           loan.totalAmount > 0
                             ? Math.round(
-                                ((loan.totalAmount - loan.remainingAmount) /
-                                  loan.totalAmount) *
-                                  100,
-                              )
+                              ((loan.totalAmount - loan.remainingAmount) /
+                                loan.totalAmount) *
+                              100,
+                            )
                             : 0;
                         return (
                           <div key={loan.id}>
@@ -995,10 +1015,10 @@ export default function Dashboard() {
                         const pct =
                           loan.totalAmount > 0
                             ? Math.round(
-                                ((loan.totalAmount - loan.remainingAmount) /
-                                  loan.totalAmount) *
-                                  100,
-                              )
+                              ((loan.totalAmount - loan.remainingAmount) /
+                                loan.totalAmount) *
+                              100,
+                            )
                             : 0;
                         return (
                           <div key={`recover-${loan.id}`}>
@@ -1109,18 +1129,17 @@ export default function Dashboard() {
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
-                        width: `${
-                          dashboard.totals.income > 0
+                        width: `${dashboard.totals.income > 0
                             ? Math.min(
+                              100,
+                              Math.round(
+                                (dashboard.totals.expense /
+                                  dashboard.totals.income) *
                                 100,
-                                Math.round(
-                                  (dashboard.totals.expense /
-                                    dashboard.totals.income) *
-                                    100,
-                                ),
-                              )
+                              ),
+                            )
                             : 0
-                        }%`,
+                          }%`,
                         background: "var(--gradient-danger)",
                       }}
                     />
@@ -1151,18 +1170,17 @@ export default function Dashboard() {
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
-                        width: `${
-                          dashboard.totals.income > 0
+                        width: `${dashboard.totals.income > 0
                             ? Math.min(
+                              100,
+                              Math.round(
+                                (dashboard.totals.activeLoans /
+                                  dashboard.totals.income) *
                                 100,
-                                Math.round(
-                                  (dashboard.totals.activeLoans /
-                                    dashboard.totals.income) *
-                                    100,
-                                ),
-                              )
+                              ),
+                            )
                             : 0
-                        }%`,
+                          }%`,
                         background: "var(--gradient-warning)",
                       }}
                     />
