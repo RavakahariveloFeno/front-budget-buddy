@@ -447,8 +447,8 @@ export default function Dashboard() {
                         className="h-full bg-green-500"
                         style={{
                           width: `${(dashboard.paymentBalances.cash /
-                              (dashboard.paymentBalances.cash +
-                                dashboard.paymentBalances.card || 1)) *
+                            (dashboard.paymentBalances.cash +
+                              dashboard.paymentBalances.card || 1)) *
                             100
                             }%`,
                         }}
@@ -472,8 +472,8 @@ export default function Dashboard() {
                         className="h-full bg-blue-500"
                         style={{
                           width: `${(dashboard.paymentBalances.card /
-                              (dashboard.paymentBalances.cash +
-                                dashboard.paymentBalances.card || 1)) *
+                            (dashboard.paymentBalances.cash +
+                              dashboard.paymentBalances.card || 1)) *
                             100
                             }%`,
                         }}
@@ -1130,15 +1130,15 @@ export default function Dashboard() {
                       className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${dashboard.totals.income > 0
-                            ? Math.min(
+                          ? Math.min(
+                            100,
+                            Math.round(
+                              (dashboard.totals.expense /
+                                dashboard.totals.income) *
                               100,
-                              Math.round(
-                                (dashboard.totals.expense /
-                                  dashboard.totals.income) *
-                                100,
-                              ),
-                            )
-                            : 0
+                            ),
+                          )
+                          : 0
                           }%`,
                         background: "var(--gradient-danger)",
                       }}
@@ -1171,15 +1171,15 @@ export default function Dashboard() {
                       className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${dashboard.totals.income > 0
-                            ? Math.min(
+                          ? Math.min(
+                            100,
+                            Math.round(
+                              (dashboard.totals.activeLoans /
+                                dashboard.totals.income) *
                               100,
-                              Math.round(
-                                (dashboard.totals.activeLoans /
-                                  dashboard.totals.income) *
-                                100,
-                              ),
-                            )
-                            : 0
+                            ),
+                          )
+                          : 0
                           }%`,
                         background: "var(--gradient-warning)",
                       }}
@@ -1253,114 +1253,92 @@ export default function Dashboard() {
         {/* ── Répartition des activités ── */}
         <div className="stat-card">
           <div className="mb-4 flex items-center justify-between">
-            <p
-              className="font-display font-semibold"
-              style={{ color: "hsl(var(--foreground))" }}
-            >
+            <p className="font-display font-semibold text-foreground">
               Répartition des activités
             </p>
-            <span className="badge-info">Vue compacte</span>
+            <span className="badge-info">Vue liste</span>
           </div>
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+
+          <div className="flex flex-col divide-y divide-border/50">
             {dashboard.activities.map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
-              const totalBalance = activity.cashBalance + activity.cardBalance || 1;
-              const cashPct = Math.round((activity.cashBalance / totalBalance) * 100);
+              const totalBalance =
+                activity.cashBalance + activity.cardBalance || 1;
+
+              const cashPct = Math.round(
+                (activity.cashBalance / totalBalance) * 100
+              );
               const cardPct = 100 - cashPct;
-              const netInvest = activity.receivedInvestment - activity.sentInvestment;
+
+              const netInvest =
+                activity.receivedInvestment - activity.sentInvestment;
 
               return (
                 <div
-                  key={`activity-summary-${activity.activityId}`}
-                  className="rounded-xl border p-4 animate-fade-in transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-                  style={{
-                    animationDelay: `${index * 40}ms`,
-                    animationFillMode: "both",
-                    borderColor: "hsl(var(--border) / 0.7)",
-                    background: "hsl(var(--background) / 0.2)",
-                  }}
+                  key={activity.activityId}
+                  className="py-4 flex items-center gap-4 group hover:bg-muted/30 px-2 rounded-lg transition"
                 >
-                  {/* Header row */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <ActivityIcon
-                          size={13}
-                          style={{ color: "hsl(var(--muted-foreground))" }}
-                        />
-                        <p
-                          className="truncate text-sm font-medium"
-                          style={{ color: "hsl(var(--foreground))" }}
-                        >
-                          {activity.name}
-                        </p>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        <span
-                          className={ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"}
-                        >
-                          {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
-                        </span>
-                        {netInvest !== 0 && (
-                          <span className="badge-purple">
-                            Invest. {formatCurrency(netInvest)}
-                          </span>
-                        )}
-                      </div>
+                  {/* LEFT: name + tags */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <ActivityIcon
+                        size={14}
+                        className="text-muted-foreground"
+                      />
+                      <p className="text-sm font-medium truncate">
+                        {activity.name}
+                      </p>
                     </div>
 
-                    {/* Net value */}
-                    <div className="text-right flex-shrink-0">
-                      <p
-                        className="text-[10px]"
-                        style={{ color: "hsl(var(--muted-foreground))" }}
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <span
+                        className={
+                          ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"
+                        }
                       >
-                        Net
-                      </p>
-                      <p
-                        className="text-base font-semibold font-display"
-                        style={{
-                          color: isPositive
-                            ? "hsl(var(--primary))"
-                            : "hsl(var(--destructive))",
-                        }}
-                      >
-                        {formatCurrency(activity.netAvailable)}
-                      </p>
+                        {ACTIVITY_TYPE_LABELS[activity.type] ||
+                          activity.type}
+                      </span>
+
+                      {netInvest !== 0 && (
+                        <span className="badge-purple">
+                          Invest. {formatCurrency(netInvest)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Cash / Card split bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                  {/* CENTER: progress (cash vs card) */}
+                  <div className="w-[180px] hidden md:block">
+                    <div className="h-2 flex rounded-full overflow-hidden bg-border">
                       <div
-                        style={{ width: `${cashPct}%`, background: "#10b981" }}
-                        className="h-full transition-all duration-700"
+                        style={{ width: `${cashPct}%` }}
+                        className="bg-green-500 transition-all duration-700"
                       />
                       <div
-                        style={{ width: `${cardPct}%`, background: "#3b82f6" }}
-                        className="h-full transition-all duration-700"
+                        style={{ width: `${cardPct}%` }}
+                        className="bg-blue-500 transition-all duration-700"
                       />
                     </div>
-                    <div
-                      className="flex justify-between text-[10px]"
-                      style={{ color: "hsl(var(--muted-foreground))" }}
+
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                      <span>💵 {cashPct}%</span>
+                      <span>💳 {cardPct}%</span>
+                    </div>
+                  </div>
+
+                  {/* RIGHT: values */}
+                  <div className="text-right w-[110px]">
+                    <p
+                      className={`text-sm font-semibold ${isPositive ? "text-primary" : "text-destructive"
+                        }`}
                     >
-                      <span className="flex items-center gap-1">
-                        <span
-                          className="inline-block h-1.5 w-1.5 rounded-full"
-                          style={{ background: "#10b981" }}
-                        />
-                        💵 {formatCurrency(activity.cashBalance)} ({cashPct}%)
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span
-                          className="inline-block h-1.5 w-1.5 rounded-full"
-                          style={{ background: "#3b82f6" }}
-                        />
-                        💳 {formatCurrency(activity.cardBalance)} ({cardPct}%)
-                      </span>
-                    </div>
+                      {formatCurrency(activity.netAvailable)}
+                    </p>
+
+                    <p className="text-[10px] text-muted-foreground">
+                      Net
+                    </p>
                   </div>
                 </div>
               );
