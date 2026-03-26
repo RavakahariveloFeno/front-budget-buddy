@@ -298,10 +298,10 @@ export default function Dashboard() {
                   </div>
                   <div className="mt-4 flex gap-4 text-sm">
                     <span className="">
-                      💵 {formatCurrency(dashboard.paymentBalances.card)}
+                      💵 {formatCurrency(dashboard.paymentBalances.cash)}
                     </span>
                     <span className="">
-                      💳 {formatCurrency(dashboard.paymentBalances.cash)}
+                      💳 {formatCurrency(dashboard.paymentBalances.card)}
                     </span>
                   </div>
                 </div>
