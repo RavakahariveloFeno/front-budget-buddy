@@ -14,6 +14,8 @@ import {
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -29,6 +31,55 @@ import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
 import { getBudgets, getBudgetStatistics, type BudgetStatistics } from "@/api/budgetApi";
 import { formatCurrency, formatDate, type Budget, type BudgetPeriod } from "@/data/staticData";
 import { compareByMostRecent } from "@/lib/recent-sort";
+
+/* ─────────────────────────────── helpers ─────────────────────────────── */
+
+function CircularProgress({
+  value,
+  color,
+  size = 64,
+  strokeWidth = 5,
+}: {
+  value: number;
+  color: string;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const r = (size - strokeWidth * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (Math.min(100, Math.max(0, value)) / 100) * circ;
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      style={{ transform: "rotate(-90deg)" }}
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        strokeWidth={strokeWidth}
+        stroke="hsl(var(--border))"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        strokeWidth={strokeWidth}
+        stroke={color}
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dasharray 0.8s ease" }}
+      />
+    </svg>
+  );
+}
+
+/* ─────────────────────────────── StatCard ─────────────────────────────── */
 
 function StatCard({
   label,
@@ -69,11 +120,25 @@ function StatCard({
     default: "hsl(var(--secondary))",
   }[variant];
 
+  const accentColor = {
+    income: "hsl(var(--primary))",
+    expense: "hsl(var(--destructive))",
+    loan: "hsl(var(--warning))",
+    invest: "hsl(var(--purple))",
+    default: "hsl(var(--accent))",
+  }[variant];
+
   return (
     <div
-      className={`stat-card ${variantClass} animate-fade-in group transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl`}
+      className={`stat-card ${variantClass} animate-fade-in group transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl relative overflow-hidden`}
       style={{ animationDelay: `${delay}ms`, animationFillMode: "both" }}
     >
+      {/* subtle left accent bar */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-full opacity-60"
+        style={{ background: accentColor }}
+      />
+
       <div className="mb-4 flex items-start justify-between">
         <div
           className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
@@ -97,7 +162,18 @@ function StatCard({
   );
 }
 
-const CHART_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+/* ─────────────────────────────── constants ─────────────────────────────── */
+
+const CHART_COLORS = [
+  "#10b981",
+  "#3b82f6",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#f97316",
+];
 
 const CustomTooltipStyle = {
   contentStyle: {
@@ -172,23 +248,34 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   OTHER: "Autre",
 };
 
+/* ─────────────────────────────── Dashboard ─────────────────────────────── */
+
 export default function Dashboard() {
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
 
   const recentTransactions = useMemo(
-    () => [...dashboard.recentTransactions].sort(compareByMostRecent(["createdAt", "date"])).slice(0, 6),
+    () =>
+      [...dashboard.recentTransactions]
+        .sort(compareByMostRecent(["createdAt", "date"]))
+        .slice(0, 6),
     [dashboard.recentTransactions],
   );
 
   const activeLoans = useMemo(
-    () => [...dashboard.activeLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])).slice(0, 4),
+    () =>
+      [...dashboard.activeLoans]
+        .sort(compareByMostRecent(["createdAt", "startDate", "date"]))
+        .slice(0, 4),
     [dashboard.activeLoans],
   );
 
   const toRecoverLoans = useMemo(
-    () => [...dashboard.toRecoverLoans].sort(compareByMostRecent(["createdAt", "startDate", "date"])).slice(0, 4),
+    () =>
+      [...dashboard.toRecoverLoans]
+        .sort(compareByMostRecent(["createdAt", "startDate", "date"]))
+        .slice(0, 4),
     [dashboard.toRecoverLoans],
   );
 
@@ -200,45 +287,54 @@ export default function Dashboard() {
       const remaining = amount - spent;
       const progress = amount > 0 ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
 
-      return {
-        period,
-        amount,
-        spent,
-        remaining,
-        progress,
-      };
+      return { period, amount, spent, remaining, progress };
     });
   }, [budgetStats.spentByPeriod, budgets]);
 
   const insights = useMemo(() => {
-    const savingsRate = dashboard.totals.income > 0
-      ? Math.round((dashboard.totals.balance / dashboard.totals.income) * 100)
-      : 0;
-    const expenseRatio = dashboard.totals.income > 0
-      ? Math.round((dashboard.totals.expense / dashboard.totals.income) * 100)
-      : 0;
-    const cashShare = (dashboard.paymentBalances.card + dashboard.paymentBalances.cash) > 0
-      ? Math.round((dashboard.paymentBalances.cash / (dashboard.paymentBalances.card + dashboard.paymentBalances.cash)) * 100)
-      : 0;
+    const savingsRate =
+      dashboard.totals.income > 0
+        ? Math.round((dashboard.totals.balance / dashboard.totals.income) * 100)
+        : 0;
+    const expenseRatio =
+      dashboard.totals.income > 0
+        ? Math.round((dashboard.totals.expense / dashboard.totals.income) * 100)
+        : 0;
+    const cashShare =
+      dashboard.paymentBalances.card + dashboard.paymentBalances.cash > 0
+        ? Math.round(
+            (dashboard.paymentBalances.cash /
+              (dashboard.paymentBalances.card + dashboard.paymentBalances.cash)) *
+              100,
+          )
+        : 0;
 
     return [
-      { label: "Taux d'epargne", value: `${savingsRate}%`, icon: Sparkles },
-      { label: "Poids des depenses", value: `${expenseRatio}%`, icon: Target },
-      { label: "Part en especes", value: `${cashShare}%`, icon: Banknote },
+      { label: "Taux d'epargne", value: `${savingsRate}%`, rawValue: savingsRate, icon: Sparkles },
+      { label: "Poids des depenses", value: `${expenseRatio}%`, rawValue: expenseRatio, icon: Target },
+      { label: "Part en especes", value: `${cashShare}%`, rawValue: cashShare, icon: Banknote },
     ];
   }, [dashboard]);
 
-  const topActivities = useMemo(() => {
-    const maxNet = Math.max(...dashboard.activities.map((activity) => Math.abs(activity.netAvailable)), 0);
+  /* Monthly data enriched with computed net balance */
+  const monthlyDataWithBalance = useMemo(
+    () =>
+      dashboard.monthlyData.map((m) => ({
+        ...m,
+        solde: (m.revenus ?? 0) - (m.depenses ?? 0),
+      })),
+    [dashboard.monthlyData],
+  );
 
-    return [...dashboard.activities]
-      .sort((left, right) => Math.abs(right.netAvailable) - Math.abs(left.netAvailable))
-      .slice(0, 5)
-      .map((activity) => ({
-        ...activity,
-        progress: maxNet > 0 ? Math.max(8, Math.round((Math.abs(activity.netAvailable) / maxNet) * 100)) : 0,
-      }));
-  }, [dashboard.activities]);
+  /* Expense ratio (income vs expense) for the hero bar */
+  const expenseBarWidth = useMemo(() => {
+    const total = dashboard.totals.income + dashboard.totals.expense;
+    if (total === 0) return { income: 50, expense: 50 };
+    return {
+      income: Math.round((dashboard.totals.income / total) * 100),
+      expense: Math.round((dashboard.totals.expense / total) * 100),
+    };
+  }, [dashboard.totals.income, dashboard.totals.expense]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -267,20 +363,28 @@ export default function Dashboard() {
       <Header title="Tableau de bord" subtitle="Vue d'ensemble de vos finances" />
 
       <div className="space-y-6 p-6">
+
+        {/* ── Hero + Stat Cards ── */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
+
+          {/* Hero balance */}
           <section
             className="relative overflow-hidden rounded-2xl border p-6 animate-fade-in"
             style={{
-              background: "radial-gradient(circle at top left, hsl(158 64% 52% / 0.16), transparent 32%), linear-gradient(135deg, hsl(225, 27%, 12%), hsl(222, 24%, 16%))",
+              background:
+                "radial-gradient(circle at top left, hsl(158 64% 52% / 0.16), transparent 32%), linear-gradient(135deg, hsl(225, 27%, 12%), hsl(222, 24%, 16%))",
               borderColor: "hsl(var(--border))",
             }}
           >
-            <div className="absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl" style={{ background: "hsl(var(--primary) / 0.16)" }} />
+            <div
+              className="absolute right-0 top-0 h-32 w-32 rounded-full blur-3xl"
+              style={{ background: "hsl(var(--primary) / 0.16)" }}
+            />
             <div className="relative space-y-6">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
                 {/* LEFT: main balance */}
-                <div>
+                <div className="flex-1">
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
                     Solde net disponible
                   </p>
@@ -296,18 +400,39 @@ export default function Dashboard() {
                       - {formatCurrency(dashboard.totals.expense)}
                     </span>
                   </div>
-                  <div className="mt-4 flex gap-4 text-sm">
-                    <span className="">
-                      💵 {formatCurrency(dashboard.paymentBalances.cash)}
-                    </span>
-                    <span className="">
-                      💳 {formatCurrency(dashboard.paymentBalances.card)}
-                    </span>
+
+                  {/* Income / Expense proportion bar */}
+                  <div className="mt-4 space-y-1.5">
+                    <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                      <div
+                        className="h-full transition-all duration-700"
+                        style={{
+                          width: `${expenseBarWidth.income}%`,
+                          background: "var(--gradient-primary)",
+                        }}
+                      />
+                      <div
+                        className="h-full transition-all duration-700"
+                        style={{
+                          width: `${expenseBarWidth.expense}%`,
+                          background: "var(--gradient-danger)",
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      <span>💵 Revenus {expenseBarWidth.income}%</span>
+                      <span>Dépenses {expenseBarWidth.expense}% 💸</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex gap-4 text-sm">
+                    <span>💵 {formatCurrency(dashboard.paymentBalances.cash)}</span>
+                    <span>💳 {formatCurrency(dashboard.paymentBalances.card)}</span>
                   </div>
                 </div>
 
-                {/* RIGHT: visual */}
-                <div className="w-full max-w-[260px] h-[160px]">
+                {/* RIGHT: payment repartition donut */}
+                <div className="w-full max-w-[220px] h-[160px]">
                   <ResponsiveContainer>
                     <PieChart>
                       <Pie
@@ -318,16 +443,27 @@ export default function Dashboard() {
                         innerRadius={50}
                         outerRadius={70}
                         dataKey="value"
+                        paddingAngle={3}
                       >
                         <Cell fill="#3b82f6" />
                         <Cell fill="#10b981" />
                       </Pie>
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      <Tooltip
+                        {...CustomTooltipStyle}
+                        formatter={(v: number) => formatCurrency(v)}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: 11 }}
+                        formatter={(value) => (
+                          <span style={{ color: "hsl(213, 31%, 80%)" }}>{value}</span>
+                        )}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
+              {/* Insight chips */}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {insights.map((item, index) => (
                   <div
@@ -340,11 +476,17 @@ export default function Dashboard() {
                       background: "hsl(var(--background) / 0.2)",
                     }}
                   >
-                    <div className="mb-2 flex items-center gap-2 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    <div
+                      className="mb-2 flex items-center gap-2 text-xs"
+                      style={{ color: "hsl(var(--muted-foreground))" }}
+                    >
                       <item.icon size={14} />
                       {item.label}
                     </div>
-                    <p className="text-lg font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                    <p
+                      className="text-lg font-display font-semibold"
+                      style={{ color: "hsl(var(--foreground))" }}
+                    >
                       {item.value}
                     </p>
                   </div>
@@ -353,9 +495,24 @@ export default function Dashboard() {
             </div>
           </section>
 
+          {/* Stat cards 2×2 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <StatCard label="Revenus totaux" value={formatCurrency(dashboard.totals.income)} icon={TrendingUp} variant="income" hint="Encaissements cumules" delay={40} />
-            <StatCard label="Depenses totales" value={formatCurrency(dashboard.totals.expense)} icon={TrendingDown} variant="expense" hint="Sorties cumulees" delay={90} />
+            <StatCard
+              label="Revenus totaux"
+              value={formatCurrency(dashboard.totals.income)}
+              icon={TrendingUp}
+              variant="income"
+              hint="Encaissements cumules"
+              delay={40}
+            />
+            <StatCard
+              label="Depenses totales"
+              value={formatCurrency(dashboard.totals.expense)}
+              icon={TrendingDown}
+              variant="expense"
+              hint="Sorties cumulees"
+              delay={90}
+            />
             <StatCard
               label="Prets en cours"
               value={formatCurrency(dashboard.totals.activeLoans)}
@@ -375,66 +532,102 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* ── Budget Cards (with circular progress) ── */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {budgetCards.map((budget, index) => {
             const isOver = budget.amount > 0 && budget.spent > budget.amount;
+            const circleColor = isOver
+              ? "hsl(var(--destructive))"
+              : BUDGET_COLORS[budget.period];
+
             return (
               <div
                 key={budget.period}
                 className="stat-card animate-fade-in transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                 style={{ animationDelay: `${70 * index}ms`, animationFillMode: "both" }}
               >
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: BUDGET_BACKGROUNDS[budget.period] }}>
-                    <Wallet size={18} style={{ color: BUDGET_COLORS[budget.period] }} />
-                  </div>
-                  <span
-                    className="rounded-full px-2 py-0.5 text-xs font-medium"
-                    style={{ background: BUDGET_BACKGROUNDS[budget.period], color: BUDGET_COLORS[budget.period] }}
-                  >
-                    {BUDGET_LABELS[budget.period]}
-                  </span>
-                </div>
-                <p className="text-xl font-display font-bold" style={{ color: "hsl(var(--foreground))" }}>
-                  {formatCurrency(budget.amount)}
-                </p>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    <span>Depense</span>
-                    <span>{formatCurrency(budget.spent)}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        width: `${budget.progress}%`,
-                        background: isOver ? "hsl(var(--destructive))" : BUDGET_COLORS[budget.period],
-                      }}
+                <div className="flex items-center gap-4">
+                  {/* Circular progress as the icon area */}
+                  <div className="relative flex-shrink-0">
+                    <CircularProgress
+                      value={budget.progress}
+                      color={circleColor}
+                      size={60}
+                      strokeWidth={5}
                     />
+                    <div
+                      className="absolute inset-0 flex items-center justify-center text-[11px] font-bold"
+                      style={{ color: circleColor }}
+                    >
+                      {budget.progress}%
+                    </div>
                   </div>
-                  <p className="text-xs" style={{ color: isOver ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
-                    {budget.amount > 0
-                      ? isOver
-                        ? `Depasse de ${formatCurrency(Math.abs(budget.remaining))}`
-                        : `Reste ${formatCurrency(budget.remaining)}`
-                      : "Aucun budget defini"}
-                  </p>
+
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{
+                          background: BUDGET_BACKGROUNDS[budget.period],
+                          color: BUDGET_COLORS[budget.period],
+                        }}
+                      >
+                        {BUDGET_LABELS[budget.period]}
+                      </span>
+                      <Wallet size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                    </div>
+
+                    <p
+                      className="text-xl font-display font-bold"
+                      style={{ color: "hsl(var(--foreground))" }}
+                    >
+                      {formatCurrency(budget.amount)}
+                    </p>
+
+                    <div className="mt-1.5 flex items-center justify-between text-xs">
+                      <span style={{ color: "hsl(var(--muted-foreground))" }}>
+                        Dépensé: {formatCurrency(budget.spent)}
+                      </span>
+                    </div>
+
+                    <p
+                      className="mt-1 text-xs font-medium"
+                      style={{
+                        color: isOver
+                          ? "hsl(var(--destructive))"
+                          : "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      {budget.amount > 0
+                        ? isOver
+                          ? `Dépassé de ${formatCurrency(Math.abs(budget.remaining))}`
+                          : `Reste ${formatCurrency(budget.remaining)}`
+                        : "Aucun budget défini"}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
+        {/* ── Charts Row ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+
+          {/* Area chart — Revenus vs Dépenses + Solde net */}
           <div className="stat-card lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
-              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                Revenus vs Depenses
+              <p
+                className="font-display font-semibold"
+                style={{ color: "hsl(var(--foreground))" }}
+              >
+                Revenus, Dépenses &amp; Solde net
               </p>
               <span className="badge-info">Tendance mensuelle</span>
             </div>
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={dashboard.monthlyData}>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={monthlyDataWithBalance}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(158,64%,52%)" stopOpacity={0.3} />
@@ -444,58 +637,167 @@ export default function Dashboard() {
                     <stop offset="5%" stopColor="hsl(351,75%,58%)" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(351,75%,58%)" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient id="colorSolde" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(224,22%,18%)" />
-                <XAxis dataKey="month" tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${value / 1000}k`} />
-                <Tooltip {...CustomTooltipStyle} formatter={(value: number) => formatCurrency(value)} />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => `${value / 1000}k`}
+                />
+                <Tooltip
+                  {...CustomTooltipStyle}
+                  formatter={(value: number) => formatCurrency(value)}
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="revenus" name="Revenus" stroke="hsl(158,64%,52%)" fill="url(#colorRev)" strokeWidth={2} />
-                <Area type="monotone" dataKey="depenses" name="Depenses" stroke="hsl(351,75%,58%)" fill="url(#colorDep)" strokeWidth={2} />
+                <Area
+                  type="monotone"
+                  dataKey="revenus"
+                  name="Revenus"
+                  stroke="hsl(158,64%,52%)"
+                  fill="url(#colorRev)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="depenses"
+                  name="Depenses"
+                  stroke="hsl(351,75%,58%)"
+                  fill="url(#colorDep)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="solde"
+                  name="Solde net"
+                  stroke="#3b82f6"
+                  fill="url(#colorSolde)"
+                  strokeWidth={2}
+                  strokeDasharray="4 2"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
+          {/* Pie chart — Dépenses par catégorie */}
           <div className="stat-card">
             <div className="mb-4 flex items-center justify-between">
-              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                Depenses par categorie
+              <p
+                className="font-display font-semibold"
+                style={{ color: "hsl(var(--foreground))" }}
+              >
+                Dépenses par catégorie
               </p>
-              <span className="badge-warning">{dashboard.expensesByCategory.length} postes</span>
+              <span className="badge-warning">
+                {dashboard.expensesByCategory.length} postes
+              </span>
             </div>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={dashboard.expensesByCategory} cx="50%" cy="50%" innerRadius={52} outerRadius={78} dataKey="value" paddingAngle={3}>
+                <Pie
+                  data={dashboard.expensesByCategory}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={78}
+                  dataKey="value"
+                  paddingAngle={3}
+                >
                   {dashboard.expensesByCategory.map((entry, index) => (
-                    <Cell key={entry.id} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Cell
+                      key={entry.id}
+                      fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]}
+                    />
                   ))}
                 </Pie>
-                <Tooltip {...CustomTooltipStyle} formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip
+                  {...CustomTooltipStyle}
+                  formatter={(value: number) => formatCurrency(value)}
+                />
               </PieChart>
             </ResponsiveContainer>
+
+            {/* Category list with % share */}
             <div className="mt-3 space-y-2">
-              {dashboard.expensesByCategory.slice(0, 5).map((category, index) => (
-                <div key={category.id} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full" style={{ background: category.color || CHART_COLORS[index % CHART_COLORS.length] }} />
-                    <span style={{ color: "hsl(var(--muted-foreground))" }}>
-                      {category.icon || ""} {category.name}
-                    </span>
+              {dashboard.expensesByCategory.slice(0, 5).map((category, index) => {
+                const total = dashboard.totals.expense;
+                const pct =
+                  total > 0 ? Math.round((category.value / total) * 100) : 0;
+                return (
+                  <div key={category.id} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-2 w-2 rounded-full"
+                          style={{
+                            background:
+                              category.color ||
+                              CHART_COLORS[index % CHART_COLORS.length],
+                          }}
+                        />
+                        <span style={{ color: "hsl(var(--muted-foreground))" }}>
+                          {category.icon || ""} {category.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-[10px]"
+                          style={{ color: "hsl(var(--muted-foreground))" }}
+                        >
+                          {pct}%
+                        </span>
+                        <span
+                          className="font-medium"
+                          style={{ color: "hsl(var(--foreground))" }}
+                        >
+                          {formatCurrency(category.value)}
+                        </span>
+                      </div>
+                    </div>
+                    {/* mini progress bar per category */}
+                    <div
+                      className="h-1 overflow-hidden rounded-full"
+                      style={{ background: "hsl(var(--border))" }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${pct}%`,
+                          background:
+                            category.color ||
+                            CHART_COLORS[index % CHART_COLORS.length],
+                          opacity: 0.75,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <span className="font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                    {formatCurrency(category.value)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
 
+        {/* ── Transactions + Loans ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+
+          {/* Recent transactions */}
           <div className="stat-card">
             <div className="mb-4 flex items-center justify-between">
-              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                Transactions recentes
+              <p
+                className="font-display font-semibold"
+                style={{ color: "hsl(var(--foreground))" }}
+              >
+                Transactions récentes
               </p>
               <span className="badge-info">{recentTransactions.length} lignes</span>
             </div>
@@ -511,154 +813,444 @@ export default function Dashboard() {
                         borderColor: "hsl(var(--border) / 0.6)",
                         background: "hsl(var(--background) / 0.18)",
                         animationDelay: `${index * 50}ms`,
+                        borderLeftWidth: "3px",
+                        borderLeftColor: isIncome
+                          ? "hsl(var(--primary) / 0.6)"
+                          : "hsl(var(--destructive) / 0.6)",
                       }}
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className="flex h-9 w-9 items-center justify-center rounded-lg text-sm"
-                          style={{ background: isIncome ? "hsl(var(--primary-dim))" : "hsl(var(--destructive-dim))" }}
+                          style={{
+                            background: isIncome
+                              ? "hsl(var(--primary-dim))"
+                              : "hsl(var(--destructive-dim))",
+                          }}
                         >
                           {tx.categoryIcon || (isIncome ? "$$" : "--")}
                         </div>
                         <div>
-                          <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                          <p
+                            className="text-sm font-medium"
+                            style={{ color: "hsl(var(--foreground))" }}
+                          >
                             {tx.description || (isIncome ? "Revenu" : "Depense")}
                           </p>
-                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          <p
+                            className="text-xs"
+                            style={{ color: "hsl(var(--muted-foreground))" }}
+                          >
                             {formatDate(tx.date)} · {tx.activityName || tx.categoryName || "-"}
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold" style={{ color: isIncome ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
-                        {isIncome ? "+" : "-"}
-                        {formatCurrency(tx.amount)}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className="text-sm font-semibold"
+                          style={{
+                            color: isIncome
+                              ? "hsl(var(--primary))"
+                              : "hsl(var(--destructive))",
+                          }}
+                        >
+                          {isIncome ? "+" : "-"}
+                          {formatCurrency(tx.amount)}
+                        </span>
+                        <span
+                          className="rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide"
+                          style={{
+                            background: isIncome
+                              ? "hsl(var(--primary-dim))"
+                              : "hsl(var(--destructive-dim))",
+                            color: isIncome
+                              ? "hsl(var(--primary))"
+                              : "hsl(var(--destructive))",
+                          }}
+                        >
+                          {isIncome ? "Entrée" : "Sortie"}
+                        </span>
+                      </div>
                     </div>
                   );
                 })
               ) : (
-                <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                <p
+                  className="text-sm"
+                  style={{ color: "hsl(var(--muted-foreground))" }}
+                >
                   Aucune transaction recente.
                 </p>
               )}
             </div>
           </div>
 
+          {/* Right column: loans + analyse du solde */}
           <div className="space-y-4">
+
+            {/* Emprunts et récupérations */}
             <div className="stat-card">
               <div className="mb-4 flex items-center justify-between">
-                <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                  Emprunts et recuperations
+                <p
+                  className="font-display font-semibold"
+                  style={{ color: "hsl(var(--foreground))" }}
+                >
+                  Emprunts et récupérations
                 </p>
-                <span className="badge-purple">{formatCurrency(dashboard.totals.investments)}</span>
+                <span className="badge-purple">
+                  {formatCurrency(dashboard.totals.investments)}
+                </span>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border p-4" style={{ borderColor: "hsl(var(--warning-dim))", background: "hsl(var(--warning-dim) / 0.08)" }}>
+                {/* Active loans */}
+                <div
+                  className="rounded-xl border p-4"
+                  style={{
+                    borderColor: "hsl(var(--warning-dim))",
+                    background: "hsl(var(--warning-dim) / 0.08)",
+                  }}
+                >
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                      Prets actifs
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: "hsl(var(--foreground))" }}
+                    >
+                      Prêts actifs
                     </p>
                     <span className="badge-warning">{activeLoans.length}</span>
                   </div>
                   <div className="space-y-3">
-                    {activeLoans.length ? activeLoans.map((loan) => {
-                      const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
-                      return (
-                        <div key={loan.id}>
-                          <div className="mb-1 flex justify-between text-sm">
-                            <span style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</span>
-                            <span style={{ color: "hsl(var(--warning))" }}>{formatCurrency(loan.remainingAmount)}</span>
+                    {activeLoans.length ? (
+                      activeLoans.map((loan) => {
+                        const pct =
+                          loan.totalAmount > 0
+                            ? Math.round(
+                                ((loan.totalAmount - loan.remainingAmount) /
+                                  loan.totalAmount) *
+                                  100,
+                              )
+                            : 0;
+                        return (
+                          <div key={loan.id}>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span style={{ color: "hsl(var(--foreground))" }}>
+                                {loan.lenderName}
+                              </span>
+                              <span style={{ color: "hsl(var(--warning))" }}>
+                                {formatCurrency(loan.remainingAmount)}
+                              </span>
+                            </div>
+                            <div
+                              className="h-1.5 overflow-hidden rounded-full"
+                              style={{ background: "hsl(var(--border))" }}
+                            >
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{
+                                  width: `${pct}%`,
+                                  background: "var(--gradient-warning)",
+                                }}
+                              />
+                            </div>
+                            <p
+                              className="mt-0.5 text-[10px]"
+                              style={{ color: "hsl(var(--muted-foreground))" }}
+                            >
+                              {pct}% remboursé
+                            </p>
                           </div>
-                          <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
-                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "var(--gradient-warning)" }} />
-                          </div>
-                        </div>
-                      );
-                    }) : <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Aucun pret actif.</p>}
+                        );
+                      })
+                    ) : (
+                      <p
+                        className="text-xs"
+                        style={{ color: "hsl(var(--muted-foreground))" }}
+                      >
+                        Aucun prêt actif.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="rounded-xl border p-4" style={{ borderColor: "hsl(var(--purple-dim))", background: "hsl(var(--purple-dim) / 0.08)" }}>
+                {/* To recover */}
+                <div
+                  className="rounded-xl border p-4"
+                  style={{
+                    borderColor: "hsl(var(--purple-dim))",
+                    background: "hsl(var(--purple-dim) / 0.08)",
+                  }}
+                >
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                      A recuperer
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: "hsl(var(--foreground))" }}
+                    >
+                      À récupérer
                     </p>
                     <span className="badge-purple">{toRecoverLoans.length}</span>
                   </div>
                   <div className="space-y-3">
-                    {toRecoverLoans.length ? toRecoverLoans.map((loan) => {
-                      const pct = loan.totalAmount > 0 ? Math.round(((loan.totalAmount - loan.remainingAmount) / loan.totalAmount) * 100) : 0;
-                      return (
-                        <div key={`recover-${loan.id}`}>
-                          <div className="mb-1 flex justify-between text-sm">
-                            <span style={{ color: "hsl(var(--foreground))" }}>{loan.lenderName}</span>
-                            <span style={{ color: "hsl(var(--purple))" }}>{formatCurrency(loan.remainingAmount)}</span>
+                    {toRecoverLoans.length ? (
+                      toRecoverLoans.map((loan) => {
+                        const pct =
+                          loan.totalAmount > 0
+                            ? Math.round(
+                                ((loan.totalAmount - loan.remainingAmount) /
+                                  loan.totalAmount) *
+                                  100,
+                              )
+                            : 0;
+                        return (
+                          <div key={`recover-${loan.id}`}>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span style={{ color: "hsl(var(--foreground))" }}>
+                                {loan.lenderName}
+                              </span>
+                              <span style={{ color: "hsl(var(--purple))" }}>
+                                {formatCurrency(loan.remainingAmount)}
+                              </span>
+                            </div>
+                            <div
+                              className="h-1.5 overflow-hidden rounded-full"
+                              style={{ background: "hsl(var(--border))" }}
+                            >
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{
+                                  width: `${pct}%`,
+                                  background: "var(--gradient-purple)",
+                                }}
+                              />
+                            </div>
+                            <p
+                              className="mt-0.5 text-[10px]"
+                              style={{ color: "hsl(var(--muted-foreground))" }}
+                            >
+                              {pct}% récupéré
+                            </p>
                           </div>
-                          <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
-                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "var(--gradient-purple)" }} />
-                          </div>
-                        </div>
-                      );
-                    }) : <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Aucun montant a recuperer.</p>}
+                        );
+                      })
+                    ) : (
+                      <p
+                        className="text-xs"
+                        style={{ color: "hsl(var(--muted-foreground))" }}
+                      >
+                        Aucun montant à récupérer.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* ── Analyse du solde (replaced "Activites les plus exposees") ── */}
             <div className="stat-card">
               <div className="mb-4 flex items-center justify-between">
-                <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                  Activites les plus exposees
+                <p
+                  className="font-display font-semibold"
+                  style={{ color: "hsl(var(--foreground))" }}
+                >
+                  Analyse du solde
                 </p>
-                <span className="badge-income">{dashboard.activities.length} activites</span>
+                <span className="badge-income">Synthèse</span>
               </div>
-              <div className="space-y-3 max-h-[320px] overflow-auto pr-1">
-                {topActivities.map((activity, index) => {
-                  const isPositive = activity.netAvailable >= 0;
 
-                  return (
-                    <div key={activity.activityId} className="mb-3">
-
-                      {/* rank + name */}
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs w-5 text-muted-foreground">#{index + 1}</span>
-                        <p className="truncate text-sm font-medium flex-1">{activity.name}</p>
-                      </div>
-
-                      {/* bar */}
-                      <div className="h-1.5 bg-border rounded-full mt-1">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${activity.progress}%`,
-                            background: isPositive ? "var(--gradient-primary)" : "var(--gradient-danger)",
-                          }}
-                        />
-                      </div>
-
-                      {/* balances */}
-                      <div className="mt-1 text-[11px] text-muted-foreground flex gap-3">
-                        <span className="flex items-center gap-1">💵 {formatCurrency(activity.cashBalance)}</span>
-                        <span className="flex items-center gap-1">💳 {formatCurrency(activity.cardBalance)}</span>
-                      </div>
+              <div className="space-y-4">
+                {/* Revenus row */}
+                <div>
+                  <div
+                    className="mb-1.5 flex items-center justify-between text-xs"
+                    style={{ color: "hsl(var(--muted-foreground))" }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp size={11} style={{ color: "hsl(var(--primary))" }} />
+                      <span>Revenus</span>
                     </div>
-                  );
-                })}
+                    <span
+                      className="font-semibold"
+                      style={{ color: "hsl(var(--primary))" }}
+                    >
+                      {formatCurrency(dashboard.totals.income)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full"
+                    style={{ background: "hsl(var(--border))" }}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: "100%", background: "var(--gradient-primary)" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Dépenses row */}
+                <div>
+                  <div
+                    className="mb-1.5 flex items-center justify-between text-xs"
+                    style={{ color: "hsl(var(--muted-foreground))" }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <TrendingDown size={11} style={{ color: "hsl(var(--destructive))" }} />
+                      <span>Dépenses</span>
+                    </div>
+                    <span
+                      className="font-semibold"
+                      style={{ color: "hsl(var(--destructive))" }}
+                    >
+                      {formatCurrency(dashboard.totals.expense)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full"
+                    style={{ background: "hsl(var(--border))" }}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${
+                          dashboard.totals.income > 0
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (dashboard.totals.expense /
+                                    dashboard.totals.income) *
+                                    100,
+                                ),
+                              )
+                            : 0
+                        }%`,
+                        background: "var(--gradient-danger)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Prêts actifs row */}
+                <div>
+                  <div
+                    className="mb-1.5 flex items-center justify-between text-xs"
+                    style={{ color: "hsl(var(--muted-foreground))" }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <CreditCard size={11} style={{ color: "hsl(var(--warning))" }} />
+                      <span>Prêts actifs</span>
+                    </div>
+                    <span
+                      className="font-semibold"
+                      style={{ color: "hsl(var(--warning))" }}
+                    >
+                      {formatCurrency(dashboard.totals.activeLoans)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full"
+                    style={{ background: "hsl(var(--border))" }}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${
+                          dashboard.totals.income > 0
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (dashboard.totals.activeLoans /
+                                    dashboard.totals.income) *
+                                    100,
+                                ),
+                              )
+                            : 0
+                        }%`,
+                        background: "var(--gradient-warning)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div
+                  className="border-t"
+                  style={{ borderColor: "hsl(var(--border))" }}
+                />
+
+                {/* Net balance + savings rate gauge */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p
+                      className="text-xs"
+                      style={{ color: "hsl(var(--muted-foreground))" }}
+                    >
+                      Solde net
+                    </p>
+                    <p
+                      className="text-xl font-bold font-display"
+                      style={{
+                        color:
+                          dashboard.totals.balance >= 0
+                            ? "hsl(var(--primary))"
+                            : "hsl(var(--destructive))",
+                      }}
+                    >
+                      {formatCurrency(dashboard.totals.balance)}
+                    </p>
+                  </div>
+                  {/* Savings rate circular gauge */}
+                  <div className="relative">
+                    <CircularProgress
+                      value={insights[0].rawValue}
+                      color={
+                        insights[0].rawValue >= 0
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--destructive))"
+                      }
+                      size={58}
+                      strokeWidth={5}
+                    />
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center"
+                      style={{ transform: "rotate(0deg)" }}
+                    >
+                      <span
+                        className="text-[11px] font-bold leading-none"
+                        style={{ color: "hsl(var(--foreground))" }}
+                      >
+                        {insights[0].value}
+                      </span>
+                      <span
+                        className="text-[9px] leading-none mt-0.5"
+                        style={{ color: "hsl(var(--muted-foreground))" }}
+                      >
+                        épargne
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* ── Répartition des activités ── */}
         <div className="stat-card">
           <div className="mb-4 flex items-center justify-between">
-            <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-              Repartition des activites
+            <p
+              className="font-display font-semibold"
+              style={{ color: "hsl(var(--foreground))" }}
+            >
+              Répartition des activités
             </p>
             <span className="badge-info">Vue compacte</span>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
             {dashboard.activities.map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
+              const totalBalance = activity.cashBalance + activity.cardBalance || 1;
+              const cashPct = Math.round((activity.cashBalance / totalBalance) * 100);
+              const cardPct = 100 - cashPct;
+              const netInvest = activity.receivedInvestment - activity.sentInvestment;
+
               return (
                 <div
                   key={`activity-summary-${activity.activityId}`}
@@ -670,55 +1262,86 @@ export default function Dashboard() {
                     background: "hsl(var(--background) / 0.2)",
                   }}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
+                  {/* Header row */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <ActivityIcon size={15} style={{ color: "hsl(var(--muted-foreground))" }} />
-                        <p className="truncate text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                        <ActivityIcon
+                          size={13}
+                          style={{ color: "hsl(var(--muted-foreground))" }}
+                        />
+                        <p
+                          className="truncate text-sm font-medium"
+                          style={{ color: "hsl(var(--foreground))" }}
+                        >
                           {activity.name}
                         </p>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className={ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"}>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span
+                          className={ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"}
+                        >
                           {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
                         </span>
-                        <span className="badge-purple">Invest. {formatCurrency(activity.receivedInvestment - activity.sentInvestment)}</span>
+                        {netInvest !== 0 && (
+                          <span className="badge-purple">
+                            Invest. {formatCurrency(netInvest)}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+
+                    {/* Net value */}
+                    <div className="text-right flex-shrink-0">
+                      <p
+                        className="text-[10px]"
+                        style={{ color: "hsl(var(--muted-foreground))" }}
+                      >
                         Net
                       </p>
-                      <p className="text-sm font-semibold" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                      <p
+                        className="text-base font-semibold font-display"
+                        style={{
+                          color: isPositive
+                            ? "hsl(var(--primary))"
+                            : "hsl(var(--destructive))",
+                        }}
+                      >
                         {formatCurrency(activity.netAvailable)}
                       </p>
                     </div>
-                    <div className="mt-3 space-y-1">
-                      <div className="h-1.5 rounded-full overflow-hidden bg-border flex">
-                        <div
-                          style={{
-                            width: `${(activity.cashBalance /
-                              (activity.cashBalance + activity.cardBalance || 1)) *
-                              100
-                              }%`,
-                            background: "#10b981",
-                          }}
-                        />
-                        <div
-                          style={{
-                            width: `${(activity.cardBalance /
-                              (activity.cashBalance + activity.cardBalance || 1)) *
-                              100
-                              }%`,
-                            background: "#3b82f6",
-                          }}
-                        />
-                      </div>
+                  </div>
 
-                      <div className="flex justify-between text-[11px] text-muted-foreground">
-                        <span>💵 {formatCurrency(activity.cashBalance)}</span>
-                        <span>💳 {formatCurrency(activity.cardBalance)}</span>
-                      </div>
+                  {/* Cash / Card split bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex h-2 w-full overflow-hidden rounded-full" style={{ background: "hsl(var(--border))" }}>
+                      <div
+                        style={{ width: `${cashPct}%`, background: "#10b981" }}
+                        className="h-full transition-all duration-700"
+                      />
+                      <div
+                        style={{ width: `${cardPct}%`, background: "#3b82f6" }}
+                        className="h-full transition-all duration-700"
+                      />
+                    </div>
+                    <div
+                      className="flex justify-between text-[10px]"
+                      style={{ color: "hsl(var(--muted-foreground))" }}
+                    >
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ background: "#10b981" }}
+                        />
+                        💵 {formatCurrency(activity.cashBalance)} ({cashPct}%)
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ background: "#3b82f6" }}
+                        />
+                        💳 {formatCurrency(activity.cardBalance)} ({cardPct}%)
+                      </span>
                     </div>
                   </div>
                 </div>
