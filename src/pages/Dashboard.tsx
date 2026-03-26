@@ -296,6 +296,14 @@ export default function Dashboard() {
                       - {formatCurrency(dashboard.totals.expense)}
                     </span>
                   </div>
+                  <div className="mt-4 flex gap-4 text-sm">
+                  <span className="">
+                    💵 {formatCurrency(dashboard.paymentBalances.card)}
+                    </span>
+                    <span className="">
+                    💳 {formatCurrency(dashboard.paymentBalances.cash)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* RIGHT: visual */}
@@ -609,40 +617,30 @@ export default function Dashboard() {
                   const isPositive = activity.netAvailable >= 0;
 
                   return (
-                    <div key={activity.activityId} className="flex items-center gap-3">
+                    <div key={activity.activityId} className="mb-3">
 
-                      {/* rank */}
-                      <span className="text-xs w-5 text-muted-foreground">
-                        #{index + 1}
-                      </span>
-
-                      {/* name */}
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {activity.name}
-                        </p>
-
-                        {/* bar */}
-                        <div className="h-1.5 bg-border rounded-full mt-1">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${activity.progress}%`,
-                              background: isPositive
-                                ? "var(--gradient-primary)"
-                                : "var(--gradient-danger)",
-                            }}
-                          />
-                        </div>
+                      {/* rank + name */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs w-5 text-muted-foreground">#{index + 1}</span>
+                        <p className="truncate text-sm font-medium flex-1">{activity.name}</p>
                       </div>
 
-                      {/* value */}
-                      <span
-                        className={`text-xs font-semibold ${isPositive ? "text-green-500" : "text-red-500"
-                          }`}
-                      >
-                        {formatCurrency(activity.netAvailable)}
-                      </span>
+                      {/* bar */}
+                      <div className="h-1.5 bg-border rounded-full mt-1">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${activity.progress}%`,
+                            background: isPositive ? "var(--gradient-primary)" : "var(--gradient-danger)",
+                          }}
+                        />
+                      </div>
+
+                      {/* balances */}
+                      <div className="mt-1 text-[11px] text-muted-foreground flex gap-3">
+                        <span className="flex items-center gap-1">💵 {formatCurrency(activity.cashBalance)}</span>
+                        <span className="flex items-center gap-1">💳 {formatCurrency(activity.cardBalance)}</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -694,6 +692,33 @@ export default function Dashboard() {
                       <p className="text-sm font-semibold" style={{ color: isPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
                         {formatCurrency(activity.netAvailable)}
                       </p>
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      <div className="h-1.5 rounded-full overflow-hidden bg-border flex">
+                        <div
+                          style={{
+                            width: `${(activity.cashBalance /
+                              (activity.cashBalance + activity.cardBalance || 1)) *
+                              100
+                              }%`,
+                            background: "#10b981",
+                          }}
+                        />
+                        <div
+                          style={{
+                            width: `${(activity.cardBalance /
+                              (activity.cashBalance + activity.cardBalance || 1)) *
+                              100
+                              }%`,
+                            background: "#3b82f6",
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>💵 {formatCurrency(activity.cashBalance)}</span>
+                        <span>💳 {formatCurrency(activity.cardBalance)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
