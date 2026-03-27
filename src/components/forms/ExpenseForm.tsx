@@ -239,6 +239,8 @@ export default function ExpenseForm({
         <CategoryForm
           open={categoryFormOpen}
           onOpenChange={setCategoryFormOpen}
+          activities={activities}
+          initialActivityId={activityId === "none" ? undefined : activityId}
           onCreate={async (payload) => {
             const created = await onCreateCategory(payload);
             setCategoryId(created.id);

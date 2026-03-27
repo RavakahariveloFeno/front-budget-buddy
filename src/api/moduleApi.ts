@@ -2,13 +2,14 @@ import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const ACTIVITY_API_URL = `${import.meta.env.VITE_API_URL}/activity`;
 
-export type BackendModuleType = "SALE_MANAGEMENT" | "PAYROLL" | "ACCOUNTING" | "CASH_MANAGEMENT";
+export type BackendModuleType = "SALE_MANAGEMENT" | "PAYROLL" | "ACCOUNTING" | "BUDGET_MANAGEMENT" | "CASH_MANAGEMENT";
 
 // Mapping entre les IDs de PREDEFINED_MODULES et les enums backend
 const MODULE_ID_TO_TYPE: Record<string, BackendModuleType> = {
   "mod-vente": "SALE_MANAGEMENT",
   "mod-paie": "PAYROLL",
   "mod-comptabilite": "ACCOUNTING",
+  "mod-budget": "BUDGET_MANAGEMENT",
   "mod-tresorerie": "CASH_MANAGEMENT",
 };
 
@@ -16,6 +17,7 @@ const MODULE_TYPE_TO_ID: Record<BackendModuleType, string> = {
   SALE_MANAGEMENT: "mod-vente",
   PAYROLL: "mod-paie",
   ACCOUNTING: "mod-comptabilite",
+  BUDGET_MANAGEMENT: "mod-budget",
   CASH_MANAGEMENT: "mod-tresorerie",
 };
 
@@ -56,7 +58,7 @@ export async function getActivityModules(activityId: string): Promise<string[]> 
   const types = data
     .map((item) => String(item ?? ""))
     .filter((v): v is BackendModuleType =>
-      v === "SALE_MANAGEMENT" || v === "PAYROLL" || v === "ACCOUNTING" || v === "CASH_MANAGEMENT",
+      v === "SALE_MANAGEMENT" || v === "PAYROLL" || v === "ACCOUNTING" || v === "BUDGET_MANAGEMENT" || v === "CASH_MANAGEMENT",
     );
   return mapModuleTypesToIds(types);
 }

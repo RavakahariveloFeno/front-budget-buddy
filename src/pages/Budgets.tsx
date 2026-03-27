@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Plus, PiggyBank, Calendar, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
-import type { Budget } from "@/data/staticData";
+import type { Activity, Budget } from "@/data/staticData";
 import {
   createBudget,
   deleteBudget,
@@ -12,10 +13,12 @@ import {
   updateBudget,
 } from "@/api/budgetApi";
 import type { BudgetPayload, BudgetStatistics } from "@/api/budgetApi";
+import { getActivities } from "@/api/activityApi";
 import BudgetForm from "@/components/forms/BudgetForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import SelectField from "@/components/dialogs/SelectField";
 
 const periodLabels: Record<string, string> = { DAY: "Jour", WEEK: "Semaine", MONTH: "Mois" };
 const periodGradients: Record<string, string> = { DAY: "var(--gradient-primary)", WEEK: "var(--gradient-warning)", MONTH: "var(--gradient-purple)" };
@@ -31,12 +34,30 @@ const EMPTY_BUDGET_STATS: BudgetStatistics = {
 };
 
 export default function Budgets() {
+  const { activityId: routeActivityId } = useParams<{ activityId?: string }>();
   const [budgetList, setBudgetList] = useState<Budget[]>([]);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [selectedActivityId, setSelectedActivityId] = useState("all");
   const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Budget | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
+
+  const activityOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les activites" },
+      ...activityList.map((activity) => ({ value: activity.id, label: activity.name })),
+    ],
+    [activityList],
+  );
+
+  const visibleBudgets = useMemo(() => {
+    if (selectedActivityId === "all") {
+      return budgetList;
+    }
+    return budgetList.filter((budget) => budget.activityId === selectedActivityId);
+  }, [budgetList, selectedActivityId]);
 
   const refreshBudgetStats = async () => {
     try {
@@ -59,9 +80,26 @@ export default function Budgets() {
       }
     };
 
+    const loadActivities = async () => {
+      try {
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
+      }
+    };
+
     loadBudgets();
     refreshBudgetStats();
+    loadActivities();
   }, []);
+
+  useEffect(() => {
+    if (routeActivityId) {
+      setSelectedActivityId(routeActivityId);
+    }
+  }, [routeActivityId]);
 
   const handleEdit = (budget: Budget) => {
     setEditItem(budget);
@@ -72,7 +110,7 @@ export default function Budgets() {
     setDeleteOpen(true);
   };
 
-  const sortedBudgets = useMemo(() => [...budgetList].sort(compareByMostRecent(["createdAt", "startDate", "date"])), [budgetList]);
+  const sortedBudgets = useMemo(() => [...visibleBudgets].sort(compareByMostRecent(["createdAt", "startDate", "date"])), [visibleBudgets]);
 
   const handleCreate = async (payload: BudgetPayload) => {
     const created = await createBudget(payload);
@@ -111,6 +149,9 @@ export default function Budgets() {
       <Header title="Budgets" subtitle="Definissez et suivez vos limites de depenses" />
       <div className="p-6 space-y-6">
         <div className="flex justify-end">
+          <div className="mr-auto max-w-xs w-full">
+            <SelectField label="Filtrer par activite" value={selectedActivityId} onValueChange={setSelectedActivityId} options={activityOptions} />
+          </div>
           <button
             onClick={() => {
               setEditItem(null);
@@ -224,7 +265,7 @@ export default function Budgets() {
         </div>
       </div>
 
-      <BudgetForm open={formOpen} onOpenChange={setFormOpen} budget={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <BudgetForm open={formOpen} onOpenChange={setFormOpen} budget={editItem} activities={activityList} initialActivityId={selectedActivityId === "all" ? undefined : selectedActivityId} onCreate={handleCreate} onUpdate={handleUpdate} />
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer le budget" description="Voulez-vous vraiment supprimer ce budget ?" onConfirm={confirmDelete} />
     </div>
   );

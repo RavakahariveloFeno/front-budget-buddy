@@ -42,6 +42,8 @@ export interface Category {
   icon?: string;
   color?: string;
   userId: string;
+  activityId?: string;
+  activityModuleId?: string;
 }
 
 export interface Expense {
@@ -72,6 +74,8 @@ export interface Budget {
   period: BudgetPeriod;
   startDate: string;
   userId: string;
+  activityId?: string;
+  activityModuleId?: string;
 }
 
 export interface LoanPayment {
@@ -199,6 +203,20 @@ export const PREDEFINED_MODULES: AppModule[] = [
       { id: "menu-decaissements", label: "Décaissements", icon: "ArrowUpRight", path: "decaissements" },
       { id: "menu-previsions", label: "Prévisions", icon: "LineChart", path: "previsions" },
       { id: "menu-rapports", label: "Rapports", icon: "FileBarChart", path: "rapports" },
+    ],
+  },
+  {
+    id: "mod-budget",
+    name: "Gestion de budget",
+    description: "Revenus, depenses, budgets, categories et prets",
+    icon: "PiggyBank",
+    color: "chart-4",
+    menus: [
+      { id: "menu-incomes", label: "Revenus", icon: "TrendingUp", path: "incomes" },
+      { id: "menu-expenses", label: "Depenses", icon: "TrendingDown", path: "expenses" },
+      { id: "menu-categories", label: "Categories", icon: "Tag", path: "categories" },
+      { id: "menu-budgets", label: "Budgets", icon: "PiggyBank", path: "budgets" },
+      { id: "menu-loans", label: "Prets", icon: "CreditCard", path: "loans" },
     ],
   },
 ];

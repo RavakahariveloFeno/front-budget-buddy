@@ -8,6 +8,7 @@ export interface CategoryPayload {
   name: string;
   icon?: string;
   color?: string;
+  activityId: string;
 }
 
 export interface CategoryStatItem {
@@ -30,12 +31,17 @@ function mapCategory(item: unknown): Category | null {
   }
 
   const record = item as Record<string, unknown>;
+  const activityModule = record.activityModule && typeof record.activityModule === "object"
+    ? (record.activityModule as Record<string, unknown>)
+    : null;
   return {
     id: String(record.id ?? ""),
     name: String(record.name ?? ""),
     userId: String(record.userId ?? ""),
     ...(record.icon ? { icon: String(record.icon) } : {}),
     ...(record.color ? { color: String(record.color) } : {}),
+    ...(record.activityModuleId ? { activityModuleId: String(record.activityModuleId) } : {}),
+    ...(activityModule?.activityId ? { activityId: String(activityModule.activityId) } : {}),
   };
 }
 
@@ -127,6 +133,7 @@ export async function createCategory(payload: CategoryPayload): Promise<Category
       name: payload.name,
       icon: payload.icon || undefined,
       color: payload.color || undefined,
+      activityId: payload.activityId,
       userId,
     }),
   });
@@ -150,6 +157,7 @@ export async function updateCategory(id: string, payload: CategoryPayload): Prom
     name: payload.name,
     icon: payload.icon || undefined,
     color: payload.color || undefined,
+    activityId: payload.activityId,
     userId,
   });
   let response = await fetch(`${CATEGORY_API_URL}/${id}`, {

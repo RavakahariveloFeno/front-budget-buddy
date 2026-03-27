@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
@@ -18,7 +18,7 @@ const typeOptions = [
   { value: "OTHER", label: "Autre" },
 ];
 
-const AVAILABLE_MODULE_IDS = new Set(["mod-vente", "mod-comptabilite"]);
+const AVAILABLE_MODULE_IDS = new Set(["mod-vente", "mod-budget", "mod-comptabilite"]);
 
 interface Props {
   open: boolean;
@@ -110,8 +110,13 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
     }
   };
 
-  const hasManyModules = PREDEFINED_MODULES.length > defaultVisibleModules;
-  const modulesToDisplay = showAllModules ? PREDEFINED_MODULES : PREDEFINED_MODULES.slice(0, defaultVisibleModules);
+  const sortedModules = useMemo(() => {
+    const score = (id: string) => (AVAILABLE_MODULE_IDS.has(id) ? 1 : 0);
+    return [...PREDEFINED_MODULES].sort((a, b) => score(b.id) - score(a.id));
+  }, []);
+
+  const hasManyModules = sortedModules.length > defaultVisibleModules;
+  const modulesToDisplay = showAllModules ? sortedModules : sortedModules.slice(0, defaultVisibleModules);
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier l'activite" : "Nouvelle activite"}>
@@ -158,6 +163,7 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
                         {mod.name}
                       </p>
                       {mod.id === "mod-comptabilite" && <span className="badge-warning text-[10px]">En cours</span>}
+                      {mod.id === "mod-budget" && <span className="badge-income text-[10px]">Disponible</span>}
                       {mod.id === "mod-vente" && <span className="badge-income text-[10px]">Disponible</span>}
                     </div>
                     <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
@@ -182,7 +188,7 @@ export default function ActivityForm({ open, onOpenChange, activity, onCreate, o
                   color: "hsl(var(--muted-foreground))",
                 }}
               >
-                {showAllModules ? "Voir moins" : `Voir plus (${PREDEFINED_MODULES.length - defaultVisibleModules})`}
+                {showAllModules ? "Voir moins" : `Voir plus (${sortedModules.length - defaultVisibleModules})`}
               </button>
             )}
           </div>

@@ -89,6 +89,8 @@ const App = () => (
             <Route path="/activities" element={<MenuRoute menuKey="activities"><Activities /></MenuRoute>} />
             <Route path="/activities/:activityId" element={<MenuRoute menuKey="activities"><ActivityDetail /></MenuRoute>} />
             <Route path="/activities/:activityId/modules/:moduleId/:menuPath" element={<MenuRoute menuKey="activities"><ModuleMenuPage /></MenuRoute>} />
+            <Route path="/activities/:activityId/categories" element={<MenuRoute menuKey="categories"><Categories /></MenuRoute>} />
+            <Route path="/activities/:activityId/budgets" element={<MenuRoute menuKey="budgets"><Budgets /></MenuRoute>} />
             <Route path="/incomes" element={<MenuRoute menuKey="incomes"><Incomes /></MenuRoute>} />
             <Route path="/expenses" element={<MenuRoute menuKey="expenses"><Expenses /></MenuRoute>} />
             <Route path="/categories" element={<MenuRoute menuKey="categories"><Categories /></MenuRoute>} />

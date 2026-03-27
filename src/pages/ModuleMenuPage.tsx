@@ -31,6 +31,13 @@ import DecaissementsPage from "@/pages/modules/cash-management/DecaissementsPage
 import PrevisionsPage from "@/pages/modules/cash-management/PrevisionsPage";
 import RapportsPage from "@/pages/modules/cash-management/RapportsPage";
 
+// â”€â”€ Gestion de budget â”€â”€
+import IncomesPage from "@/pages/Incomes";
+import ExpensesPage from "@/pages/Expenses";
+import CategoriesPage from "@/pages/Categories";
+import BudgetsPage from "@/pages/Budgets";
+import LoansPage from "@/pages/Loans";
+
 const PAGE_MAP: Record<string, React.ComponentType> = {
   // Vente
   stock: StockPage,
@@ -53,6 +60,12 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   decaissements: DecaissementsPage,
   previsions: PrevisionsPage,
   rapports: RapportsPage,
+  // Gestion de budget
+  incomes: IncomesPage,
+  expenses: ExpensesPage,
+  categories: CategoriesPage,
+  budgets: BudgetsPage,
+  loans: LoansPage,
 };
 
 function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: React.CSSProperties }) {
@@ -118,6 +131,7 @@ export default function ModuleMenuPage() {
           <span className="text-sm font-semibold truncate" style={{ color: "hsl(var(--foreground))" }}>{module.name}</span>
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
             {moduleId === "mod-comptabilite" && <span className="badge-warning text-[10px]">En cours</span>}
+            {moduleId === "mod-budget" && <span className="badge-income text-[10px]">Disponible</span>}
             {moduleId === "mod-vente" && <span className="badge-income text-[10px]">Disponible</span>}
           </div>
         </div>

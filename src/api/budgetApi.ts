@@ -8,6 +8,7 @@ export interface BudgetPayload {
   amount: number;
   period: BudgetPeriod;
   startDate: string;
+  activityId: string;
 }
 
 export interface BudgetStatistics {
@@ -36,12 +37,18 @@ function mapBudget(item: unknown): Budget | null {
     return null;
   }
 
+  const activityModule = record.activityModule && typeof record.activityModule === "object"
+    ? (record.activityModule as Record<string, unknown>)
+    : null;
+
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
     period: record.period,
     startDate: String(record.startDate ?? ""),
     userId: String(record.userId ?? ""),
+    ...(record.activityModuleId ? { activityModuleId: String(record.activityModuleId) } : {}),
+    ...(activityModule?.activityId ? { activityId: String(activityModule.activityId) } : {}),
   };
 }
 
@@ -113,6 +120,7 @@ export async function createBudget(payload: BudgetPayload): Promise<Budget> {
       amount: payload.amount,
       period: payload.period,
       startDate: toIsoDate(payload.startDate),
+      activityId: payload.activityId,
       userId,
     }),
   });
@@ -136,6 +144,7 @@ export async function updateBudget(id: string, payload: BudgetPayload): Promise<
     amount: payload.amount,
     period: payload.period,
     startDate: toIsoDate(payload.startDate),
+    activityId: payload.activityId,
     userId,
   });
   let response = await fetch(`${BUDGET_API_URL}/${id}`, {

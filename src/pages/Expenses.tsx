@@ -597,6 +597,8 @@ export default function Expenses() {
       <CategoryForm
         open={recurringCategoryFormOpen}
         onOpenChange={setRecurringCategoryFormOpen}
+        activities={activityList}
+        initialActivityId={recurringActivityId === "none" ? undefined : recurringActivityId}
         onCreate={async (payload) => {
           const created = await handleCreateCategory(payload);
           setRecurringCategoryId(created.id);

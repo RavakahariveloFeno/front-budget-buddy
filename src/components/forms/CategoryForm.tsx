@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
-import type { Category } from "@/data/staticData";
+import SelectField from "@/components/dialogs/SelectField";
+import type { Activity, Category } from "@/data/staticData";
 import type { CategoryPayload } from "@/api/categoryApi";
 import { toast } from "@/hooks/use-toast";
 
@@ -25,17 +26,28 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category?: Category | null;
+  activities: Activity[];
+  initialActivityId?: string;
   onCreate: (payload: CategoryPayload) => Promise<void>;
   onUpdate: (id: string, payload: CategoryPayload) => Promise<void>;
 }
 
-export default function CategoryForm({ open, onOpenChange, category, onCreate, onUpdate }: Props) {
+export default function CategoryForm({ open, onOpenChange, category, activities, initialActivityId, onCreate, onUpdate }: Props) {
   const isEdit = Boolean(category);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("🛒");
   const [color, setColor] = useState("#8b5cf6");
+  const [activityId, setActivityId] = useState("none");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllIcons, setShowAllIcons] = useState(false);
+
+  const activityOptions = useMemo(
+    () => [
+      { value: "none", label: "Selectionner une activite" },
+      ...activities.map((activity) => ({ value: activity.id, label: activity.name })),
+    ],
+    [activities],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +55,13 @@ export default function CategoryForm({ open, onOpenChange, category, onCreate, o
     setName(category?.name || "");
     setIcon(category?.icon || "🛒");
     setColor(category?.color || "#8b5cf6");
+    if (category?.activityId) {
+      setActivityId(category.activityId);
+    } else if (initialActivityId && initialActivityId !== "all") {
+      setActivityId(initialActivityId);
+    } else {
+      setActivityId("none");
+    }
     setShowAllIcons(false);
   }, [category, open]);
 
@@ -55,12 +74,21 @@ export default function CategoryForm({ open, onOpenChange, category, onCreate, o
       name: name.trim(),
       icon,
       color,
+      activityId,
     };
 
     if (!payload.name) {
       toast({
         title: "Nom requis",
         description: "Veuillez renseigner le nom de la categorie.",
+      });
+      return;
+    }
+
+    if (!payload.activityId || payload.activityId === "none") {
+      toast({
+        title: "Activite requise",
+        description: "Veuillez selectionner une activite.",
       });
       return;
     }
@@ -97,6 +125,14 @@ export default function CategoryForm({ open, onOpenChange, category, onCreate, o
           value={name}
           onChange={setName}
           placeholder="Ex: Alimentation"
+          required
+        />
+
+        <SelectField
+          label="Activite"
+          value={activityId}
+          onValueChange={setActivityId}
+          options={activityOptions}
           required
         />
 

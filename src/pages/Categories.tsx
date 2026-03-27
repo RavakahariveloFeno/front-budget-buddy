@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Plus, Tag, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { formatCurrency } from "@/data/staticData";
-import type { Category } from "@/data/staticData";
+import type { Activity, Category } from "@/data/staticData";
 import {
   createCategory,
   deleteCategory,
@@ -11,9 +12,11 @@ import {
   updateCategory,
 } from "@/api/categoryApi";
 import type { CategoryPayload, CategoryStatistics } from "@/api/categoryApi";
+import { getActivities } from "@/api/activityApi";
 import CategoryForm from "@/components/forms/CategoryForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import SelectField from "@/components/dialogs/SelectField";
 
 const EMPTY_CATEGORY_STATS: CategoryStatistics = {
   totalCategories: 0,
@@ -24,12 +27,30 @@ const EMPTY_CATEGORY_STATS: CategoryStatistics = {
 };
 
 export default function Categories() {
+  const { activityId: routeActivityId } = useParams<{ activityId?: string }>();
   const [categoryList, setCategoryList] = useState<Category[]>([]);
+  const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [selectedActivityId, setSelectedActivityId] = useState("all");
   const [categoryStats, setCategoryStats] = useState<CategoryStatistics>(EMPTY_CATEGORY_STATS);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Category | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+
+  const activityOptions = useMemo(
+    () => [
+      { value: "all", label: "Toutes les activites" },
+      ...activityList.map((activity) => ({ value: activity.id, label: activity.name })),
+    ],
+    [activityList],
+  );
+
+  const visibleCategories = useMemo(() => {
+    if (selectedActivityId === "all") {
+      return categoryList;
+    }
+    return categoryList.filter((category) => category.activityId === selectedActivityId);
+  }, [categoryList, selectedActivityId]);
 
   const statsByCategoryId = useMemo(() => {
     return new Map(categoryStats.items.map((item) => [item.categoryId, item]));
@@ -56,9 +77,26 @@ export default function Categories() {
       }
     };
 
+    const loadActivities = async () => {
+      try {
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
+      }
+    };
+
     loadCategories();
     refreshCategoryStats();
+    loadActivities();
   }, []);
+
+  useEffect(() => {
+    if (routeActivityId) {
+      setSelectedActivityId(routeActivityId);
+    }
+  }, [routeActivityId]);
 
   const handleEdit = (category: Category) => {
     setEditItem(category);
@@ -106,6 +144,9 @@ export default function Categories() {
       <Header title="Categories" subtitle="Gerez vos categories de depenses" />
       <div className="p-6 space-y-6">
         <div className="flex justify-end">
+          <div className="mr-auto max-w-xs w-full">
+            <SelectField label="Filtrer par activite" value={selectedActivityId} onValueChange={setSelectedActivityId} options={activityOptions} />
+          </div>
           <button
             onClick={() => {
               setEditItem(null);
@@ -119,7 +160,7 @@ export default function Categories() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {categoryList.map((category) => {
+          {visibleCategories.map((category) => {
             const categoryStat = statsByCategoryId.get(category.id);
             const total = categoryStat?.total ?? 0;
             const count = categoryStat?.count ?? 0;
@@ -174,7 +215,7 @@ export default function Categories() {
                 </tr>
               </thead>
               <tbody>
-                {categoryList.map((category) => {
+                {visibleCategories.map((category) => {
                   const categoryStat = statsByCategoryId.get(category.id);
                   const categoryTotal = categoryStat?.total ?? 0;
                   const count = categoryStat?.count ?? 0;
@@ -220,7 +261,7 @@ export default function Categories() {
         </div>
       </div>
 
-      <CategoryForm open={formOpen} onOpenChange={setFormOpen} category={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <CategoryForm open={formOpen} onOpenChange={setFormOpen} category={editItem} activities={activityList} initialActivityId={selectedActivityId === "all" ? undefined : selectedActivityId} onCreate={handleCreate} onUpdate={handleUpdate} />
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

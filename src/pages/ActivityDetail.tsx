@@ -100,6 +100,7 @@ export default function ActivityDetail() {
 
 function ModuleCard({ module, activityId }: { module: AppModule; activityId: string }) {
   const isAccounting = module.id === "mod-comptabilite";
+  const isBudget = module.id === "mod-budget";
   const isSaleManagement = module.id === "mod-vente";
   return (
     <div className="stat-card">
@@ -114,6 +115,7 @@ function ModuleCard({ module, activityId }: { module: AppModule; activityId: str
             </p>
             <div className="flex items-center gap-2 flex-shrink-0">
               {isAccounting && <span className="badge-warning text-[10px]">En cours</span>}
+              {isBudget && <span className="badge-income text-[10px]">Disponible</span>}
               {isSaleManagement && <span className="badge-income text-[10px]">Disponible</span>}
             </div>
           </div>
