@@ -15,9 +15,10 @@ interface SelectFieldProps {
   placeholder?: string;
   onAddClick?: () => void;
   required?: boolean;
+  disabled?: boolean;
 }
 
-export default function SelectField({ label, value, onValueChange, options, placeholder, onAddClick, required = false }: SelectFieldProps) {
+export default function SelectField({ label, value, onValueChange, options, placeholder, onAddClick, required = false, disabled = false }: SelectFieldProps) {
   const handleAddClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -36,6 +37,7 @@ export default function SelectField({ label, value, onValueChange, options, plac
             aria-hidden="true"
             tabIndex={-1}
             required
+            disabled={disabled}
             value={value === "none" ? "" : value}
             onChange={() => {}}
             className="absolute h-0 w-0 opacity-0 pointer-events-none"
@@ -50,8 +52,8 @@ export default function SelectField({ label, value, onValueChange, options, plac
               ))}
           </select>
         ) : null}
-        <Select value={value} onValueChange={onValueChange}>
-          <SelectTrigger className={`border-border ${onAddClick ? "flex-1" : ""}`} style={{ background: "hsl(var(--input))", color: "hsl(var(--foreground))" }}>
+        <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+          <SelectTrigger disabled={disabled} className={`border-border ${onAddClick ? "flex-1" : ""}`} style={{ background: "hsl(var(--input))", color: "hsl(var(--foreground))" }}>
             <SelectValue placeholder={placeholder || "Sélectionner"} />
           </SelectTrigger>
           <SelectContent style={{ background: "hsl(225, 27%, 12%)", borderColor: "hsl(var(--border))" }}>
@@ -64,6 +66,7 @@ export default function SelectField({ label, value, onValueChange, options, plac
           <button
             type="button"
             onClick={handleAddClick}
+            disabled={disabled}
             className="h-10 w-10 flex-shrink-0 rounded-md border flex items-center justify-center transition-colors hover:bg-accent"
             style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--input))" }}
             title={`Ajouter ${label.toLowerCase()}`}

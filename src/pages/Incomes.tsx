@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownUp, Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { createWithdrawal } from "@/api/withdrawalApi";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 const CustomTooltipStyle = {
   contentStyle: {
@@ -47,6 +48,7 @@ const EMPTY_INCOME_STATS: IncomeStatistics = {
 };
 
 export default function Incomes() {
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [incomeList, setIncomeList] = useState<Income[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [incomeStats, setIncomeStats] = useState<IncomeStatistics>(EMPTY_INCOME_STATS);
@@ -75,9 +77,14 @@ export default function Incomes() {
   const [recurringActive, setRecurringActive] = useState(true);
   const [isRecurringSubmitting, setIsRecurringSubmitting] = useState(false);
 
+  const visibleRecurringList = useMemo(
+    () => (selectedActivityId ? recurringList.filter((item) => item.activityId === selectedActivityId) : recurringList),
+    [recurringList, selectedActivityId],
+  );
+
   const loadIncomes = async () => {
     try {
-      const remoteIncomes = await getIncomes();
+      const remoteIncomes = await getIncomes({ activityId: selectedActivityId ?? undefined });
       setIncomeList(remoteIncomes);
     } catch (error) {
       console.error("Impossible de charger les revenus depuis l'API.", error);
@@ -97,7 +104,7 @@ export default function Incomes() {
 
   const refreshIncomeStats = async () => {
     try {
-      const stats = await getIncomeStatistics();
+      const stats = await getIncomeStatistics({ activityId: selectedActivityId ?? undefined });
       setIncomeStats(stats);
     } catch (error) {
       console.error("Impossible de charger les statistiques revenus depuis l'API.", error);
@@ -116,11 +123,14 @@ export default function Incomes() {
       }
     };
 
+    loadActivities();
+  }, []);
+
+  useEffect(() => {
     loadIncomes();
     loadRecurringIncomes();
-    loadActivities();
     refreshIncomeStats();
-  }, []);
+  }, [selectedActivityId]);
 
   useEffect(() => {
     if (!withdrawalOpen) {
@@ -130,8 +140,8 @@ export default function Incomes() {
     setWithdrawalAmount("");
     setWithdrawalDescription("");
     setWithdrawalDate(new Date().toISOString().split("T")[0]);
-    setWithdrawalActivityId("none");
-  }, [withdrawalOpen]);
+    setWithdrawalActivityId(selectedActivityId ?? "none");
+  }, [selectedActivityId, withdrawalOpen]);
 
   const totalIncome = incomeStats.totalIncome;
   const cardTotal = incomeStats.cardTotal;
@@ -182,7 +192,9 @@ export default function Incomes() {
       toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
       return;
     }
-    if (withdrawalActivityId === "none") {
+
+    const effectiveWithdrawalActivityId = selectedActivityId ?? withdrawalActivityId;
+    if (effectiveWithdrawalActivityId === "none") {
       toast({ title: "Activite requise", description: "Selectionnez une activite pour faire un retrait." });
       return;
     }
@@ -193,7 +205,7 @@ export default function Incomes() {
         amount: parsedAmount,
         date: withdrawalDate,
         description: withdrawalDescription.trim() || undefined,
-        activityId: withdrawalActivityId,
+        activityId: effectiveWithdrawalActivityId,
       });
       await refreshIncomeStats();
       setWithdrawalOpen(false);
@@ -242,7 +254,7 @@ export default function Incomes() {
     setRecurringEndDate(item.endDate ? item.endDate.split("T")[0] : "");
     setRecurringFrequency(item.frequency);
     setRecurringPaymentType(item.paymentType || "CARD");
-    setRecurringActivityId(item.activityId || "none");
+    setRecurringActivityId(selectedActivityId || item.activityId || "none");
     setRecurringActive(item.isActive);
     setRecurringEditOpen(true);
   };
@@ -269,7 +281,7 @@ export default function Incomes() {
         startDate: recurringStartDate,
         endDate: recurringEndDate || undefined,
         frequency: recurringFrequency,
-        activityId: recurringActivityId === "none" ? undefined : recurringActivityId,
+        activityId: selectedActivityId ?? (recurringActivityId === "none" ? undefined : recurringActivityId),
         isActive: recurringActive,
       });
       await loadRecurringIncomes();
@@ -460,7 +472,7 @@ export default function Incomes() {
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Revenus automatiques{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({recurringList.length})
+                ({visibleRecurringList.length})
               </span>
             </p>
           </div>
@@ -480,7 +492,7 @@ export default function Incomes() {
                 </tr>
               </thead>
               <tbody>
-                {[...recurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
+                {[...visibleRecurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
                   const activity = item.activityId ? activityList.find((a) => a.id === item.activityId) : undefined;
                   return (
                     <tr key={item.id}>
@@ -530,6 +542,7 @@ export default function Incomes() {
         onOpenChange={setFormOpen}
         income={editItem}
         activities={activityList}
+        lockedActivityId={selectedActivityId}
         onCreate={handleCreate}
         onCreateRecurring={handleCreateRecurring}
         onUpdate={handleUpdate}
@@ -543,6 +556,7 @@ export default function Incomes() {
             value={withdrawalActivityId}
             onValueChange={setWithdrawalActivityId}
             options={[{ value: "none", label: "Selectionner..." }, ...activityList.map((activity) => ({ value: activity.id, label: activity.name }))]}
+            disabled={Boolean(selectedActivityId)}
           />
           <FormFieldInput label="Description (optionnel)" id="wd-desc" value={withdrawalDescription} onChange={setWithdrawalDescription} placeholder="Ex: Retrait ATM" />
           <button
@@ -582,6 +596,7 @@ export default function Incomes() {
             value={recurringActivityId}
             onValueChange={setRecurringActivityId}
             options={[{ value: "none", label: "Aucune" }, ...activityList.map((activity) => ({ value: activity.id, label: activity.name }))]}
+            disabled={Boolean(selectedActivityId)}
           />
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <Label className="text-sm" style={{ color: "hsl(var(--foreground))" }}>

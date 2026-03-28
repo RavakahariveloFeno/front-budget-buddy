@@ -13,6 +13,7 @@ import LoanPaymentForm from "@/components/forms/LoanPaymentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 const loanTypeLabels: Record<string, string> = { BANK: "Banque", FRIEND: "Ami", COMPANY: "Entreprise", OTHER: "Autre" };
 const loanTypeColors: Record<string, string> = { BANK: "badge-info", FRIEND: "badge-warning", COMPANY: "badge-purple", OTHER: "badge-income" };
@@ -30,6 +31,7 @@ const directionBadge = (direction?: string) => {
 };
 
 export default function Loans() {
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [loanList, setLoanList] = useState<Loan[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
@@ -87,7 +89,12 @@ export default function Loans() {
     return map;
   }, [activityList]);
 
-  const normalizedLoans = loanList.map((loan) => ({ ...loan, direction: loan.direction || "BORROWED" }));
+  const filteredLoans = useMemo(
+    () => (selectedActivityId ? loanList.filter((loan) => loan.activityId === selectedActivityId) : loanList),
+    [loanList, selectedActivityId],
+  );
+
+  const normalizedLoans = filteredLoans.map((loan) => ({ ...loan, direction: loan.direction || "BORROWED" }));
   const loanSort = compareByMostRecent<Loan>(["createdAt", "endDate", "startDate", "date"]);
 
   const activeBorrowedLoans = useMemo(
@@ -461,7 +468,7 @@ export default function Loans() {
         </div>
       </div>
 
-      <LoanForm open={formOpen} onOpenChange={setFormOpen} loan={editItem} activities={activityList} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <LoanForm open={formOpen} onOpenChange={setFormOpen} loan={editItem} activities={activityList} lockedActivityId={selectedActivityId} onCreate={handleCreate} onUpdate={handleUpdate} />
       <LoanPaymentForm open={paymentFormOpen} onOpenChange={setPaymentFormOpen} loanId={paymentLoanId} onCreate={handleCreatePayment} />
       <DeleteConfirmDialog
         open={deleteOpen}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, CalendarClock, LogOut, Menu, Search, Users } from "lucide-react";
+import { AlertTriangle, Bell, Briefcase, CalendarClock, LogOut, Menu, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser, getSuperAdminActingUserId, isSuperAdmin, setSuperAdminActingUserId } from "@/api/authApi";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +15,8 @@ import { formatCurrency } from "@/data/staticData";
 import { useMobileMenu } from "./mobile-menu";
 import { getSuperAdminUsers } from "@/api/superAdminApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getActivities } from "@/api/activityApi";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 interface HeaderProps {
   title: string;
@@ -34,6 +36,7 @@ interface AppNotification {
 
 type RecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
 const NOTIFICATION_POLL_INTERVAL_MS = 15000;
+const ALL_ACTIVITIES_VALUE = "__all__";
 
 function getDayStart(value: Date): Date {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -262,6 +265,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { toggle: toggleMobileMenu } = useMobileMenu();
+  const { selectedActivityId, setSelectedActivityId, clearSelectedActivityId } = useActivityFilterStore();
   const searchRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -290,6 +294,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
     queryKey: ["superadminUsers"],
     queryFn: getSuperAdminUsers,
     enabled: superAdmin,
+    staleTime: 30_000,
+  });
+
+  const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+    queryKey: ["activities"],
+    queryFn: getActivities,
     staleTime: 30_000,
   });
 
@@ -562,6 +572,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
   const handleLogout = () => {
     clearSessionToken();
+    clearSelectedActivityId();
     navigate("/signin", { replace: true });
     setUserMenuOpen(false);
   };
@@ -689,6 +700,38 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </div>
           )}
         </div>
+        <Select
+          value={selectedActivityId ?? ALL_ACTIVITIES_VALUE}
+          onValueChange={(value) => {
+            if (value === ALL_ACTIVITIES_VALUE) {
+              clearSelectedActivityId();
+              return;
+            }
+            setSelectedActivityId(value);
+          }}
+        >
+          <SelectTrigger
+            className="w-10 px-0 justify-center [&>svg]:hidden md:w-[260px] md:px-3 md:justify-between md:[&>svg]:block"
+            style={{ background: "hsl(var(--secondary))", borderColor: "hsl(var(--border))" }}
+            title="Filtrer par activite"
+          >
+            <span className="md:hidden" aria-hidden="true">
+              <Briefcase size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
+            </span>
+            <SelectValue
+              className="hidden md:inline"
+              placeholder={activitiesLoading ? "Chargement..." : "Toutes les activites"}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ACTIVITIES_VALUE}>Toutes les activites</SelectItem>
+            {activities.map((activity) => (
+              <SelectItem key={activity.id} value={activity.id}>
+                {activity.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {superAdmin && (
           <Select
             value={actingUserId ? actingUserId : "__self__"}

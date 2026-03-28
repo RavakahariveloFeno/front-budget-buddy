@@ -18,12 +18,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   income?: Income | null;
   activities: Activity[];
+  lockedActivityId?: string | null;
   onCreate: (payload: IncomePayload) => Promise<void>;
   onCreateRecurring: (payload: RecurringIncomePayload) => Promise<void>;
   onUpdate: (id: string, payload: IncomePayload) => Promise<void>;
 }
 
-export default function IncomeForm({ open, onOpenChange, income, activities, onCreate, onCreateRecurring, onUpdate }: Props) {
+export default function IncomeForm({ open, onOpenChange, income, activities, lockedActivityId = null, onCreate, onCreateRecurring, onUpdate }: Props) {
   const isEdit = Boolean(income);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -57,11 +58,11 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
     setDescription(income?.description || "");
     setDate(income?.date ? income.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setPaymentType(income?.paymentType || "CARD");
-    setActivityId(income?.activityId || "none");
+    setActivityId(lockedActivityId || income?.activityId || "none");
     setIsRecurring(false);
     setRecurrenceFrequency("MONTH");
     setRecurrenceEndDate("");
-  }, [income, open]);
+  }, [income, lockedActivityId, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +120,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
         <FormFieldInput label="Description" id="inc-desc" value={description} onChange={setDescription} placeholder="Ex: Salaire janvier" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="inc-date" type="date" value={date} onChange={setDate} required />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentOptions} />
-        <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={activityOptions} placeholder="Selectionner une activite" required />
+        <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={activityOptions} placeholder="Selectionner une activite" required disabled={Boolean(lockedActivityId)} />
         {!isEdit ? (
           <div className="space-y-2 rounded-lg border border-border p-3">
             <div className="flex items-center justify-between">

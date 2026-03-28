@@ -31,6 +31,7 @@ import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
 import { getBudgets, getBudgetStatistics, type BudgetStatistics } from "@/api/budgetApi";
 import { formatCurrency, formatDate, type Budget, type BudgetPeriod } from "@/data/staticData";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 /* ─────────────────────────────── helpers ─────────────────────────────── */
 
@@ -251,6 +252,7 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 /* ─────────────────────────────── Dashboard ─────────────────────────────── */
 
 export default function Dashboard() {
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
@@ -340,9 +342,9 @@ export default function Dashboard() {
     const loadDashboard = async () => {
       try {
         const [stats, budgetList, budgetStatistics] = await Promise.all([
-          getDashboardStats(),
-          getBudgets(),
-          getBudgetStatistics(),
+          getDashboardStats({ activityId: selectedActivityId ?? undefined }),
+          getBudgets(selectedActivityId ?? undefined),
+          getBudgetStatistics({ activityId: selectedActivityId ?? undefined }),
         ]);
         setDashboard(stats);
         setBudgets(budgetList);
@@ -356,7 +358,7 @@ export default function Dashboard() {
     };
 
     loadDashboard();
-  }, []);
+  }, [selectedActivityId]);
 
   return (
     <div className="animate-fade-in">
@@ -1260,7 +1262,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col divide-y divide-border/50">
-            {dashboard.activities.map((activity, index) => {
+            {(selectedActivityId ? dashboard.activities.filter((activity) => activity.activityId === selectedActivityId) : dashboard.activities).map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
               const totalBalance =
                 activity.cashBalance + activity.cardBalance || 1;
