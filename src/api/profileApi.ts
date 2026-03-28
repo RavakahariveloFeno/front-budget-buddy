@@ -15,6 +15,7 @@ export interface ManagedProfile {
   activities: string[];
   moduleLinks: string[];
   menuAccess: string[];
+  hasAllActivitiesAccess: boolean;
 }
 
 export interface ManagedProfilePayloadBase {
@@ -98,6 +99,7 @@ function mapManagedProfile(item: unknown): ManagedProfile | null {
     activities,
     moduleLinks,
     menuAccess,
+    hasAllActivitiesAccess: Boolean(record.hasAllActivitiesAccess ?? false),
   };
 }
 

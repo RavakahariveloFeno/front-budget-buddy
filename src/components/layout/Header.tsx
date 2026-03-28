@@ -316,6 +316,16 @@ export default function Header({ title, subtitle }: HeaderProps) {
     return activities.filter((activity) => allowed.has(activity.id));
   }, [activities, isManagedProfile, managedProfile?.activities]);
 
+  const shouldShowAllActivitiesOption = useMemo(() => {
+    // User principale : toujours afficher "Toutes les activités"
+    if (!isManagedProfile) {
+      return true;
+    }
+    
+    // Profile géré : utiliser l'information du backend
+    return managedProfile?.hasAllActivitiesAccess ?? false;
+  }, [isManagedProfile, managedProfile?.hasAllActivitiesAccess]);
+
   useEffect(() => {
     if (!isManagedProfile) {
       return;
@@ -334,6 +344,14 @@ export default function Header({ title, subtitle }: HeaderProps) {
       clearSelectedActivityId();
     }
   }, [clearSelectedActivityId, isManagedProfile, managedProfile?.activities, managedProfileLoading, selectedActivityId]);
+
+  useEffect(() => {
+    // Si shouldShowAllActivitiesOption est false et qu'aucune activité n'est sélectionnée,
+    // sélectionner automatiquement la première activité visible
+    if (!shouldShowAllActivitiesOption && !selectedActivityId && visibleActivities.length > 0) {
+      setSelectedActivityId(visibleActivities[0].id);
+    }
+  }, [shouldShowAllActivitiesOption, selectedActivityId, visibleActivities, setSelectedActivityId]);
 
   const searchItems = useMemo(
     () => [
@@ -756,7 +774,9 @@ export default function Header({ title, subtitle }: HeaderProps) {
             />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_ACTIVITIES_VALUE}>Toutes les activites</SelectItem>
+            {shouldShowAllActivitiesOption && (
+              <SelectItem value={ALL_ACTIVITIES_VALUE}>Toutes les activites</SelectItem>
+            )}
             {visibleActivities.map((activity) => (
               <SelectItem key={activity.id} value={activity.id}>
                 {activity.name}
