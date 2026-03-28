@@ -17,6 +17,7 @@ import { getSuperAdminUsers } from "@/api/superAdminApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getActivities } from "@/api/activityApi";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
+import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 
 interface HeaderProps {
   title: string;
@@ -282,6 +283,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.id ?? null;
+  const isManagedProfile = Boolean(currentUser?.profileId);
   const superAdmin = isSuperAdmin();
   const [actingUserId, setActingUserId] = useState<string>(() => getSuperAdminActingUserId() ?? "");
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
@@ -297,11 +299,41 @@ export default function Header({ title, subtitle }: HeaderProps) {
     staleTime: 30_000,
   });
 
+  const { data: managedProfile, isLoading: managedProfileLoading } = useActiveManagedProfile();
+
   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
     queryKey: ["activities"],
     queryFn: getActivities,
     staleTime: 30_000,
   });
+
+  const visibleActivities = useMemo(() => {
+    if (!isManagedProfile) {
+      return activities;
+    }
+
+    const allowed = new Set(managedProfile?.activities ?? []);
+    return activities.filter((activity) => allowed.has(activity.id));
+  }, [activities, isManagedProfile, managedProfile?.activities]);
+
+  useEffect(() => {
+    if (!isManagedProfile) {
+      return;
+    }
+
+    if (managedProfileLoading) {
+      return;
+    }
+
+    if (!selectedActivityId) {
+      return;
+    }
+
+    const allowed = new Set(managedProfile?.activities ?? []);
+    if (!allowed.has(selectedActivityId)) {
+      clearSelectedActivityId();
+    }
+  }, [clearSelectedActivityId, isManagedProfile, managedProfile?.activities, managedProfileLoading, selectedActivityId]);
 
   const searchItems = useMemo(
     () => [
@@ -720,12 +752,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </span>
             <SelectValue
               className="hidden md:inline"
-              placeholder={activitiesLoading ? "Chargement..." : "Toutes les activites"}
+              placeholder={activitiesLoading || (isManagedProfile && managedProfileLoading) ? "Chargement..." : "Toutes les activites"}
             />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_ACTIVITIES_VALUE}>Toutes les activites</SelectItem>
-            {activities.map((activity) => (
+            {visibleActivities.map((activity) => (
               <SelectItem key={activity.id} value={activity.id}>
                 {activity.name}
               </SelectItem>
