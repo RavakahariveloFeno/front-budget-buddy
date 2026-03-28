@@ -3,6 +3,23 @@ import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const SALE_API_URL = `${import.meta.env.VITE_API_URL}/sale`;
 
+async function readApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as any;
+    const message = data?.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+    if (Array.isArray(message) && message.length) {
+      return String(message[0]);
+    }
+  } catch {
+    // ignore
+  }
+
+  return `HTTP ${response.status}`;
+}
+
 export interface SaleContextParams {
   activityId: string;
   userId?: string;
@@ -59,6 +76,9 @@ function mapFacture(data: any): Facture {
       }))
     : [];
 
+  const rawPaymentType = String(data?.paymentType ?? "").toUpperCase();
+  const paymentType = rawPaymentType === "CASH" || rawPaymentType === "CARD" ? (rawPaymentType as "CASH" | "CARD") : undefined;
+
   return {
     id: String(data.id ?? ""),
     numero: String(data.number ?? ""),
@@ -67,10 +87,14 @@ function mapFacture(data: any): Facture {
     lignes,
     statut,
     total: Number(data.total ?? 0),
+    ...(paymentType ? { paymentType } : {}),
   };
 }
 
 function mapStockItem(data: any): StockItem {
+  const rawPaymentType = String(data?.paymentType ?? "").toUpperCase();
+  const paymentType = rawPaymentType === "CASH" || rawPaymentType === "CARD" ? (rawPaymentType as "CASH" | "CARD") : undefined;
+
   return {
     id: String(data.id ?? ""),
     produitId: String(data.productId ?? ""),
@@ -78,6 +102,7 @@ function mapStockItem(data: any): StockItem {
     seuilAlerte: Number(data.alertThreshold ?? 0),
     emplacement: String(data.location ?? ""),
     derniereMaj: String(data.lastUpdated ?? ""),
+    ...(paymentType ? { paymentType } : {}),
   };
 }
 
@@ -307,9 +332,10 @@ export type FactureStatutInput = "PAYÉE" | "EN_ATTENTE" | "ANNULÉE";
 
 export interface FacturePayload {
   numero: string;
-  clientId: string;
+  clientId?: string;
   date: string;
   statut: FactureStatutInput;
+  paymentType?: "CASH" | "CARD";
   lignes: LigneFacture[];
 }
 
@@ -331,9 +357,10 @@ export async function createFacture(params: SaleContextParams, payload: FactureP
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       number: payload.numero,
-      clientId: payload.clientId,
+      ...(payload.clientId ? { clientId: payload.clientId } : {}),
       date: new Date(payload.date).toISOString(),
       status: payload.statut,
+      paymentType: payload.paymentType,
       lines: payload.lignes.map((l) => ({
         productId: l.produitId,
         quantity: l.quantite,
@@ -359,9 +386,10 @@ export async function updateFacture(
     headers: buildAuthHeaders(true),
     body: JSON.stringify({
       number: payload.numero,
-      clientId: payload.clientId,
+      clientId: payload.clientId ?? null,
       date: new Date(payload.date).toISOString(),
       status: payload.statut,
+      paymentType: payload.paymentType,
       lines: payload.lignes.map((l) => ({
         productId: l.produitId,
         quantity: l.quantite,
@@ -391,6 +419,7 @@ export interface StockPayload {
   quantite: number;
   seuilAlerte: number;
   emplacement: string;
+  paymentType?: "CASH" | "CARD";
 }
 
 export async function getStock(params: SaleContextParams): Promise<StockItem[]> {
@@ -417,11 +446,12 @@ export async function createStockItem(
       quantity: payload.quantite,
       alertThreshold: payload.seuilAlerte,
       location: payload.emplacement,
+      paymentType: payload.paymentType,
       userId,
       activityId,
     }),
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) throw new Error(await readApiErrorMessage(response));
   const data: unknown = await response.json();
   return mapStockItem(data);
 }
@@ -440,10 +470,11 @@ export async function updateStockItem(
       quantity: payload.quantite,
       alertThreshold: payload.seuilAlerte,
       location: payload.emplacement,
+      paymentType: payload.paymentType,
       userId,
     }),
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) throw new Error(await readApiErrorMessage(response));
   const data: unknown = await response.json();
   return mapStockItem(data);
 }

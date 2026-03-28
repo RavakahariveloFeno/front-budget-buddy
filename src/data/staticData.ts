@@ -71,6 +71,7 @@ export interface Budget {
   amount: number;
   period: BudgetPeriod;
   startDate: string;
+  activityId?: string;
   userId: string;
 }
 

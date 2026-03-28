@@ -8,6 +8,7 @@ export interface BudgetPayload {
   amount: number;
   period: BudgetPeriod;
   startDate: string;
+  activityId: string;
 }
 
 export interface BudgetStatistics {
@@ -41,6 +42,7 @@ function mapBudget(item: unknown): Budget | null {
     amount: Number(record.amount ?? 0),
     period: record.period,
     startDate: String(record.startDate ?? ""),
+    ...(record.activityId ? { activityId: String(record.activityId) } : {}),
     userId: String(record.userId ?? ""),
   };
 }
@@ -67,9 +69,10 @@ function mapBudgetStatistics(item: unknown): BudgetStatistics | null {
   };
 }
 
-export async function getBudgets(): Promise<Budget[]> {
+export async function getBudgets(activityId?: string): Promise<Budget[]> {
   const userId = getRequiredUserId();
-  const response = await fetch(BUDGET_API_URL, {
+  const query = activityId ? `?activityId=${encodeURIComponent(activityId)}` : "";
+  const response = await fetch(`${BUDGET_API_URL}/user/${userId}${query}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -83,12 +86,13 @@ export async function getBudgets(): Promise<Budget[]> {
 
   return data
     .map((item): Budget | null => mapBudget(item))
-    .filter((item): item is Budget => Boolean(item && item.id && Number.isFinite(item.amount) && item.startDate && item.userId))
-    .filter((item) => item.userId === userId);
+    .filter((item): item is Budget => Boolean(item && item.id && Number.isFinite(item.amount) && item.startDate && item.userId));
 }
 
-export async function getBudgetStatistics(userId: string = getRequiredUserId()): Promise<BudgetStatistics> {
-  const response = await fetch(`${STATISTICS_API_URL}/budgets/user/${userId}`, {
+export async function getBudgetStatistics(params?: { userId?: string; activityId?: string }): Promise<BudgetStatistics> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const query = params?.activityId ? `?activityId=${encodeURIComponent(params.activityId)}` : "";
+  const response = await fetch(`${STATISTICS_API_URL}/budgets/user/${userId}${query}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -113,6 +117,7 @@ export async function createBudget(payload: BudgetPayload): Promise<Budget> {
       amount: payload.amount,
       period: payload.period,
       startDate: toIsoDate(payload.startDate),
+      activityId: payload.activityId,
       userId,
     }),
   });
@@ -136,6 +141,7 @@ export async function updateBudget(id: string, payload: BudgetPayload): Promise<
     amount: payload.amount,
     period: payload.period,
     startDate: toIsoDate(payload.startDate),
+    activityId: payload.activityId,
     userId,
   });
   let response = await fetch(`${BUDGET_API_URL}/${id}`, {

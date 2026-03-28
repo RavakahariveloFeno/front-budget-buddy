@@ -28,6 +28,7 @@ export default function StockPage() {
   const [quantite, setQuantite] = useState("");
   const [seuil, setSeuil] = useState("");
   const [emplacement, setEmplacement] = useState("");
+  const [paymentType, setPaymentType] = useState<"CASH" | "CARD">("CASH");
   const [produitFormOpen, setProduitFormOpen] = useState(false);
   const [newProdNom, setNewProdNom] = useState("");
   const [newProdRef, setNewProdRef] = useState("");
@@ -61,13 +62,13 @@ export default function StockPage() {
     return produits.find((p) => p.id === id)?.nom ?? "—";
   }
 
-  const openAdd = () => { setEditing(null); setProduitId(""); setQuantite(""); setSeuil("15"); setEmplacement(""); setFormOpen(true); };
-  const openEdit = (s: StockItem) => { setEditing(s); setProduitId(s.produitId); setQuantite(String(s.quantite)); setSeuil(String(s.seuilAlerte)); setEmplacement(s.emplacement); setFormOpen(true); };
+  const openAdd = () => { setEditing(null); setProduitId(""); setQuantite(""); setSeuil("15"); setEmplacement(""); setPaymentType("CASH"); setFormOpen(true); };
+  const openEdit = (s: StockItem) => { setEditing(s); setProduitId(s.produitId); setQuantite(String(s.quantite)); setSeuil(String(s.seuilAlerte)); setEmplacement(s.emplacement); setPaymentType(s.paymentType || "CASH"); setFormOpen(true); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId) return;
-    const payload = { produitId, quantite: +quantite, seuilAlerte: +seuil, emplacement };
+    const payload = { produitId, quantite: +quantite, seuilAlerte: +seuil, emplacement, paymentType };
     try {
       if (editing) {
         const updated = await updateStockItem({ activityId }, editing.id, payload);
@@ -79,8 +80,8 @@ export default function StockPage() {
         toast({ title: "Stock ajouté" });
       }
       setFormOpen(false);
-    } catch {
-      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Erreur lors de l'enregistrement", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -168,6 +169,15 @@ export default function StockPage() {
           <FormFieldInput label="Quantité" id="quantite" type="number" value={quantite} onChange={setQuantite} min="0" required />
           <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" />
           <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" />
+          <SelectField
+            label="Mode de paiement"
+            value={paymentType}
+            onValueChange={(v) => setPaymentType(v as "CASH" | "CARD")}
+            options={[
+              { value: "CASH", label: "Especes" },
+              { value: "CARD", label: "Carte" },
+            ]}
+          />
           <Button type="submit" className="w-full">{editing ? "Enregistrer" : "Ajouter"}</Button>
         </form>
       </FormDialog>

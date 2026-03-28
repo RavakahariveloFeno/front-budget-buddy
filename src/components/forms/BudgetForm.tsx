@@ -15,12 +15,13 @@ const periodOptions = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  activityId: string;
   budget?: Budget | null;
   onCreate: (payload: BudgetPayload) => Promise<void>;
   onUpdate: (id: string, payload: BudgetPayload) => Promise<void>;
 }
 
-export default function BudgetForm({ open, onOpenChange, budget, onCreate, onUpdate }: Props) {
+export default function BudgetForm({ open, onOpenChange, activityId, budget, onCreate, onUpdate }: Props) {
   const isEdit = Boolean(budget);
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>("MONTH");
@@ -50,6 +51,7 @@ export default function BudgetForm({ open, onOpenChange, budget, onCreate, onUpd
       amount: parsedAmount,
       period,
       startDate,
+      activityId,
     };
 
     try {
