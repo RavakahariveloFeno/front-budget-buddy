@@ -99,6 +99,8 @@ function mapStockItem(data: any): StockItem {
     id: String(data.id ?? ""),
     produitId: String(data.productId ?? ""),
     quantite: Number(data.quantity ?? 0),
+    ...(data.unitPurchasePrice !== undefined && data.unitPurchasePrice !== null ? { unitPurchasePrice: Number(data.unitPurchasePrice) } : {}),
+    ...(data.unitSalePrice !== undefined && data.unitSalePrice !== null ? { unitSalePrice: Number(data.unitSalePrice) } : {}),
     seuilAlerte: Number(data.alertThreshold ?? 0),
     emplacement: String(data.location ?? ""),
     derniereMaj: String(data.lastUpdated ?? ""),
@@ -417,6 +419,8 @@ export async function deleteFacture(params: SaleContextParams, id: string): Prom
 export interface StockPayload {
   produitId: string;
   quantite: number;
+  unitPurchasePrice?: number;
+  unitSalePrice?: number;
   seuilAlerte: number;
   emplacement: string;
   paymentType?: "CASH" | "CARD";
@@ -444,6 +448,8 @@ export async function createStockItem(
     body: JSON.stringify({
       productId: payload.produitId,
       quantity: payload.quantite,
+      ...(payload.unitPurchasePrice !== undefined ? { unitPurchasePrice: payload.unitPurchasePrice } : {}),
+      ...(payload.unitSalePrice !== undefined ? { unitSalePrice: payload.unitSalePrice } : {}),
       alertThreshold: payload.seuilAlerte,
       location: payload.emplacement,
       paymentType: payload.paymentType,
@@ -468,6 +474,8 @@ export async function updateStockItem(
     body: JSON.stringify({
       productId: payload.produitId,
       quantity: payload.quantite,
+      ...(payload.unitPurchasePrice !== undefined ? { unitPurchasePrice: payload.unitPurchasePrice } : {}),
+      ...(payload.unitSalePrice !== undefined ? { unitSalePrice: payload.unitSalePrice } : {}),
       alertThreshold: payload.seuilAlerte,
       location: payload.emplacement,
       paymentType: payload.paymentType,

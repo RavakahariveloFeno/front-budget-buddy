@@ -13,6 +13,8 @@ export interface StockItem {
   id: string;
   produitId: string;
   quantite: number;
+  unitPurchasePrice?: number;
+  unitSalePrice?: number;
   seuilAlerte: number;
   emplacement: string;
   derniereMaj: string;

@@ -18,6 +18,9 @@ import { createClient, createFacture, createProduit, deleteFacture, getClients, 
 function clientNom(id: string, clients: Client[]) { return id ? (clients.find((c) => c.id === id)?.nom ?? "—") : "Sans client"; }
 function produitNom(id: string, produits: Produit[]) { return produits.find((p) => p.id === id)?.nom ?? "—"; }
 
+const NO_CLIENT_VALUE = "__NO_CLIENT__";
+function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
+
 const statutColor: Record<FactureStatut, string> = {
   "PAYÉE": "default",
   "EN_ATTENTE": "secondary",
@@ -164,9 +167,9 @@ export default function FacturesPage() {
                 <FormFieldInput label="Numéro" id="numero" value={numero} onChange={setNumero} required />
                 <SelectField
                   label="Client (optionnel)"
-                  value={clientId}
-                  onValueChange={setClientId}
-                  options={[{ value: "", label: "Sans client" }, ...clients.map((c) => ({ value: c.id, label: c.nom }))]}
+                  value={clientId || NO_CLIENT_VALUE}
+                  onValueChange={(value) => setClientId(value === NO_CLIENT_VALUE ? "" : value)}
+                  options={[{ value: NO_CLIENT_VALUE, label: "Sans client" }, ...clients.map((c) => ({ value: c.id, label: c.nom }))]}
                   placeholder="Choisir un client"
                   onAddClick={() => { setNewClientNom(""); setNewClientEmail(""); setNewClientTelephone(""); setNewClientAdresse(""); setClientFormOpen(true); }}
                 />
@@ -296,6 +299,7 @@ export default function FacturesPage() {
                 <TableHead>Client</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Paiement</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -307,6 +311,7 @@ export default function FacturesPage() {
                   <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(f.date)}</TableCell>
                   <TableCell className="font-semibold text-foreground">{formatCurrency(f.total)}</TableCell>
+                  <TableCell className="text-muted-foreground">{paymentLabel(f.paymentType)}</TableCell>
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
