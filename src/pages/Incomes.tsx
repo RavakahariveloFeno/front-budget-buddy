@@ -147,11 +147,7 @@ export default function Incomes() {
   useEffect(() => {
     loadIncomes();
     loadRecurringIncomes();
-<<<<<<< HEAD
-    loadActivities();
     loadWithdrawals();
-=======
->>>>>>> 87ba97ea83fdeac5cee8eb0f8eac51ee67470b97
     refreshIncomeStats();
   }, [selectedActivityId]);
 
@@ -175,15 +171,10 @@ export default function Incomes() {
     setWithdrawalAmount("");
     setWithdrawalDescription("");
     setWithdrawalDate(new Date().toISOString().split("T")[0]);
-<<<<<<< HEAD
-    setWithdrawalActivityId("none");
+    setWithdrawalActivityId(selectedActivityId ?? "none");
     setWithdrawalPaymentType("CARD");
     setWithdrawalCashFee("");
-  }, [withdrawalOpen, withdrawalEditItem]);
-=======
-    setWithdrawalActivityId(selectedActivityId ?? "none");
-  }, [selectedActivityId, withdrawalOpen]);
->>>>>>> 87ba97ea83fdeac5cee8eb0f8eac51ee67470b97
+  }, [selectedActivityId, withdrawalOpen, withdrawalEditItem]);
 
   const totalIncome = incomeStats.totalIncome;
   const cardTotal = incomeStats.cardTotal;
@@ -238,17 +229,13 @@ export default function Incomes() {
       toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
       return;
     }
-<<<<<<< HEAD
     if (parsedCashFee !== undefined && (!Number.isFinite(parsedCashFee) || parsedCashFee < 0)) {
       toast({ title: "Frais invalides", description: "Saisissez un montant de frais en especes >= 0." });
       return;
     }
-    if (withdrawalActivityId === "none") {
-=======
 
     const effectiveWithdrawalActivityId = selectedActivityId ?? withdrawalActivityId;
     if (effectiveWithdrawalActivityId === "none") {
->>>>>>> 87ba97ea83fdeac5cee8eb0f8eac51ee67470b97
       toast({ title: "Activite requise", description: "Selectionnez une activite pour faire un retrait." });
       return;
     }
@@ -259,8 +246,7 @@ export default function Incomes() {
         amount: parsedAmount,
         date: withdrawalDate,
         description: withdrawalDescription.trim() || undefined,
-<<<<<<< HEAD
-        activityId: withdrawalActivityId,
+        activityId: effectiveWithdrawalActivityId,
         paymentType: withdrawalPaymentType,
         cashFee: parsedCashFee !== undefined && parsedCashFee > 0 ? parsedCashFee : undefined,
       };
@@ -275,10 +261,6 @@ export default function Incomes() {
         toast({ title: "Retrait enregistre", description: `-${formatCurrency(parsedAmount)}` });
       }
 
-=======
-        activityId: effectiveWithdrawalActivityId,
-      });
->>>>>>> 87ba97ea83fdeac5cee8eb0f8eac51ee67470b97
       await refreshIncomeStats();
       setWithdrawalOpen(false);
       setWithdrawalEditItem(null);
@@ -343,12 +325,8 @@ export default function Incomes() {
     setRecurringEndDate(item.endDate ? item.endDate.split("T")[0] : "");
     setRecurringFrequency(item.frequency);
     setRecurringPaymentType(item.paymentType || "CARD");
-<<<<<<< HEAD
     setRecurringCashFee(item.cashFee !== undefined && Number.isFinite(item.cashFee) ? String(item.cashFee) : "");
-    setRecurringActivityId(item.activityId || "none");
-=======
     setRecurringActivityId(selectedActivityId || item.activityId || "none");
->>>>>>> 87ba97ea83fdeac5cee8eb0f8eac51ee67470b97
     setRecurringActive(item.isActive);
     setRecurringEditOpen(true);
   };

@@ -60,12 +60,8 @@ export default function IncomeForm({ open, onOpenChange, income, activities, loc
     setDescription(income?.description || "");
     setDate(income?.date ? income.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setPaymentType(income?.paymentType || "CARD");
-<<<<<<< HEAD
     setCashFee(income?.cashFee !== undefined && Number.isFinite(income.cashFee) ? String(income.cashFee) : "");
-    setActivityId(income?.activityId || "none");
-=======
     setActivityId(lockedActivityId || income?.activityId || "none");
->>>>>>> 87ba97ea83fdeac5cee8eb0f8eac51ee67470b97
     setIsRecurring(false);
     setRecurrenceFrequency("MONTH");
     setRecurrenceEndDate("");
