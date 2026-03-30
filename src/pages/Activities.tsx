@@ -217,7 +217,7 @@ export default function Activities() {
       if (!s) return acc;
       acc.income += s.income ?? 0;
       acc.expense += s.expense ?? 0;
-      acc.net += (s.cardBalance ?? 0) + (s.cashBalance ?? 0);
+      acc.net += (s.cardBalance ?? 0) + (s.cashBalance ?? 0) + (s.mobileBalance ?? 0);
       return acc;
     },
     { income: 0, expense: 0, net: 0 },
@@ -322,11 +322,12 @@ export default function Activities() {
             const actExpenses = stats?.expense ?? 0;
             const cardBalance = stats?.cardBalance ?? 0;
             const cashBalance = stats?.cashBalance ?? 0;
+            const mobileBalance = stats?.mobileBalance ?? 0;
             const sentInv = stats?.sentInvestment ?? 0;
             const recvInv = stats?.receivedInvestment ?? 0;
             const remainingLoan = stats?.remainingLoan ?? 0;
             const remainingToRecover = stats?.remainingToRecover ?? 0;
-            const netAvailable = cardBalance + cashBalance;
+            const netAvailable = cardBalance + cashBalance + mobileBalance;
             const netPositive = netAvailable >= 0;
 
             const expenseRatio =
@@ -485,6 +486,13 @@ export default function Activities() {
                       value={formatCurrency(cashBalance)}
                       color="hsl(var(--warning))"
                       bg="hsl(var(--warning-dim))"
+                      icon={Wallet}
+                    />
+                    <MetricCell
+                      label="Solde mobile"
+                      value={formatCurrency(mobileBalance)}
+                      color="hsl(var(--purple))"
+                      bg="hsl(var(--purple-dim))"
                       icon={Wallet}
                     />
                     <MetricCell

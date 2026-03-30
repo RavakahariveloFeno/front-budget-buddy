@@ -20,6 +20,7 @@ export interface ActivityStats {
   receivedInvestment: number;
   cardBalance: number;
   cashBalance: number;
+  mobileBalance: number;
   remainingLoan: number;
   remainingToRecover: number;
 }
@@ -65,6 +66,7 @@ function mapActivityStats(item: unknown): ActivityStats | null {
   const receivedInvestment = Number(record.receivedInvestment ?? 0);
   const cardBalance = Number(record.cardBalance ?? 0);
   const cashBalance = Number(record.cashBalance ?? 0);
+  const mobileBalance = Number(record.mobileBalance ?? 0);
   const remainingLoan = Number(record.remainingLoan ?? 0);
   const remainingToRecover = Number(record.remainingToRecover ?? 0);
 
@@ -80,6 +82,7 @@ function mapActivityStats(item: unknown): ActivityStats | null {
     receivedInvestment: Number.isFinite(receivedInvestment) ? receivedInvestment : 0,
     cardBalance: Number.isFinite(cardBalance) ? cardBalance : 0,
     cashBalance: Number.isFinite(cashBalance) ? cashBalance : 0,
+    mobileBalance: Number.isFinite(mobileBalance) ? mobileBalance : 0,
     remainingLoan: Number.isFinite(remainingLoan) ? remainingLoan : 0,
     remainingToRecover: Number.isFinite(remainingToRecover) ? remainingToRecover : 0,
   };

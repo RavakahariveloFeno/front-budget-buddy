@@ -200,6 +200,7 @@ const EMPTY_DASHBOARD: DashboardStats = {
   paymentBalances: {
     card: 0,
     cash: 0,
+    mobile: 0,
   },
   monthlyData: [],
   expensesByCategory: [],
@@ -303,10 +304,10 @@ export default function Dashboard() {
         ? Math.round((dashboard.totals.expense / dashboard.totals.income) * 100)
         : 0;
     const cashShare =
-      dashboard.paymentBalances.card + dashboard.paymentBalances.cash > 0
+      dashboard.paymentBalances.card + dashboard.paymentBalances.cash + dashboard.paymentBalances.mobile > 0
         ? Math.round(
           (dashboard.paymentBalances.cash /
-            (dashboard.paymentBalances.card + dashboard.paymentBalances.cash)) *
+            (dashboard.paymentBalances.card + dashboard.paymentBalances.cash + dashboard.paymentBalances.mobile)) *
           100,
         )
         : 0;
@@ -431,7 +432,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* BOTTOM: répartition paiement (REMPLACE le pie chart) */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
 
                   {/* CASH */}
                   <div className="p-4 rounded-xl border border-border bg-muted/30">
@@ -450,7 +451,8 @@ export default function Dashboard() {
                         style={{
                           width: `${(dashboard.paymentBalances.cash /
                             (dashboard.paymentBalances.cash +
-                              dashboard.paymentBalances.card || 1)) *
+                              dashboard.paymentBalances.card +
+                              dashboard.paymentBalances.mobile || 1)) *
                             100
                             }%`,
                         }}
@@ -475,7 +477,34 @@ export default function Dashboard() {
                         style={{
                           width: `${(dashboard.paymentBalances.card /
                             (dashboard.paymentBalances.cash +
-                              dashboard.paymentBalances.card || 1)) *
+                              dashboard.paymentBalances.card +
+                              dashboard.paymentBalances.mobile || 1)) *
+                            100
+                            }%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* MOBILE */}
+                  <div className="p-4 rounded-xl border border-border bg-muted/30">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">Mobile</span>
+                      <span className="text-lg">📱</span>
+                    </div>
+
+                    <p className="text-lg font-semibold mt-2">
+                      {formatCurrency(dashboard.paymentBalances.mobile)}
+                    </p>
+
+                    <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500"
+                        style={{
+                          width: `${(dashboard.paymentBalances.mobile /
+                            (dashboard.paymentBalances.cash +
+                              dashboard.paymentBalances.card +
+                              dashboard.paymentBalances.mobile || 1)) *
                             100
                             }%`,
                         }}
@@ -1265,12 +1294,13 @@ export default function Dashboard() {
             {(selectedActivityId ? dashboard.activities.filter((activity) => activity.activityId === selectedActivityId) : dashboard.activities).map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
               const totalBalance =
-                activity.cashBalance + activity.cardBalance || 1;
+                activity.cashBalance + activity.cardBalance + activity.mobileBalance || 1;
 
               const cashPct = Math.round(
                 (activity.cashBalance / totalBalance) * 100
               );
-              const cardPct = 100 - cashPct;
+              const cardPct = Math.round((activity.cardBalance / totalBalance) * 100);
+              const mobilePct = Math.max(0, 100 - cashPct - cardPct);
 
               const netInvest =
                 activity.receivedInvestment - activity.sentInvestment;
@@ -1321,11 +1351,16 @@ export default function Dashboard() {
                         style={{ width: `${cardPct}%` }}
                         className="bg-blue-500 transition-all duration-700"
                       />
+                      <div
+                        style={{ width: `${mobilePct}%` }}
+                        className="bg-violet-500 transition-all duration-700"
+                      />
                     </div>
 
                     <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                       <span>💵 {cashPct}%</span>
                       <span>💳 {cardPct}%</span>
+                      <span>📱 {mobilePct}%</span>
                     </div>
                   </div>
 

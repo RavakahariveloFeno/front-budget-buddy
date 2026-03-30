@@ -17,6 +17,7 @@ export interface DashboardStats {
   paymentBalances: {
     card: number;
     cash: number;
+    mobile: number;
   };
   monthlyData: Array<{
     month: string;
@@ -64,6 +65,7 @@ export interface DashboardStats {
     netAvailable: number;
     cardBalance: number;
     cashBalance: number;
+    mobileBalance: number;
   }>;
 }
 
@@ -177,6 +179,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
             netAvailable: Number(row.netAvailable ?? 0),
             cardBalance: Number(row.cardBalance ?? 0),
             cashBalance: Number(row.cashBalance ?? 0),
+            mobileBalance: Number(row.mobileBalance ?? 0),
           };
         })
         .filter((entry): entry is DashboardStats["activities"][number] => Boolean(entry && entry.activityId && entry.name))
@@ -187,8 +190,9 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
     ? {
         card: Number(paymentBalancesRaw.card ?? 0),
         cash: Number(paymentBalancesRaw.cash ?? 0),
+        mobile: Number(paymentBalancesRaw.mobile ?? 0),
       }
-    : { card: 0, cash: 0 };
+    : { card: 0, cash: 0, mobile: 0 };
 
   return {
     totals: {
@@ -204,6 +208,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
     paymentBalances: {
       card: Number.isFinite(paymentBalances.card) ? paymentBalances.card : 0,
       cash: Number.isFinite(paymentBalances.cash) ? paymentBalances.cash : 0,
+      mobile: Number.isFinite(paymentBalances.mobile) ? paymentBalances.mobile : 0,
     },
     monthlyData,
     expensesByCategory,
