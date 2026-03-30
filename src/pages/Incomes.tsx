@@ -90,6 +90,11 @@ export default function Incomes() {
     [recurringList, selectedActivityId],
   );
 
+  const visibleWithdrawalList = useMemo(
+    () => (selectedActivityId ? withdrawalList.filter((item) => item.activityId === selectedActivityId) : withdrawalList),
+    [withdrawalList, selectedActivityId],
+  );
+
   const loadIncomes = async () => {
     try {
       const remoteIncomes = await getIncomes({ activityId: selectedActivityId ?? undefined });
@@ -508,46 +513,46 @@ export default function Incomes() {
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
-                <tbody>
+              <tbody>
                 {[...incomeList]
                   .sort(compareByMostRecent(["createdAt", "date"]))
                   .map((inc) => {
-                  const act = activityList.find((activity) => activity.id === inc.activityId);
-                  return (
-                    <tr key={inc.id}>
-                      <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(inc.date)}</td>
-                      <td style={{ color: "hsl(var(--foreground))" }}>{inc.description || "-"}</td>
-                      <td>{act ? <span className="badge-income">{act.name}</span> : "-"}</td>
-                      <td className="text-right" style={{ color: "hsl(var(--info))" }}>
-                        {inc.paymentType === "CARD" ? formatCurrency(inc.amount) : "-"}
-                      </td>
-                      <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
-                        {inc.paymentType === "MOBILE" ? formatCurrency(inc.amount) : "-"}
-                      </td>
-                      <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
-                        {inc.paymentType === "CASH" ? formatCurrency(inc.amount) : "-"}
-                      </td>
-                      <td>
-                        <span className={inc.recurringIncomeId ? "badge-warning text-xs" : "badge-info text-xs"}>
-                          {inc.recurringIncomeId ? "Automatique" : "Manuel"}
-                        </span>
-                      </td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>
-                        +{formatCurrency(inc.amount)}
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleEdit(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
-                            <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                          </button>
-                          <button onClick={() => handleDelete(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                            <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                    const act = activityList.find((activity) => activity.id === inc.activityId);
+                    return (
+                      <tr key={inc.id}>
+                        <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(inc.date)}</td>
+                        <td style={{ color: "hsl(var(--foreground))" }}>{inc.description || "-"}</td>
+                        <td>{act ? <span className="badge-income">{act.name}</span> : "-"}</td>
+                        <td className="text-right" style={{ color: "hsl(var(--info))" }}>
+                          {inc.paymentType === "CARD" ? formatCurrency(inc.amount) : "-"}
+                        </td>
+                        <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
+                          {inc.paymentType === "MOBILE" ? formatCurrency(inc.amount) : "-"}
+                        </td>
+                        <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
+                          {inc.paymentType === "CASH" ? formatCurrency(inc.amount) : "-"}
+                        </td>
+                        <td>
+                          <span className={inc.recurringIncomeId ? "badge-warning text-xs" : "badge-info text-xs"}>
+                            {inc.recurringIncomeId ? "Automatique" : "Manuel"}
+                          </span>
+                        </td>
+                        <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>
+                          +{formatCurrency(inc.amount)}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => handleEdit(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                              <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button onClick={() => handleDelete(inc)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                              <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -631,7 +636,7 @@ export default function Incomes() {
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Retraits{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({withdrawalList.length})
+                ({visibleWithdrawalList.length})
               </span>
             </p>
             <button
@@ -659,7 +664,7 @@ export default function Incomes() {
                 </tr>
               </thead>
               <tbody>
-                {[...withdrawalList]
+                {[...visibleWithdrawalList]
                   .sort(compareByMostRecent(["date", "createdAt"]))
                   .map((wd) => {
                     const act = activityList.find((a) => a.id === wd.activityId);
@@ -793,9 +798,8 @@ export default function Incomes() {
         open={withdrawalDeleteOpen}
         onOpenChange={setWithdrawalDeleteOpen}
         title="Annuler le retrait"
-        description={`Annuler "${withdrawalDeleteTarget?.description || "ce retrait"}" de ${
-          withdrawalDeleteTarget ? formatCurrency(withdrawalDeleteTarget.amount) : ""
-        } ?`}
+        description={`Annuler "${withdrawalDeleteTarget?.description || "ce retrait"}" de ${withdrawalDeleteTarget ? formatCurrency(withdrawalDeleteTarget.amount) : ""
+          } ?`}
         onConfirm={confirmCancelWithdrawal}
       />
       <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier le revenu automatique">
