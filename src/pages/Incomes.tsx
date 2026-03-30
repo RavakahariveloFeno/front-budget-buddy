@@ -182,9 +182,9 @@ export default function Incomes() {
   }, [selectedActivityId, withdrawalOpen, withdrawalEditItem]);
 
   const totalIncome = incomeStats.totalIncome;
-  const cardTotal = incomeStats.cardTotal;
-  const cashTotal = incomeStats.cashTotal;
-  const mobileTotal = incomeStats.mobileTotal;
+  const cardTotal = useMemo(() => incomeList.filter((i) => i.paymentType === "CARD").reduce((sum, i) => sum + i.amount, 0), [incomeList]);
+  const cashTotal = useMemo(() => incomeList.filter((i) => i.paymentType === "CASH").reduce((sum, i) => sum + i.amount, 0), [incomeList]);
+  const mobileTotal = useMemo(() => incomeList.filter((i) => i.paymentType === "MOBILE").reduce((sum, i) => sum + i.amount, 0), [incomeList]);
   const accountTotal = cardTotal + cashTotal + mobileTotal;
 
   const cardPercent = accountTotal > 0 ? Math.round((cardTotal / accountTotal) * 100) : 0;
