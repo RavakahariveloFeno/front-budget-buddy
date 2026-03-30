@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 const paymentOptions = [
   { value: "CARD", label: "Carte" },
   { value: "CASH", label: "Especes" },
+  { value: "MOBILE", label: "Compte mobile" },
 ];
 
 interface Props {
@@ -29,6 +30,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentType, setPaymentType] = useState<PaymentType>("CARD");
+  const [cashFee, setCashFee] = useState("");
   const [activityId, setActivityId] = useState("none");
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
@@ -57,6 +59,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
     setDescription(income?.description || "");
     setDate(income?.date ? income.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setPaymentType(income?.paymentType || "CARD");
+    setCashFee(income?.cashFee !== undefined && Number.isFinite(income.cashFee) ? String(income.cashFee) : "");
     setActivityId(income?.activityId || "none");
     setIsRecurring(false);
     setRecurrenceFrequency("MONTH");
@@ -66,9 +69,14 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = Number(amount);
+    const parsedCashFee = cashFee.trim().length ? Number(cashFee) : undefined;
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
+      return;
+    }
+    if (parsedCashFee !== undefined && (!Number.isFinite(parsedCashFee) || parsedCashFee < 0)) {
+      toast({ title: "Frais invalides", description: "Saisissez un montant de frais en especes >= 0." });
       return;
     }
     if (activityId === "none") {
@@ -79,6 +87,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
     const payloadBase = {
       amount: parsedAmount,
       paymentType,
+      cashFee: parsedCashFee !== undefined && parsedCashFee > 0 ? parsedCashFee : undefined,
       description: description.trim() || undefined,
       activityId,
     };
@@ -116,6 +125,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, onC
     <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier le revenu" : "Nouveau revenu"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (MGA)" id="inc-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
+        <FormFieldInput label="Frais en especes (optionnel)" id="inc-cash-fee" type="number" value={cashFee} onChange={setCashFee} placeholder="0.00" step="0.01" min="0" />
         <FormFieldInput label="Description" id="inc-desc" value={description} onChange={setDescription} placeholder="Ex: Salaire janvier" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="inc-date" type="date" value={date} onChange={setDate} required />
         <SelectField label="Mode de paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)} options={paymentOptions} />

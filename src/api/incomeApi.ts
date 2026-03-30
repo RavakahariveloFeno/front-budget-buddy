@@ -7,6 +7,7 @@ const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 export interface IncomePayload {
   amount: number;
   paymentType?: PaymentType;
+  cashFee?: number;
   date: string;
   description?: string;
   activityId?: string;
@@ -17,6 +18,7 @@ export type IncomeRecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
 export interface RecurringIncomePayload {
   amount: number;
   paymentType?: PaymentType;
+  cashFee?: number;
   startDate: string;
   endDate?: string;
   frequency: IncomeRecurrenceFrequency;
@@ -28,6 +30,7 @@ export interface RecurringIncome {
   id: string;
   amount: number;
   paymentType?: PaymentType;
+  cashFee?: number;
   startDate: string;
   endDate?: string;
   frequency: IncomeRecurrenceFrequency;
@@ -40,6 +43,7 @@ export interface RecurringIncome {
 export interface UpdateRecurringIncomePayload {
   amount?: number;
   paymentType?: PaymentType;
+  cashFee?: number;
   startDate?: string;
   endDate?: string;
   frequency?: IncomeRecurrenceFrequency;
@@ -58,11 +62,12 @@ export interface IncomeStatistics {
   totalIncome: number;
   cardTotal: number;
   cashTotal: number;
+  mobileTotal: number;
   monthlyData: IncomeMonthlyPoint[];
 }
 
 function isValidPaymentType(type: unknown): type is PaymentType {
-  return type === "CASH" || type === "CARD";
+  return type === "CASH" || type === "CARD" || type === "MOBILE";
 }
 
 function toIsoDate(date: string): string {
@@ -76,13 +81,19 @@ function mapIncome(item: unknown): Income | null {
 
   const record = item as Record<string, unknown>;
   const rawPaymentType = record.paymentType;
-  const paymentType = isValidPaymentType(rawPaymentType) ? rawPaymentType : undefined;
+  const paymentType =
+    rawPaymentType === null || rawPaymentType === undefined
+      ? "CARD"
+      : isValidPaymentType(rawPaymentType)
+        ? rawPaymentType
+        : undefined;
 
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
     date: String(record.date ?? ""),
     userId: String(record.userId ?? ""),
+    ...(Number.isFinite(Number(record.cashFee ?? NaN)) ? { cashFee: Number(record.cashFee) } : {}),
     ...(record.createdAt ? { createdAt: String(record.createdAt) } : {}),
     ...(paymentType ? { paymentType } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
@@ -101,7 +112,13 @@ function mapRecurringIncome(item: unknown): RecurringIncome | null {
   const amount = Number(record.amount ?? 0);
   const startDate = String(record.startDate ?? "");
   const frequency = String(record.frequency ?? "") as IncomeRecurrenceFrequency;
-  const paymentType = isValidPaymentType(record.paymentType) ? record.paymentType : undefined;
+  const rawPaymentType = record.paymentType;
+  const paymentType =
+    rawPaymentType === null || rawPaymentType === undefined
+      ? "CARD"
+      : isValidPaymentType(rawPaymentType)
+        ? rawPaymentType
+        : undefined;
 
   if (!id || !Number.isFinite(amount) || !startDate || !["DAY", "WEEK", "MONTH"].includes(frequency)) {
     return null;
@@ -114,6 +131,7 @@ function mapRecurringIncome(item: unknown): RecurringIncome | null {
     frequency,
     isActive: Boolean(record.isActive),
     userId: String(record.userId ?? ""),
+    ...(Number.isFinite(Number(record.cashFee ?? NaN)) ? { cashFee: Number(record.cashFee) } : {}),
     ...(paymentType ? { paymentType } : {}),
     ...(record.endDate ? { endDate: String(record.endDate) } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
@@ -152,6 +170,7 @@ function mapIncomeStatistics(item: unknown): IncomeStatistics | null {
     totalIncome: Number(record.totalIncome ?? 0),
     cardTotal: Number(record.cardTotal ?? 0),
     cashTotal: Number(record.cashTotal ?? 0),
+    mobileTotal: Number(record.mobileTotal ?? 0),
     monthlyData,
   };
 }
@@ -212,6 +231,7 @@ export async function createIncome(payload: IncomePayload): Promise<Income> {
     body: JSON.stringify({
       amount: payload.amount,
       paymentType: payload.paymentType,
+      cashFee: payload.cashFee ?? undefined,
       date: toIsoDate(payload.date),
       description: payload.description || undefined,
       activityId: payload.activityId || undefined,
@@ -240,6 +260,7 @@ export async function createRecurringIncome(payload: RecurringIncomePayload): Pr
     body: JSON.stringify({
       amount: payload.amount,
       paymentType: payload.paymentType,
+      cashFee: payload.cashFee ?? undefined,
       startDate: toIsoDate(payload.startDate),
       endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
       frequency: payload.frequency,
@@ -286,6 +307,7 @@ export async function updateRecurringIncome(id: string, payload: UpdateRecurring
     body: JSON.stringify({
       amount: payload.amount,
       paymentType: payload.paymentType || null,
+      cashFee: payload.cashFee ?? null,
       startDate: payload.startDate ? toIsoDate(payload.startDate) : undefined,
       endDate: payload.endDate ? toIsoDate(payload.endDate) : undefined,
       frequency: payload.frequency,
@@ -325,6 +347,7 @@ export async function updateIncome(id: string, payload: IncomePayload): Promise<
   const body = JSON.stringify({
     amount: payload.amount,
     paymentType: payload.paymentType,
+    cashFee: payload.cashFee ?? undefined,
     date: toIsoDate(payload.date),
     description: payload.description || undefined,
     activityId: payload.activityId || undefined,

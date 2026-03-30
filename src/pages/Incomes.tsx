@@ -3,7 +3,7 @@ import { ArrowDownUp, Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
-import type { Activity, Income } from "@/data/staticData";
+import type { Activity, Income, PaymentType, Withdrawal } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import {
   createRecurringIncome,
@@ -25,7 +25,7 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { createWithdrawal } from "@/api/withdrawalApi";
+import { createWithdrawal, deleteWithdrawal, getWithdrawals, updateWithdrawal } from "@/api/withdrawalApi";
 import { compareByMostRecent } from "@/lib/recent-sort";
 
 const CustomTooltipStyle = {
@@ -43,6 +43,7 @@ const EMPTY_INCOME_STATS: IncomeStatistics = {
   totalIncome: 0,
   cardTotal: 0,
   cashTotal: 0,
+  mobileTotal: 0,
   monthlyData: [],
 };
 
@@ -55,10 +56,16 @@ export default function Incomes() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Income | null>(null);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [withdrawalEditItem, setWithdrawalEditItem] = useState<Withdrawal | null>(null);
+  const [withdrawalDeleteOpen, setWithdrawalDeleteOpen] = useState(false);
+  const [withdrawalDeleteTarget, setWithdrawalDeleteTarget] = useState<Withdrawal | null>(null);
+  const [withdrawalList, setWithdrawalList] = useState<Withdrawal[]>([]);
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [withdrawalDescription, setWithdrawalDescription] = useState("");
   const [withdrawalDate, setWithdrawalDate] = useState(new Date().toISOString().split("T")[0]);
   const [withdrawalActivityId, setWithdrawalActivityId] = useState("none");
+  const [withdrawalPaymentType, setWithdrawalPaymentType] = useState<PaymentType>("CARD");
+  const [withdrawalCashFee, setWithdrawalCashFee] = useState("");
   const [withdrawalSubmitting, setWithdrawalSubmitting] = useState(false);
   const [recurringList, setRecurringList] = useState<RecurringIncome[]>([]);
   const [recurringEditOpen, setRecurringEditOpen] = useState(false);
@@ -70,7 +77,8 @@ export default function Incomes() {
   const [recurringStartDate, setRecurringStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [recurringEndDate, setRecurringEndDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
-  const [recurringPaymentType, setRecurringPaymentType] = useState<"CARD" | "CASH">("CARD");
+  const [recurringPaymentType, setRecurringPaymentType] = useState<"CARD" | "CASH" | "MOBILE">("CARD");
+  const [recurringCashFee, setRecurringCashFee] = useState("");
   const [recurringActivityId, setRecurringActivityId] = useState("none");
   const [recurringActive, setRecurringActive] = useState(true);
   const [isRecurringSubmitting, setIsRecurringSubmitting] = useState(false);
@@ -92,6 +100,16 @@ export default function Incomes() {
     } catch (error) {
       console.error("Impossible de charger les revenus automatiques.", error);
       setRecurringList([]);
+    }
+  };
+
+  const loadWithdrawals = async () => {
+    try {
+      const data = await getWithdrawals();
+      setWithdrawalList(data);
+    } catch (error) {
+      console.error("Impossible de charger les retraits depuis l'API.", error);
+      setWithdrawalList([]);
     }
   };
 
@@ -119,11 +137,24 @@ export default function Incomes() {
     loadIncomes();
     loadRecurringIncomes();
     loadActivities();
+    loadWithdrawals();
     refreshIncomeStats();
   }, []);
 
   useEffect(() => {
-    if (!withdrawalOpen) {
+    if (!withdrawalOpen) return;
+
+    if (withdrawalEditItem) {
+      setWithdrawalAmount(String(withdrawalEditItem.amount));
+      setWithdrawalDescription(withdrawalEditItem.description || "");
+      setWithdrawalDate(withdrawalEditItem.date ? withdrawalEditItem.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+      setWithdrawalActivityId(withdrawalEditItem.activityId || "none");
+      setWithdrawalPaymentType(withdrawalEditItem.paymentType || "CARD");
+      setWithdrawalCashFee(
+        withdrawalEditItem.cashFee !== undefined && Number.isFinite(withdrawalEditItem.cashFee)
+          ? String(withdrawalEditItem.cashFee)
+          : "",
+      );
       return;
     }
 
@@ -131,14 +162,19 @@ export default function Incomes() {
     setWithdrawalDescription("");
     setWithdrawalDate(new Date().toISOString().split("T")[0]);
     setWithdrawalActivityId("none");
-  }, [withdrawalOpen]);
+    setWithdrawalPaymentType("CARD");
+    setWithdrawalCashFee("");
+  }, [withdrawalOpen, withdrawalEditItem]);
 
   const totalIncome = incomeStats.totalIncome;
   const cardTotal = incomeStats.cardTotal;
   const cashTotal = incomeStats.cashTotal;
+  const mobileTotal = incomeStats.mobileTotal;
+  const accountTotal = cardTotal + cashTotal + mobileTotal;
 
-  const cardPercent = totalIncome > 0 ? Math.round((cardTotal / totalIncome) * 100) : 0;
-  const cashPercent = totalIncome > 0 ? Math.round((cashTotal / totalIncome) * 100) : 0;
+  const cardPercent = accountTotal > 0 ? Math.round((cardTotal / accountTotal) * 100) : 0;
+  const cashPercent = accountTotal > 0 ? Math.round((cashTotal / accountTotal) * 100) : 0;
+  const mobilePercent = accountTotal > 0 ? Math.round((mobileTotal / accountTotal) * 100) : 0;
 
   const handleEdit = (inc: Income) => {
     setEditItem(inc);
@@ -178,8 +214,13 @@ export default function Incomes() {
   const submitWithdrawal = async (event: React.FormEvent) => {
     event.preventDefault();
     const parsedAmount = Number(withdrawalAmount);
+    const parsedCashFee = withdrawalCashFee.trim().length ? Number(withdrawalCashFee) : undefined;
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
+      return;
+    }
+    if (parsedCashFee !== undefined && (!Number.isFinite(parsedCashFee) || parsedCashFee < 0)) {
+      toast({ title: "Frais invalides", description: "Saisissez un montant de frais en especes >= 0." });
       return;
     }
     if (withdrawalActivityId === "none") {
@@ -189,15 +230,28 @@ export default function Incomes() {
 
     try {
       setWithdrawalSubmitting(true);
-      await createWithdrawal({
+      const payload = {
         amount: parsedAmount,
         date: withdrawalDate,
         description: withdrawalDescription.trim() || undefined,
         activityId: withdrawalActivityId,
-      });
+        paymentType: withdrawalPaymentType,
+        cashFee: parsedCashFee !== undefined && parsedCashFee > 0 ? parsedCashFee : undefined,
+      };
+
+      if (withdrawalEditItem) {
+        const updated = await updateWithdrawal(withdrawalEditItem.id, payload);
+        setWithdrawalList((prev) => prev.map((w) => (w.id === withdrawalEditItem.id ? updated : w)));
+        toast({ title: "Retrait modifie", description: `-${formatCurrency(updated.amount)}` });
+      } else {
+        const created = await createWithdrawal(payload);
+        setWithdrawalList((prev) => [created, ...prev]);
+        toast({ title: "Retrait enregistre", description: `-${formatCurrency(parsedAmount)}` });
+      }
+
       await refreshIncomeStats();
       setWithdrawalOpen(false);
-      toast({ title: "Retrait enregistre", description: `-${formatCurrency(parsedAmount)}` });
+      setWithdrawalEditItem(null);
     } catch (error) {
       console.error("Impossible d'enregistrer le retrait.", error);
       toast({ title: "Erreur", description: error instanceof Error ? error.message : "Retrait impossible pour le moment." });
@@ -224,6 +278,22 @@ export default function Incomes() {
     }
   };
 
+  const confirmCancelWithdrawal = async () => {
+    if (!withdrawalDeleteTarget) return;
+
+    try {
+      await deleteWithdrawal(withdrawalDeleteTarget.id);
+      setWithdrawalList((prev) => prev.filter((w) => w.id !== withdrawalDeleteTarget.id));
+      await refreshIncomeStats();
+      toast({ title: "Retrait annule" });
+      setWithdrawalDeleteOpen(false);
+      setWithdrawalDeleteTarget(null);
+    } catch (error) {
+      console.error("Impossible d'annuler le retrait.", error);
+      toast({ title: "Erreur", description: "Annulation impossible pour le moment." });
+    }
+  };
+
   const frequencyOptions = [
     { value: "DAY", label: "Chaque jour" },
     { value: "WEEK", label: "Chaque semaine" },
@@ -232,6 +302,7 @@ export default function Incomes() {
   const paymentOptions = [
     { value: "CARD", label: "Carte" },
     { value: "CASH", label: "Especes" },
+    { value: "MOBILE", label: "Compte mobile" },
   ];
 
   const handleEditRecurring = (item: RecurringIncome) => {
@@ -242,6 +313,7 @@ export default function Incomes() {
     setRecurringEndDate(item.endDate ? item.endDate.split("T")[0] : "");
     setRecurringFrequency(item.frequency);
     setRecurringPaymentType(item.paymentType || "CARD");
+    setRecurringCashFee(item.cashFee !== undefined && Number.isFinite(item.cashFee) ? String(item.cashFee) : "");
     setRecurringActivityId(item.activityId || "none");
     setRecurringActive(item.isActive);
     setRecurringEditOpen(true);
@@ -251,8 +323,13 @@ export default function Incomes() {
     event.preventDefault();
     if (!recurringEditItem) return;
     const amount = Number(recurringAmount);
+    const parsedCashFee = recurringCashFee.trim().length ? Number(recurringCashFee) : undefined;
     if (!Number.isFinite(amount) || amount <= 0) {
       toast({ title: "Montant invalide", description: "Saisissez un montant superieur a 0." });
+      return;
+    }
+    if (parsedCashFee !== undefined && (!Number.isFinite(parsedCashFee) || parsedCashFee < 0)) {
+      toast({ title: "Frais invalides", description: "Saisissez un montant de frais en especes >= 0." });
       return;
     }
     if (recurringEndDate && recurringEndDate < recurringStartDate) {
@@ -265,6 +342,7 @@ export default function Incomes() {
       await updateRecurringIncome(recurringEditItem.id, {
         amount,
         paymentType: recurringPaymentType,
+        cashFee: parsedCashFee !== undefined && parsedCashFee > 0 ? parsedCashFee : undefined,
         description: recurringDescription.trim() || undefined,
         startDate: recurringStartDate,
         endDate: recurringEndDate || undefined,
@@ -349,6 +427,7 @@ export default function Incomes() {
               {[
                 { label: "Virement / Carte", value: cardTotal, pct: cardPercent, color: "hsl(var(--info))" },
                 { label: "Especes", value: cashTotal, pct: cashPercent, color: "hsl(var(--warning))" },
+                { label: "Compte mobile", value: mobileTotal, pct: mobilePercent, color: "hsl(var(--purple))" },
               ].map((p) => (
                 <div key={p.label}>
                   <div className="flex justify-between mb-1.5">
@@ -381,7 +460,10 @@ export default function Incomes() {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setWithdrawalOpen(true)}
+                onClick={() => {
+                  setWithdrawalEditItem(null);
+                  setWithdrawalOpen(true);
+                }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
                 style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
               >
@@ -407,6 +489,7 @@ export default function Incomes() {
                   <th className="text-left">Description</th>
                   <th className="text-left">Activite</th>
                   <th className="text-right">Carte</th>
+                  <th className="text-right">Mobile</th>
                   <th className="text-right">Especes</th>
                   <th className="text-left">Type</th>
                   <th className="text-right">Montant</th>
@@ -424,7 +507,10 @@ export default function Incomes() {
                       <td style={{ color: "hsl(var(--foreground))" }}>{inc.description || "-"}</td>
                       <td>{act ? <span className="badge-income">{act.name}</span> : "-"}</td>
                       <td className="text-right" style={{ color: "hsl(var(--info))" }}>
-                        {inc.paymentType === "CASH" ? "-" : formatCurrency(inc.amount)}
+                        {inc.paymentType === "CARD" ? formatCurrency(inc.amount) : "-"}
+                      </td>
+                      <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
+                        {inc.paymentType === "MOBILE" ? formatCurrency(inc.amount) : "-"}
                       </td>
                       <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
                         {inc.paymentType === "CASH" ? formatCurrency(inc.amount) : "-"}
@@ -472,6 +558,7 @@ export default function Incomes() {
                   <th className="text-left">Frequence</th>
                   <th className="text-left">Description</th>
                   <th className="text-right">Carte</th>
+                  <th className="text-right">Mobile</th>
                   <th className="text-right">Especes</th>
                   <th className="text-left">Activite</th>
                   <th className="text-left">Statut</th>
@@ -488,7 +575,10 @@ export default function Incomes() {
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.frequency === "DAY" ? "Jour" : item.frequency === "WEEK" ? "Semaine" : "Mois"}</td>
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
                       <td className="text-right" style={{ color: "hsl(var(--info))" }}>
-                        {item.paymentType === "CASH" ? "-" : formatCurrency(item.amount)}
+                        {item.paymentType === "CARD" ? formatCurrency(item.amount) : "-"}
+                      </td>
+                      <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
+                        {item.paymentType === "MOBILE" ? formatCurrency(item.amount) : "-"}
                       </td>
                       <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
                         {item.paymentType === "CASH" ? formatCurrency(item.amount) : "-"}
@@ -523,6 +613,98 @@ export default function Incomes() {
             </table>
           </div>
         </div>
+
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-4">
+            <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+              Retraits{" "}
+              <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                ({withdrawalList.length})
+              </span>
+            </p>
+            <button
+              onClick={() => {
+                setWithdrawalEditItem(null);
+                setWithdrawalOpen(true);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
+            >
+              <ArrowDownUp size={13} /> Ajouter
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full data-table">
+              <thead>
+                <tr>
+                  <th className="text-left">Date</th>
+                  <th className="text-left">Description</th>
+                  <th className="text-left">Activite</th>
+                  <th className="text-left">Compte</th>
+                  <th className="text-right">Frais (especes)</th>
+                  <th className="text-right">Montant</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...withdrawalList]
+                  .sort(compareByMostRecent(["date", "createdAt"]))
+                  .map((wd) => {
+                    const act = activityList.find((a) => a.id === wd.activityId);
+                    const paymentLabel = wd.paymentType === "MOBILE" ? "Mobile" : wd.paymentType === "CASH" ? "Especes" : "Carte";
+                    return (
+                      <tr key={wd.id}>
+                        <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(wd.date)}</td>
+                        <td style={{ color: "hsl(var(--foreground))" }}>{wd.description || "-"}</td>
+                        <td>{act ? <span className="badge-income">{act.name}</span> : "-"}</td>
+                        <td>
+                          <span
+                            className={
+                              wd.paymentType === "CASH"
+                                ? "badge-warning text-xs"
+                                : wd.paymentType === "MOBILE"
+                                  ? "badge-info text-xs"
+                                  : "badge-income text-xs"
+                            }
+                          >
+                            {paymentLabel}
+                          </span>
+                        </td>
+                        <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
+                          {wd.cashFee !== undefined && Number.isFinite(wd.cashFee) ? formatCurrency(wd.cashFee) : "-"}
+                        </td>
+                        <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
+                          -{formatCurrency(wd.amount)}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => {
+                                setWithdrawalEditItem(wd);
+                                setWithdrawalOpen(true);
+                              }}
+                              className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors"
+                            >
+                              <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setWithdrawalDeleteTarget(wd);
+                                setWithdrawalDeleteOpen(true);
+                              }}
+                              className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                            >
+                              <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <IncomeForm
@@ -534,9 +716,33 @@ export default function Incomes() {
         onCreateRecurring={handleCreateRecurring}
         onUpdate={handleUpdate}
       />
-      <FormDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} title="Nouveau retrait (Carte → Especes)">
+
+      <FormDialog
+        open={withdrawalOpen}
+        onOpenChange={(open) => {
+          setWithdrawalOpen(open);
+          if (!open) setWithdrawalEditItem(null);
+        }}
+        title={withdrawalEditItem ? "Modifier le retrait" : "Nouveau retrait"}
+      >
         <form onSubmit={submitWithdrawal} className="space-y-4">
           <FormFieldInput label="Montant (MGA)" id="wd-amount" type="number" value={withdrawalAmount} onChange={setWithdrawalAmount} required step="0.01" min="0" />
+          <SelectField
+            label="Compte source"
+            value={withdrawalPaymentType}
+            onValueChange={(v) => setWithdrawalPaymentType(v as PaymentType)}
+            options={paymentOptions}
+          />
+          <FormFieldInput
+            label="Frais en especes (optionnel)"
+            id="wd-cash-fee"
+            type="number"
+            value={withdrawalCashFee}
+            onChange={setWithdrawalCashFee}
+            placeholder="0.00"
+            step="0.01"
+            min="0"
+          />
           <FormFieldInput label="Date" id="wd-date" type="date" value={withdrawalDate} onChange={setWithdrawalDate} required />
           <SelectField
             label="Activite"
@@ -551,7 +757,7 @@ export default function Incomes() {
             className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
           >
-            {withdrawalSubmitting ? "En cours..." : "Enregistrer le retrait"}
+            {withdrawalSubmitting ? "En cours..." : withdrawalEditItem ? "Enregistrer les modifications" : "Enregistrer le retrait"}
           </button>
         </form>
       </FormDialog>
@@ -569,14 +775,24 @@ export default function Incomes() {
         description={`Supprimer "${recurringDeleteTarget?.description || "cette regle"}" ?`}
         onConfirm={confirmDeleteRecurring}
       />
+      <DeleteConfirmDialog
+        open={withdrawalDeleteOpen}
+        onOpenChange={setWithdrawalDeleteOpen}
+        title="Annuler le retrait"
+        description={`Annuler "${withdrawalDeleteTarget?.description || "ce retrait"}" de ${
+          withdrawalDeleteTarget ? formatCurrency(withdrawalDeleteTarget.amount) : ""
+        } ?`}
+        onConfirm={confirmCancelWithdrawal}
+      />
       <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier le revenu automatique">
         <form onSubmit={submitRecurringUpdate} className="space-y-4">
           <FormFieldInput label="Montant (MGA)" id="rec-inc-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
+          <FormFieldInput label="Frais en especes (optionnel)" id="rec-inc-cash-fee" type="number" value={recurringCashFee} onChange={setRecurringCashFee} placeholder="0.00" step="0.01" min="0" />
           <FormFieldInput label="Description" id="rec-inc-desc" value={recurringDescription} onChange={setRecurringDescription} />
           <FormFieldInput label="Date de debut" id="rec-inc-start" type="date" value={recurringStartDate} onChange={setRecurringStartDate} required />
           <FormFieldInput label="Date de fin (optionnel)" id="rec-inc-end" type="date" value={recurringEndDate} onChange={setRecurringEndDate} />
           <SelectField label="Frequence" value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as "DAY" | "WEEK" | "MONTH")} options={frequencyOptions} />
-          <SelectField label="Mode de paiement" value={recurringPaymentType} onValueChange={(v) => setRecurringPaymentType(v as "CARD" | "CASH")} options={paymentOptions} />
+          <SelectField label="Mode de paiement" value={recurringPaymentType} onValueChange={(v) => setRecurringPaymentType(v as "CARD" | "CASH" | "MOBILE")} options={paymentOptions} />
           <SelectField
             label="Activite"
             value={recurringActivityId}

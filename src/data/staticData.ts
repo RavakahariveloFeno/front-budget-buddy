@@ -1,5 +1,5 @@
 export type ActivityType = "SALARY" | "BUSINESS" | "FREELANCE" | "OTHER";
-export type PaymentType = "CASH" | "CARD";
+export type PaymentType = "CASH" | "CARD" | "MOBILE";
 export type BudgetPeriod = "DAY" | "WEEK" | "MONTH";
 export type LoanType = "BANK" | "FRIEND" | "COMPANY" | "OTHER";
 export type LoanStatus = "ACTIVE" | "PAID";
@@ -28,6 +28,8 @@ export interface Income {
   id: string;
   amount: number;
   paymentType?: PaymentType;
+  // Montant prélevé sur le solde en espèces (frais payés en cash).
+  cashFee?: number;
   date: string;
   createdAt?: string;
   description?: string;
@@ -60,6 +62,10 @@ export interface Expense {
 export interface Withdrawal {
   id: string;
   amount: number;
+  // Compte source d'où le retrait est fait (le montant est reçu en espèces).
+  paymentType?: PaymentType;
+  // Montant prélevé sur le solde en espèces (frais payés en cash).
+  cashFee?: number;
   date: string;
   description?: string;
   activityId: string;
