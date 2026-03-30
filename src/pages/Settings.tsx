@@ -670,9 +670,9 @@ export default function Settings() {
           </CardTitle>
           <CardDescription>Remettre les donnees a zero (irreversible)</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4 flex-wrap">
+          <CardContent className="flex items-center justify-between gap-4 flex-wrap">
           <div className="text-sm text-muted-foreground">
-            Supprime revenus, depenses, retraits, investissements, prets, remboursements, budgets et recurrents. Conserve les activites et categories.
+            Supprime toutes vos donnees (vente, revenus, depenses, retraits, investissements, prets, remboursements, budgets, recurrents, categories). Conserve uniquement l'utilisateur, les profils et les activites.
           </div>
           <Button variant="destructive" onClick={() => setResetOpen(true)} disabled={isResetting}>
             {isResetting ? "Reset..." : "Reset historique"}

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import MobileSidebarDrawer from "./MobileSidebarDrawer";
 import { MobileMenuProvider } from "./mobile-menu";
 import { clearSessionToken } from "@/api/authApi";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +17,8 @@ import {
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const setSelectedActivityId = useActivityFilterStore((state) => state.setSelectedActivityId);
   const [disabledModalOpen, setDisabledModalOpen] = useState(false);
   const [disabledMessage, setDisabledMessage] = useState<string>(
     "Votre compte a été désactivé. Veuillez contacter l’administrateur.",
@@ -32,6 +35,13 @@ export default function Layout() {
     window.addEventListener("bb:account-disabled", handler as EventListener);
     return () => window.removeEventListener("bb:account-disabled", handler as EventListener);
   }, []);
+
+  useEffect(() => {
+    const match = location.pathname.match(/^\/activities\/([^/]+)\/modules\//);
+    if (match?.[1]) {
+      setSelectedActivityId(match[1]);
+    }
+  }, [location.pathname, setSelectedActivityId]);
 
   return (
     <MobileMenuProvider>

@@ -13,9 +13,12 @@ export interface StockItem {
   id: string;
   produitId: string;
   quantite: number;
+  unitPurchasePrice?: number;
+  unitSalePrice?: number;
   seuilAlerte: number;
   emplacement: string;
   derniereMaj: string;
+  paymentType?: "CASH" | "CARD";
 }
 
 export interface Client {
@@ -43,6 +46,7 @@ export interface Facture {
   lignes: LigneFacture[];
   statut: FactureStatut;
   total: number;
+  paymentType?: "CASH" | "CARD";
 }
 
 // ── Static produits ──

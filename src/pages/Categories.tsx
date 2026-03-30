@@ -14,6 +14,7 @@ import type { CategoryPayload, CategoryStatistics } from "@/api/categoryApi";
 import CategoryForm from "@/components/forms/CategoryForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 const EMPTY_CATEGORY_STATS: CategoryStatistics = {
   totalCategories: 0,
@@ -24,6 +25,7 @@ const EMPTY_CATEGORY_STATS: CategoryStatistics = {
 };
 
 export default function Categories() {
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStatistics>(EMPTY_CATEGORY_STATS);
   const [formOpen, setFormOpen] = useState(false);
@@ -37,7 +39,7 @@ export default function Categories() {
 
   const refreshCategoryStats = async () => {
     try {
-      const stats = await getCategoryStatistics();
+      const stats = await getCategoryStatistics({ activityId: selectedActivityId ?? undefined });
       setCategoryStats(stats);
     } catch (error) {
       console.error("Impossible de charger les statistiques categories depuis l'API.", error);
@@ -57,8 +59,11 @@ export default function Categories() {
     };
 
     loadCategories();
-    refreshCategoryStats();
   }, []);
+
+  useEffect(() => {
+    refreshCategoryStats();
+  }, [selectedActivityId]);
 
   const handleEdit = (category: Category) => {
     setEditItem(category);

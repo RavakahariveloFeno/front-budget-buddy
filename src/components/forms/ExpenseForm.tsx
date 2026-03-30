@@ -16,6 +16,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   expense?: Expense | null;
   activities: Activity[];
+  lockedActivityId?: string | null;
   activityNetById?: Record<string, number>;
   categories: Category[];
   onCreate: (payload: ExpensePayload) => Promise<void>;
@@ -36,6 +37,7 @@ export default function ExpenseForm({
   onOpenChange,
   expense,
   activities,
+  lockedActivityId = null,
   activityNetById = {},
   categories,
   onCreate,
@@ -91,12 +93,12 @@ export default function ExpenseForm({
     setDate(expense?.date ? expense.date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setPaymentType(expense?.paymentType || "CARD");
     setCategoryId(expense?.categoryId || "none");
-    setActivityId(expense?.activityId || "none");
+    setActivityId(lockedActivityId || expense?.activityId || "none");
     setIsRecurring(false);
     setRecurrenceFrequency("MONTH");
     setRecurrenceEndDate("");
     setOverBudgetConfirm(null);
-  }, [expense, open]);
+  }, [expense, lockedActivityId, open]);
 
   const handleConfirmOverBudget = async () => {
     if (!overBudgetConfirm) {
@@ -192,7 +194,7 @@ export default function ExpenseForm({
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
         <SelectField label="Paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as "CARD" | "CASH")} options={paymentOptions} />
         <SelectField label="Categorie" value={categoryId} onValueChange={setCategoryId} options={catOptions} onAddClick={onCreateCategory ? () => setCategoryFormOpen(true) : undefined} />
-        <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={actOptions} required />
+        <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={actOptions} required disabled={Boolean(lockedActivityId)} />
         {!isEdit ? (
           <div className="space-y-2 rounded-lg border border-border p-3">
             <div className="flex items-center justify-between">

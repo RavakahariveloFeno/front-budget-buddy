@@ -25,6 +25,7 @@ import CategoryForm from "@/components/forms/CategoryForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
@@ -43,6 +44,7 @@ const EMPTY_EXPENSE_STATS: ExpenseStatistics = {
 };
 
 export default function Expenses() {
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [expenseList, setExpenseList] = useState<Expense[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
@@ -69,9 +71,14 @@ export default function Expenses() {
   const [activityStatsById, setActivityStatsById] = useState<Record<string, ActivityStats>>({});
   const [recurringCategoryFormOpen, setRecurringCategoryFormOpen] = useState(false);
 
+  const visibleRecurringList = useMemo(
+    () => (selectedActivityId ? recurringList.filter((item) => item.activityId === selectedActivityId) : recurringList),
+    [recurringList, selectedActivityId],
+  );
+
   const loadExpenses = async () => {
     try {
-      const remoteExpenses = await getExpenses();
+      const remoteExpenses = await getExpenses({ activityId: selectedActivityId ?? undefined });
       setExpenseList(remoteExpenses);
     } catch (error) {
       console.error("Impossible de charger les depenses depuis l'API.", error);
@@ -91,7 +98,7 @@ export default function Expenses() {
 
   const refreshExpenseStats = async () => {
     try {
-      const stats = await getExpenseStatistics();
+      const stats = await getExpenseStatistics({ activityId: selectedActivityId ?? undefined });
       setExpenseStats(stats);
     } catch (error) {
       console.error("Impossible de charger les statistiques depenses depuis l'API.", error);
@@ -134,13 +141,16 @@ export default function Expenses() {
       }
     };
 
-    loadExpenses();
-    loadRecurringExpenses();
     loadActivities();
     loadCategories();
-    refreshExpenseStats();
     refreshActivityStats();
   }, []);
+
+  useEffect(() => {
+    loadExpenses();
+    loadRecurringExpenses();
+    refreshExpenseStats();
+  }, [selectedActivityId]);
 
   const maxCatLabel = expenseStats.topCategory
     ? `${expenseStats.topCategory.icon ? `${expenseStats.topCategory.icon} ` : ""}${expenseStats.topCategory.name}`
@@ -251,7 +261,7 @@ export default function Expenses() {
     setRecurringFrequency(item.frequency);
     setRecurringPaymentType(item.paymentType || "CARD");
     setRecurringCategoryId(item.categoryId || "none");
-    setRecurringActivityId(item.activityId || "none");
+    setRecurringActivityId(selectedActivityId || item.activityId || "none");
     setRecurringActive(item.isActive);
     setRecurringEditOpen(true);
   };
@@ -279,7 +289,7 @@ export default function Expenses() {
         endDate: recurringEndDate || undefined,
         frequency: recurringFrequency,
         categoryId: recurringCategoryId === "none" ? undefined : recurringCategoryId,
-        activityId: recurringActivityId === "none" ? undefined : recurringActivityId,
+        activityId: selectedActivityId ?? (recurringActivityId === "none" ? undefined : recurringActivityId),
         isActive: recurringActive,
       });
       await loadRecurringExpenses();
@@ -464,7 +474,7 @@ export default function Expenses() {
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Depenses automatiques{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({recurringList.length})
+                ({visibleRecurringList.length})
               </span>
             </p>
           </div>
@@ -483,7 +493,7 @@ export default function Expenses() {
                 </tr>
               </thead>
               <tbody>
-                {[...recurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
+                {[...visibleRecurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
                   const activity = item.activityId ? activityById.get(item.activityId) : undefined;
                   return (
                     <tr key={item.id}>
@@ -536,6 +546,7 @@ export default function Expenses() {
         onOpenChange={setFormOpen}
         expense={editItem}
         activities={activityList}
+        lockedActivityId={selectedActivityId}
         activityNetById={activityNetById}
         categories={categoryList}
         onCreate={handleCreate}
@@ -577,6 +588,7 @@ export default function Expenses() {
             value={recurringActivityId}
             onValueChange={setRecurringActivityId}
             options={[{ value: "none", label: "Aucune" }, ...activityList.map((activity) => ({ value: activity.id, label: activity.name }))]}
+            disabled={Boolean(selectedActivityId)}
           />
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <Label className="text-sm" style={{ color: "hsl(var(--foreground))" }}>

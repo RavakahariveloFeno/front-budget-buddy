@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, CalendarClock, LogOut, Menu, Search, Users } from "lucide-react";
+import { AlertTriangle, Bell, Briefcase, CalendarClock, LogOut, Menu, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { clearSessionToken, getCurrentUser, getSuperAdminActingUserId, isSuperAdmin, setSuperAdminActingUserId } from "@/api/authApi";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +15,9 @@ import { formatCurrency } from "@/data/staticData";
 import { useMobileMenu } from "./mobile-menu";
 import { getSuperAdminUsers } from "@/api/superAdminApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getActivities } from "@/api/activityApi";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
+import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 
 interface HeaderProps {
   title: string;
@@ -34,6 +37,7 @@ interface AppNotification {
 
 type RecurrenceFrequency = "DAY" | "WEEK" | "MONTH";
 const NOTIFICATION_POLL_INTERVAL_MS = 15000;
+const ALL_ACTIVITIES_VALUE = "__all__";
 
 function getDayStart(value: Date): Date {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -262,6 +266,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { toggle: toggleMobileMenu } = useMobileMenu();
+  const { selectedActivityId, setSelectedActivityId, clearSelectedActivityId } = useActivityFilterStore();
   const searchRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -278,6 +283,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.id ?? null;
+  const isManagedProfile = Boolean(currentUser?.profileId);
   const superAdmin = isSuperAdmin();
   const [actingUserId, setActingUserId] = useState<string>(() => getSuperAdminActingUserId() ?? "");
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "Mon compte";
@@ -292,6 +298,60 @@ export default function Header({ title, subtitle }: HeaderProps) {
     enabled: superAdmin,
     staleTime: 30_000,
   });
+
+  const { data: managedProfile, isLoading: managedProfileLoading } = useActiveManagedProfile();
+
+  const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+    queryKey: ["activities"],
+    queryFn: getActivities,
+    staleTime: 30_000,
+  });
+
+  const visibleActivities = useMemo(() => {
+    if (!isManagedProfile) {
+      return activities;
+    }
+
+    const allowed = new Set(managedProfile?.activities ?? []);
+    return activities.filter((activity) => allowed.has(activity.id));
+  }, [activities, isManagedProfile, managedProfile?.activities]);
+
+  const shouldShowAllActivitiesOption = useMemo(() => {
+    // User principale : toujours afficher "Toutes les activités"
+    if (!isManagedProfile) {
+      return true;
+    }
+    
+    // Profile géré : utiliser l'information du backend
+    return managedProfile?.hasAllActivitiesAccess ?? false;
+  }, [isManagedProfile, managedProfile?.hasAllActivitiesAccess]);
+
+  useEffect(() => {
+    if (!isManagedProfile) {
+      return;
+    }
+
+    if (managedProfileLoading) {
+      return;
+    }
+
+    if (!selectedActivityId) {
+      return;
+    }
+
+    const allowed = new Set(managedProfile?.activities ?? []);
+    if (!allowed.has(selectedActivityId)) {
+      clearSelectedActivityId();
+    }
+  }, [clearSelectedActivityId, isManagedProfile, managedProfile?.activities, managedProfileLoading, selectedActivityId]);
+
+  useEffect(() => {
+    // Si shouldShowAllActivitiesOption est false et qu'aucune activité n'est sélectionnée,
+    // sélectionner automatiquement la première activité visible
+    if (!shouldShowAllActivitiesOption && !selectedActivityId && visibleActivities.length > 0) {
+      setSelectedActivityId(visibleActivities[0].id);
+    }
+  }, [shouldShowAllActivitiesOption, selectedActivityId, visibleActivities, setSelectedActivityId]);
 
   const searchItems = useMemo(
     () => [
@@ -562,6 +622,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
   const handleLogout = () => {
     clearSessionToken();
+    clearSelectedActivityId();
     navigate("/signin", { replace: true });
     setUserMenuOpen(false);
   };
@@ -689,6 +750,40 @@ export default function Header({ title, subtitle }: HeaderProps) {
             </div>
           )}
         </div>
+        <Select
+          value={selectedActivityId ?? ALL_ACTIVITIES_VALUE}
+          onValueChange={(value) => {
+            if (value === ALL_ACTIVITIES_VALUE) {
+              clearSelectedActivityId();
+              return;
+            }
+            setSelectedActivityId(value);
+          }}
+        >
+          <SelectTrigger
+            className="w-10 px-0 justify-center [&>svg]:hidden md:w-[260px] md:px-3 md:justify-between md:[&>svg]:block"
+            style={{ background: "hsl(var(--secondary))", borderColor: "hsl(var(--border))" }}
+            title="Filtrer par activite"
+          >
+            <span className="md:hidden" aria-hidden="true">
+              <Briefcase size={16} style={{ color: "hsl(var(--muted-foreground))" }} />
+            </span>
+            <SelectValue
+              className="hidden md:inline"
+              placeholder={activitiesLoading || (isManagedProfile && managedProfileLoading) ? "Chargement..." : "Toutes les activites"}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {shouldShowAllActivitiesOption && (
+              <SelectItem value={ALL_ACTIVITIES_VALUE}>Toutes les activites</SelectItem>
+            )}
+            {visibleActivities.map((activity) => (
+              <SelectItem key={activity.id} value={activity.id}>
+                {activity.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {superAdmin && (
           <Select
             value={actingUserId ? actingUserId : "__self__"}

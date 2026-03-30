@@ -28,11 +28,12 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   loan?: Loan | null;
   activities: Activity[];
+  lockedActivityId?: string | null;
   onCreate: (payload: LoanPayload) => Promise<void>;
   onUpdate: (id: string, payload: LoanPayload) => Promise<void>;
 }
 
-export default function LoanForm({ open, onOpenChange, loan, activities, onCreate, onUpdate }: Props) {
+export default function LoanForm({ open, onOpenChange, loan, activities, lockedActivityId = null, onCreate, onUpdate }: Props) {
   const isEdit = Boolean(loan);
   const [totalAmount, setTotalAmount] = useState("");
   const [remainingAmount, setRemainingAmount] = useState("");
@@ -67,8 +68,8 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
     setInterestRate(String(loan?.interestRate ?? 0));
     setStartDate(loan?.startDate ? loan.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
     setEndDate(loan?.endDate ? loan.endDate.split("T")[0] : "");
-    setActivityId(loan?.activityId || "none");
-  }, [loan, open]);
+    setActivityId(lockedActivityId || loan?.activityId || "none");
+  }, [loan, lockedActivityId, open]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -162,7 +163,7 @@ export default function LoanForm({ open, onOpenChange, loan, activities, onCreat
           <FormFieldInput label="Date debut" id="loan-start" type="date" value={startDate} onChange={setStartDate} required />
           <FormFieldInput label="Date fin" id="loan-end" type="date" value={endDate} onChange={setEndDate} />
         </div>
-        <SelectField label="Activite liee" value={activityId} onValueChange={setActivityId} options={actOptions} required />
+        <SelectField label="Activite liee" value={activityId} onValueChange={setActivityId} options={actOptions} required disabled={Boolean(lockedActivityId)} />
         <button
           type="submit"
           disabled={isSubmitting}

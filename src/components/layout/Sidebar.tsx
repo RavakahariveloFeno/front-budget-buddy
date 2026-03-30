@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentType, type CSSProperties } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -13,9 +13,15 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  LayoutGrid,
 } from "lucide-react";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
+import { useQuery } from "@tanstack/react-query";
+import { getActivityModules } from "@/api/moduleApi";
+import { PREDEFINED_MODULES } from "@/data/staticData";
+import * as Icons from "lucide-react";
 
 const superAdminNavItem = { key: "superadmin", to: "/superadmin", icon: Shield, label: "Superadmin" };
 
@@ -31,6 +37,11 @@ const navItems = [
   { key: "settings", to: "/settings", icon: Settings, label: "Paramètres" },
 ];
 
+function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: CSSProperties }) {
+  const Icon = (Icons as unknown as Record<string, ComponentType<any>>)[name];
+  return Icon ? <Icon {...props} /> : <LayoutGrid {...props} />;
+}
+
 export default function Sidebar({
   mode = "desktop",
   onNavigate,
@@ -42,19 +53,42 @@ export default function Sidebar({
   const isManagedProfile = Boolean(currentUser?.profileId);
   const isSuperAdminUser = currentUser?.role === "SUPERADMIN";
   const { data: managedProfile } = useActiveManagedProfile();
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const isDrawer = mode === "drawer";
   const effectiveCollapsed = isDrawer ? false : collapsed;
 
+  const { data: selectedActivityModuleIds = [] } = useQuery({
+    queryKey: ["activityModules", selectedActivityId],
+    queryFn: () => getActivityModules(selectedActivityId!),
+    enabled: Boolean(selectedActivityId),
+    staleTime: 30_000,
+  });
+
+  const visibleModules = useMemo(() => {
+    if (!selectedActivityId) {
+      return [];
+    }
+
+    const linked = PREDEFINED_MODULES.filter((module) => selectedActivityModuleIds.includes(module.id));
+    if (!isManagedProfile) {
+      return linked;
+    }
+
+    const allowedLinks = new Set(managedProfile?.moduleLinks ?? []);
+    return linked.filter((module) => allowedLinks.has(`${selectedActivityId}::${module.id}`));
+  }, [isManagedProfile, managedProfile?.moduleLinks, selectedActivityId, selectedActivityModuleIds]);
+
   const visibleNavItems = useMemo(() => {
     const baseItems = [...navItems, ...(isSuperAdminUser ? [superAdminNavItem] : [])];
+    const effectiveItems = selectedActivityId ? baseItems.filter((item) => item.key !== "activities") : baseItems;
     if (!isManagedProfile) {
-      return baseItems;
+      return effectiveItems;
     }
     const allowed = new Set(managedProfile?.menuAccess ?? []);
-    return baseItems.filter((item) => allowed.has(item.key));
-  }, [isManagedProfile, isSuperAdminUser, managedProfile?.menuAccess]);
+    return effectiveItems.filter((item) => allowed.has(item.key));
+  }, [isManagedProfile, isSuperAdminUser, managedProfile?.menuAccess, selectedActivityId]);
 
   return (
     <aside
@@ -93,6 +127,29 @@ export default function Sidebar({
             </NavLink>
           );
         })}
+
+        {selectedActivityId && visibleModules.length > 0 && (
+          <div className="pt-3 mt-3 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+            {!effectiveCollapsed && (
+              <p className="px-3 pb-2 text-[11px] uppercase tracking-wide" style={{ color: "hsl(var(--sidebar-foreground))" }}>
+                Modules
+              </p>
+            )}
+            {visibleModules.map((module) => {
+              const firstMenuPath = module.menus[0]?.path ?? "stock";
+              const to = `/activities/${selectedActivityId}/modules/${module.id}/${firstMenuPath}`;
+              const isActive = location.pathname.startsWith(`/activities/${selectedActivityId}/modules/${module.id}`);
+              return (
+                <NavLink key={module.id} to={to} onClick={onNavigate}>
+                  <div className={`nav-item ${isActive ? "active" : ""}`} title={effectiveCollapsed ? module.name : undefined}>
+                    <DynamicIcon name={module.icon} size={18} className="flex-shrink-0" style={{ color: `hsl(var(--${module.color}))` }} />
+                    {!effectiveCollapsed && <span className="animate-fade-in truncate">{module.name}</span>}
+                  </div>
+                </NavLink>
+              );
+            })}
+          </div>
+        )}
       </nav>
 
       {/* Collapse toggle */}

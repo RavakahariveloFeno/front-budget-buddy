@@ -3,7 +3,7 @@ import { Plus, PiggyBank, Calendar, AlertCircle, Pencil, Trash2 } from "lucide-r
 import { useMemo } from "react";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
-import type { Budget } from "@/data/staticData";
+import type { Activity, Budget } from "@/data/staticData";
 import {
   createBudget,
   deleteBudget,
@@ -16,6 +16,8 @@ import BudgetForm from "@/components/forms/BudgetForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
+import { getActivities } from "@/api/activityApi";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 const periodLabels: Record<string, string> = { DAY: "Jour", WEEK: "Semaine", MONTH: "Mois" };
 const periodGradients: Record<string, string> = { DAY: "var(--gradient-primary)", WEEK: "var(--gradient-warning)", MONTH: "var(--gradient-purple)" };
@@ -31,27 +33,52 @@ const EMPTY_BUDGET_STATS: BudgetStatistics = {
 };
 
 export default function Budgets() {
+  const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [budgetList, setBudgetList] = useState<Budget[]>([]);
-  const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
+  const [budgetStatsByActivityId, setBudgetStatsByActivityId] = useState<Record<string, BudgetStatistics>>({});
+  const [activityList, setActivityList] = useState<Activity[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Budget | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
 
-  const refreshBudgetStats = async () => {
+  const refreshBudgetStats = async (activityId?: string) => {
     try {
-      const stats = await getBudgetStatistics();
-      setBudgetStats(stats);
+      if (!activityId) {
+        setBudgetStatsByActivityId({});
+        return;
+      }
+
+      const stats = await getBudgetStatistics({ activityId });
+      setBudgetStatsByActivityId((prev) => ({ ...prev, [activityId]: stats }));
     } catch (error) {
       console.error("Impossible de charger les statistiques budget depuis l'API.", error);
-      setBudgetStats(EMPTY_BUDGET_STATS);
+      if (activityId) {
+        setBudgetStatsByActivityId((prev) => ({ ...prev, [activityId]: EMPTY_BUDGET_STATS }));
+      } else {
+        setBudgetStatsByActivityId({});
+      }
     }
   };
 
   useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const remoteActivities = await getActivities();
+        setActivityList(remoteActivities);
+      } catch (error) {
+        console.error("Impossible de charger les activites depuis l'API.", error);
+        setActivityList([]);
+      }
+    };
+
+    loadActivities();
+  }, []);
+
+  useEffect(() => {
     const loadBudgets = async () => {
       try {
-        const remoteBudgets = await getBudgets();
+        const remoteBudgets = await getBudgets(selectedActivityId ?? undefined);
         setBudgetList(remoteBudgets);
       } catch (error) {
         console.error("Impossible de charger les budgets depuis l'API.", error);
@@ -60,8 +87,37 @@ export default function Budgets() {
     };
 
     loadBudgets();
-    refreshBudgetStats();
-  }, []);
+  }, [selectedActivityId]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      const activityIds = selectedActivityId
+        ? [selectedActivityId]
+        : Array.from(new Set(budgetList.map((budget) => budget.activityId).filter(Boolean)));
+
+      if (!activityIds.length) {
+        setBudgetStatsByActivityId({});
+        return;
+      }
+
+      try {
+        const statsList = await Promise.all(activityIds.map((activityId) => getBudgetStatistics({ activityId })));
+        const next = activityIds.reduce<Record<string, BudgetStatistics>>((acc, activityId, index) => {
+          acc[activityId] = statsList[index] ?? EMPTY_BUDGET_STATS;
+          return acc;
+        }, {});
+        setBudgetStatsByActivityId(next);
+      } catch (error) {
+        console.error("Impossible de charger les statistiques budget depuis l'API.", error);
+        setBudgetStatsByActivityId(activityIds.reduce<Record<string, BudgetStatistics>>((acc, activityId) => {
+          acc[activityId] = EMPTY_BUDGET_STATS;
+          return acc;
+        }, {}));
+      }
+    };
+
+    loadStats();
+  }, [budgetList, selectedActivityId]);
 
   const handleEdit = (budget: Budget) => {
     setEditItem(budget);
@@ -76,15 +132,21 @@ export default function Budgets() {
 
   const handleCreate = async (payload: BudgetPayload) => {
     const created = await createBudget(payload);
-    setBudgetList((prev) => [created, ...prev]);
-    await refreshBudgetStats();
+    await (async () => {
+      const remoteBudgets = await getBudgets(selectedActivityId ?? undefined);
+      setBudgetList(remoteBudgets);
+    })();
+    await refreshBudgetStats(payload.activityId);
     toast({ title: "Budget ajoute", description: formatCurrency(created.amount) });
   };
 
   const handleUpdate = async (id: string, payload: BudgetPayload) => {
     const updated = await updateBudget(id, payload);
-    setBudgetList((prev) => prev.map((budget) => (budget.id === id ? updated : budget)));
-    await refreshBudgetStats();
+    await (async () => {
+      const remoteBudgets = await getBudgets(selectedActivityId ?? undefined);
+      setBudgetList(remoteBudgets);
+    })();
+    await refreshBudgetStats(payload.activityId);
     toast({ title: "Budget modifie", description: formatCurrency(updated.amount) });
   };
 
@@ -96,7 +158,7 @@ export default function Budgets() {
     try {
       await deleteBudget(deleteTarget.id);
       setBudgetList((prev) => prev.filter((budget) => budget.id !== deleteTarget.id));
-      await refreshBudgetStats();
+      await refreshBudgetStats(selectedActivityId ?? undefined);
       toast({ title: "Budget supprime" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -116,7 +178,8 @@ export default function Budgets() {
               setEditItem(null);
               setFormOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+            disabled={activityList.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
           >
             <Plus size={16} /> Nouveau budget
@@ -125,7 +188,7 @@ export default function Budgets() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {sortedBudgets.map((budget) => {
-            const spent = budgetStats.spentByPeriod[budget.period] ?? 0;
+            const spent = budget.activityId ? (budgetStatsByActivityId[budget.activityId]?.spentByPeriod[budget.period] ?? 0) : 0;
             const pct = budget.amount > 0 ? Math.min(100, Math.round((spent / budget.amount) * 100)) : 0;
             const isOver = spent > budget.amount;
             const remaining = budget.amount - spent;
@@ -224,7 +287,7 @@ export default function Budgets() {
         </div>
       </div>
 
-      <BudgetForm open={formOpen} onOpenChange={setFormOpen} budget={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
+      <BudgetForm open={formOpen} onOpenChange={setFormOpen} activities={activityList} lockedActivityId={selectedActivityId} budget={editItem} onCreate={handleCreate} onUpdate={handleUpdate} />
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Supprimer le budget" description="Voulez-vous vraiment supprimer ce budget ?" onConfirm={confirmDelete} />
     </div>
   );

@@ -15,8 +15,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { createClient, createFacture, createProduit, deleteFacture, getClients, getFactures, getProduits, updateFacture } from "@/api/saleApi";
 
-function clientNom(id: string, clients: Client[]) { return clients.find((c) => c.id === id)?.nom ?? "—"; }
+function clientNom(id: string, clients: Client[]) { return id ? (clients.find((c) => c.id === id)?.nom ?? "—") : "Sans client"; }
 function produitNom(id: string, produits: Produit[]) { return produits.find((p) => p.id === id)?.nom ?? "—"; }
+
+const NO_CLIENT_VALUE = "__NO_CLIENT__";
+function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
 
 const statutColor: Record<FactureStatut, string> = {
   "PAYÉE": "default",
@@ -54,6 +57,7 @@ export default function FacturesPage() {
   const [clientId, setClientId] = useState("");
   const [date, setDate] = useState("");
   const [statut, setStatut] = useState<string>("EN_ATTENTE");
+  const [paymentType, setPaymentType] = useState<"CASH" | "CARD">("CASH");
   const [lignes, setLignes] = useState<LigneFacture[]>([emptyLigne()]);
 
   useEffect(() => {
@@ -95,11 +99,13 @@ export default function FacturesPage() {
     setEditing(null);
     setNumero(`FAC-${new Date().getFullYear()}-${String(factures.length + 1).padStart(3, "0")}`);
     setClientId(""); setDate(new Date().toISOString().slice(0, 10)); setStatut("EN_ATTENTE");
+    setPaymentType("CASH");
     setLignes([emptyLigne()]);
     setViewMode("form");
   };
   const openEdit = (f: Facture) => {
-    setEditing(f); setNumero(f.numero); setClientId(f.clientId); setDate(f.date); setStatut(f.statut);
+    setEditing(f); setNumero(f.numero); setClientId(f.clientId); setDate(f.date ? f.date.split("T")[0] : ""); setStatut(f.statut);
+    setPaymentType(f.paymentType || "CASH");
     setLignes(f.lignes.length > 0 ? [...f.lignes] : [emptyLigne()]);
     setViewMode("form");
   };
@@ -109,7 +115,7 @@ export default function FacturesPage() {
     const validLignes = lignes.filter((l) => l.produitId && l.quantite > 0);
     if (validLignes.length === 0) { toast({ title: "Ajoutez au moins un produit", variant: "destructive" }); return; }
     if (!activityId) return;
-    const payload = { numero, clientId, date, statut: statut as FactureStatut, lignes: validLignes };
+    const payload = { numero, ...(clientId ? { clientId } : {}), date, statut: statut as FactureStatut, paymentType, lignes: validLignes };
     try {
       if (editing) {
         const updated = await updateFacture({ activityId }, editing.id, payload);
@@ -159,9 +165,31 @@ export default function FacturesPage() {
               <h3 className="font-display font-semibold text-foreground">Informations générales</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormFieldInput label="Numéro" id="numero" value={numero} onChange={setNumero} required />
-                <SelectField label="Client" value={clientId} onValueChange={setClientId} options={clients.map((c) => ({ value: c.id, label: c.nom }))} placeholder="Choisir un client" onAddClick={() => { setNewClientNom(""); setNewClientEmail(""); setNewClientTelephone(""); setNewClientAdresse(""); setClientFormOpen(true); }} />
+                <SelectField
+                  label="Client (optionnel)"
+                  value={clientId || NO_CLIENT_VALUE}
+                  onValueChange={(value) => setClientId(value === NO_CLIENT_VALUE ? "" : value)}
+                  options={[{ value: NO_CLIENT_VALUE, label: "Sans client" }, ...clients.map((c) => ({ value: c.id, label: c.nom }))]}
+                  placeholder="Choisir un client"
+                  onAddClick={() => { setNewClientNom(""); setNewClientEmail(""); setNewClientTelephone(""); setNewClientAdresse(""); setClientFormOpen(true); }}
+                />
                 <FormFieldInput label="Date" id="date" type="date" value={date} onChange={setDate} required />
                 <SelectField label="Statut" value={statut} onValueChange={setStatut} options={[{ value: "EN_ATTENTE", label: "En attente" }, { value: "PAYÉE", label: "Payée" }, { value: "ANNULÉE", label: "Annulée" }]} />
+              </div>
+            </div>
+
+            <div className="stat-card p-5 space-y-4">
+              <h3 className="font-display font-semibold text-foreground">Paiement</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <SelectField
+                  label="Mode de paiement"
+                  value={paymentType}
+                  onValueChange={(v) => setPaymentType(v as "CASH" | "CARD")}
+                  options={[
+                    { value: "CASH", label: "Especes" },
+                    { value: "CARD", label: "Carte" },
+                  ]}
+                />
               </div>
             </div>
 
@@ -271,6 +299,7 @@ export default function FacturesPage() {
                 <TableHead>Client</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Paiement</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -280,9 +309,9 @@ export default function FacturesPage() {
                 <TableRow key={f.id}>
                   <TableCell className="font-medium font-mono text-xs text-foreground">{f.numero}</TableCell>
                   <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
-                  <TableCell className="text-foreground">{clientNom(f.clientId, clients)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(f.date)}</TableCell>
                   <TableCell className="font-semibold text-foreground">{formatCurrency(f.total)}</TableCell>
+                  <TableCell className="text-muted-foreground">{paymentLabel(f.paymentType)}</TableCell>
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -307,7 +336,6 @@ export default function FacturesPage() {
           {viewing && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId, clients)}</span></div>
                 <div><span className="text-muted-foreground">Client : </span><span className="text-foreground">{clientNom(viewing.clientId, clients)}</span></div>
                 <div><span className="text-muted-foreground">Date : </span><span className="text-foreground">{formatDate(viewing.date)}</span></div>
                 <div><span className="text-muted-foreground">Statut : </span><Badge variant={statutColor[viewing.statut] as any}>{viewing.statut}</Badge></div>

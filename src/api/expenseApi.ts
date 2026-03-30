@@ -191,8 +191,14 @@ function mapExpenseStatistics(item: unknown): ExpenseStatistics | null {
   };
 }
 
-export async function getExpenses(userId: string = getRequiredUserId()): Promise<Expense[]> {
-  const response = await fetch(`${EXPENSE_API_URL}/user/${userId}`, {
+export async function getExpenses(params?: { userId?: string; activityId?: string }): Promise<Expense[]> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const activityId = params?.activityId;
+  const url = activityId
+    ? `${EXPENSE_API_URL}/activity/${encodeURIComponent(activityId)}?userId=${encodeURIComponent(userId)}`
+    : `${EXPENSE_API_URL}/user/${userId}`;
+
+  const response = await fetch(url, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -200,19 +206,23 @@ export async function getExpenses(userId: string = getRequiredUserId()): Promise
   }
 
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
-  }
+  const rawItems: unknown[] = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as any).items)
+      ? ((data as any).items as unknown[])
+      : [];
 
-  const items = data
+  const items = rawItems
     .map((item): Expense | null => mapExpense(item))
     .filter((item): item is Expense => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
 
   return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export async function getExpenseStatistics(userId: string = getRequiredUserId()): Promise<ExpenseStatistics> {
-  const response = await fetch(`${STATISTICS_API_URL}/expenses/user/${userId}`, {
+export async function getExpenseStatistics(params?: { userId?: string; activityId?: string }): Promise<ExpenseStatistics> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const suffix = params?.activityId ? `?activityId=${encodeURIComponent(params.activityId)}` : "";
+  const response = await fetch(`${STATISTICS_API_URL}/expenses/user/${userId}${suffix}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {

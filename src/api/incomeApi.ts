@@ -175,8 +175,14 @@ function mapIncomeStatistics(item: unknown): IncomeStatistics | null {
   };
 }
 
-export async function getIncomes(userId: string = getRequiredUserId()): Promise<Income[]> {
-  const response = await fetch(`${INCOME_API_URL}/user/${userId}`, {
+export async function getIncomes(params?: { userId?: string; activityId?: string }): Promise<Income[]> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const activityId = params?.activityId;
+  const url = activityId
+    ? `${INCOME_API_URL}/activity/${encodeURIComponent(activityId)}?userId=${encodeURIComponent(userId)}`
+    : `${INCOME_API_URL}/user/${userId}`;
+
+  const response = await fetch(url, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -184,11 +190,13 @@ export async function getIncomes(userId: string = getRequiredUserId()): Promise<
   }
 
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
-  }
+  const rawItems: unknown[] = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as any).items)
+      ? ((data as any).items as unknown[])
+      : [];
 
-  const items = data
+  const items = rawItems
     .map((item): Income | null => mapIncome(item))
     .filter((item): item is Income => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
 
@@ -205,8 +213,17 @@ export async function getIncomes(userId: string = getRequiredUserId()): Promise<
   return items.sort((a, b) => sortKey(b) - sortKey(a));
 }
 
-export async function getIncomeStatistics(userId: string = getRequiredUserId(), year?: number): Promise<IncomeStatistics> {
-  const suffix = typeof year === "number" ? `?year=${year}` : "";
+export async function getIncomeStatistics(params?: { userId?: string; year?: number; activityId?: string }): Promise<IncomeStatistics> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const query = new URLSearchParams();
+  if (typeof params?.year === "number") {
+    query.set("year", String(params.year));
+  }
+  if (params?.activityId) {
+    query.set("activityId", params.activityId);
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
   const response = await fetch(`${STATISTICS_API_URL}/incomes/user/${userId}${suffix}`, {
     headers: buildAuthHeaders(),
   });

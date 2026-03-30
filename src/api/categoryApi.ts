@@ -101,8 +101,10 @@ export async function getCategories(): Promise<Category[]> {
     .filter((item): item is Category => Boolean(item && item.id && item.name && item.userId));
 }
 
-export async function getCategoryStatistics(userId: string = getRequiredUserId()): Promise<CategoryStatistics> {
-  const response = await fetch(`${STATISTICS_API_URL}/categories/user/${userId}`, {
+export async function getCategoryStatistics(params?: { userId?: string; activityId?: string }): Promise<CategoryStatistics> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const suffix = params?.activityId ? `?activityId=${encodeURIComponent(params.activityId)}` : "";
+  const response = await fetch(`${STATISTICS_API_URL}/categories/user/${userId}${suffix}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {

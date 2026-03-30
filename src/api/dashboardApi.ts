@@ -214,8 +214,10 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
   };
 }
 
-export async function getDashboardStats(userId: string = getRequiredUserId()): Promise<DashboardStats> {
-  const response = await fetch(`${STATISTICS_API_URL}/dashboard/user/${userId}`, {
+export async function getDashboardStats(params?: { userId?: string; activityId?: string }): Promise<DashboardStats> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const suffix = params?.activityId ? `?activityId=${encodeURIComponent(params.activityId)}` : "";
+  const response = await fetch(`${STATISTICS_API_URL}/dashboard/user/${userId}${suffix}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {

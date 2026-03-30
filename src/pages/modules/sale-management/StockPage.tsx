@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { createProduit, createProductCategory, createStockItem, deleteStockItem, getProductCategories, getProduits, getStock, updateStockItem } from "@/api/saleApi";
 import type { ProductCategoryOption } from "@/api/saleApi";
 
+function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
+
 export default function StockPage() {
   const { toast } = useToast();
   const { activityId } = useParams<{ activityId: string }>();
@@ -26,8 +28,11 @@ export default function StockPage() {
 
   const [produitId, setProduitId] = useState("");
   const [quantite, setQuantite] = useState("");
+  const [unitPurchasePrice, setUnitPurchasePrice] = useState("");
+  const [unitSalePrice, setUnitSalePrice] = useState("");
   const [seuil, setSeuil] = useState("");
   const [emplacement, setEmplacement] = useState("");
+  const [paymentType, setPaymentType] = useState<"CASH" | "CARD">("CASH");
   const [produitFormOpen, setProduitFormOpen] = useState(false);
   const [newProdNom, setNewProdNom] = useState("");
   const [newProdRef, setNewProdRef] = useState("");
@@ -57,17 +62,54 @@ export default function StockPage() {
       });
   }, [activityId, toast]);
 
+  useEffect(() => {
+    if (editing) {
+      return;
+    }
+    if (!produitId) {
+      return;
+    }
+    const selected = produits.find((p) => p.id === produitId);
+    if (!selected) {
+      return;
+    }
+    if (!unitPurchasePrice) {
+      setUnitPurchasePrice(String(selected.prixAchat));
+    }
+    if (!unitSalePrice) {
+      setUnitSalePrice(String(selected.prixVente));
+    }
+  }, [editing, produitId, produits, unitPurchasePrice, unitSalePrice]);
+
   function getProduitNom(id: string) {
     return produits.find((p) => p.id === id)?.nom ?? "—";
   }
 
-  const openAdd = () => { setEditing(null); setProduitId(""); setQuantite(""); setSeuil("15"); setEmplacement(""); setFormOpen(true); };
-  const openEdit = (s: StockItem) => { setEditing(s); setProduitId(s.produitId); setQuantite(String(s.quantite)); setSeuil(String(s.seuilAlerte)); setEmplacement(s.emplacement); setFormOpen(true); };
+  const openAdd = () => { setEditing(null); setProduitId(""); setQuantite(""); setUnitPurchasePrice(""); setUnitSalePrice(""); setSeuil("15"); setEmplacement(""); setPaymentType("CASH"); setFormOpen(true); };
+  const openEdit = (s: StockItem) => {
+    setEditing(s);
+    setProduitId(s.produitId);
+    setQuantite(String(s.quantite));
+    setUnitPurchasePrice(s.unitPurchasePrice ? String(s.unitPurchasePrice) : "");
+    setUnitSalePrice(s.unitSalePrice ? String(s.unitSalePrice) : "");
+    setSeuil(String(s.seuilAlerte));
+    setEmplacement(s.emplacement);
+    setPaymentType(s.paymentType || "CASH");
+    setFormOpen(true);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId) return;
-    const payload = { produitId, quantite: +quantite, seuilAlerte: +seuil, emplacement };
+    const payload = {
+      produitId,
+      quantite: +quantite,
+      unitPurchasePrice: unitPurchasePrice ? +unitPurchasePrice : undefined,
+      unitSalePrice: unitSalePrice ? +unitSalePrice : undefined,
+      seuilAlerte: +seuil,
+      emplacement,
+      paymentType,
+    };
     try {
       if (editing) {
         const updated = await updateStockItem({ activityId }, editing.id, payload);
@@ -79,8 +121,8 @@ export default function StockPage() {
         toast({ title: "Stock ajouté" });
       }
       setFormOpen(false);
-    } catch {
-      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Erreur lors de l'enregistrement", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -135,6 +177,7 @@ export default function StockPage() {
                 <TableHead>Quantité</TableHead>
                 <TableHead>Seuil</TableHead>
                 <TableHead>Emplacement</TableHead>
+                <TableHead>Paiement</TableHead>
                 <TableHead>Dernière MAJ</TableHead>
                 <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
@@ -148,6 +191,7 @@ export default function StockPage() {
                   </TableCell>
                   <TableCell style={{ color: "hsl(var(--muted-foreground))" }}>{s.seuilAlerte}</TableCell>
                   <TableCell style={{ color: "hsl(var(--muted-foreground))" }}>{s.emplacement}</TableCell>
+                  <TableCell style={{ color: "hsl(var(--muted-foreground))" }}>{paymentLabel(s.paymentType)}</TableCell>
                   <TableCell style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(s.derniereMaj)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -166,8 +210,21 @@ export default function StockPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <SelectField label="Produit" value={produitId} onValueChange={setProduitId} options={produits.map((p) => ({ value: p.id, label: p.nom }))} placeholder="Choisir un produit" onAddClick={() => { setNewProdNom(""); setNewProdRef(""); setNewProdPrixAchat(""); setNewProdPrixVente(""); setNewProdCategorie(""); setProduitFormOpen(true); }} />
           <FormFieldInput label="Quantité" id="quantite" type="number" value={quantite} onChange={setQuantite} min="0" required />
+          <div className="grid grid-cols-2 gap-3">
+            <FormFieldInput label="Prix d'achat unitaire" id="unit-pa" type="number" value={unitPurchasePrice} onChange={setUnitPurchasePrice} min="0" required />
+            <FormFieldInput label="Prix de vente unitaire" id="unit-pv" type="number" value={unitSalePrice} onChange={setUnitSalePrice} min="0" required />
+          </div>
           <FormFieldInput label="Seuil d'alerte" id="seuil" type="number" value={seuil} onChange={setSeuil} min="0" />
           <FormFieldInput label="Emplacement" id="emplacement" value={emplacement} onChange={setEmplacement} placeholder="Ex: Entrepôt A" />
+          <SelectField
+            label="Mode de paiement"
+            value={paymentType}
+            onValueChange={(v) => setPaymentType(v as "CASH" | "CARD")}
+            options={[
+              { value: "CASH", label: "Especes" },
+              { value: "CARD", label: "Carte" },
+            ]}
+          />
           <Button type="submit" className="w-full">{editing ? "Enregistrer" : "Ajouter"}</Button>
         </form>
       </FormDialog>
