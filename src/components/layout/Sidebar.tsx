@@ -28,6 +28,7 @@ const superAdminNavItem = { key: "superadmin", to: "/superadmin", icon: Shield, 
 const navItems = [
   { key: "dashboard", to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
   { key: "activities", to: "/activities", icon: Briefcase, label: "Activités" },
+  { key: "modules", permissionKey: "activities", to: "/modules", icon: LayoutGrid, label: "Modules" },
   { key: "incomes", to: "/incomes", icon: TrendingUp, label: "Revenus" },
   { key: "expenses", to: "/expenses", icon: TrendingDown, label: "Dépenses" },
   { key: "categories", to: "/categories", icon: Tag, label: "Catégories" },
@@ -87,7 +88,10 @@ export default function Sidebar({
       return effectiveItems;
     }
     const allowed = new Set(managedProfile?.menuAccess ?? []);
-    return effectiveItems.filter((item) => allowed.has(item.key));
+    return effectiveItems.filter((item) => {
+      const permissionKey = "permissionKey" in item ? item.permissionKey : item.key;
+      return allowed.has(permissionKey);
+    });
   }, [isManagedProfile, isSuperAdminUser, managedProfile?.menuAccess, selectedActivityId]);
 
   return (

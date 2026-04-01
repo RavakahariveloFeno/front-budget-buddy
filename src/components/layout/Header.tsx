@@ -357,6 +357,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
     () => [
       { to: "/", title: "Tableau de bord", subtitle: "Vue globale", keywords: ["dashboard", "accueil"] },
       { to: "/activities", title: "Activites", subtitle: "Sources de revenus", keywords: ["activity", "business", "salaire"] },
+      { to: "/modules", title: "Modules", subtitle: "Affectation des modules", keywords: ["module", "assignation", "activite"] },
       { to: "/incomes", title: "Revenus", subtitle: "Transactions entrantes", keywords: ["income", "salaire", "entree"] },
       { to: "/expenses", title: "Depenses", subtitle: "Transactions sortantes", keywords: ["expense", "sortie", "achat"] },
       { to: "/categories", title: "Categories", subtitle: "Classement des depenses", keywords: ["category", "tag"] },
