@@ -1,6 +1,7 @@
 export type MenuAccessKey =
   | "dashboard"
   | "activities"
+  | "modules"
   | "incomes"
   | "expenses"
   | "categories"
@@ -12,6 +13,7 @@ export type MenuAccessKey =
 export const MENU_ACCESS_ITEMS: Array<{ key: MenuAccessKey; label: string; path: string }> = [
   { key: "dashboard", label: "Tableau de bord", path: "/" },
   { key: "activities", label: "Activités", path: "/activities" },
+  { key: "modules", label: "Modules", path: "/modules" },
   { key: "incomes", label: "Revenus", path: "/incomes" },
   { key: "expenses", label: "Dépenses", path: "/expenses" },
   { key: "categories", label: "Catégories", path: "/categories" },

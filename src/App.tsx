@@ -88,7 +88,7 @@ const App = () => (
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<MenuRoute menuKey="dashboard"><Dashboard /></MenuRoute>} />
             <Route path="/activities" element={<MenuRoute menuKey="activities"><Activities /></MenuRoute>} />
-            <Route path="/modules" element={<MenuRoute menuKey="activities"><Modules /></MenuRoute>} />
+            <Route path="/modules" element={<MenuRoute menuKey="modules"><Modules /></MenuRoute>} />
             <Route path="/activities/:activityId" element={<MenuRoute menuKey="activities"><ActivityDetail /></MenuRoute>} />
             <Route path="/activities/:activityId/modules/:moduleId/:menuPath" element={<MenuRoute menuKey="activities"><ModuleMenuPage /></MenuRoute>} />
             <Route path="/incomes" element={<MenuRoute menuKey="incomes"><Incomes /></MenuRoute>} />
