@@ -63,6 +63,14 @@ export default function Modules() {
     return counts;
   }, [activities, modulesByActivityId]);
 
+  const sortedModules = useMemo(
+    () =>
+      [...PREDEFINED_MODULES].sort(
+        (a, b) => (moduleActivityCount[b.id] ?? 0) - (moduleActivityCount[a.id] ?? 0),
+      ),
+    [moduleActivityCount],
+  );
+
   const activeModule = useMemo(
     () => PREDEFINED_MODULES.find((module) => module.id === activeModuleId) ?? null,
     [activeModuleId],
@@ -151,29 +159,6 @@ export default function Modules() {
       <Header title="Modules" subtitle="Assigner les modules aux activités" />
 
       <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {PREDEFINED_MODULES.map((module) => (
-            <div key={module.id} className="stat-card">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: `hsl(var(--${module.color}-dim))`, color: `hsl(var(--${module.color}))` }}
-                >
-                  <LayoutGrid size={18} />
-                </div>
-                <div>
-                  <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                    {module.name}
-                  </p>
-                  <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    {moduleActivityCount[module.id] ?? 0} activite(s)
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
         {isLoading ? (
           <div className="stat-card text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
             Chargement des activités...
@@ -184,7 +169,7 @@ export default function Modules() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {PREDEFINED_MODULES.map((module) => {
+            {sortedModules.map((module) => {
               const isSaving = savingKey === module.id;
               return (
                 <div
