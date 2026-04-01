@@ -9,12 +9,24 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { PREDEFINED_MODULES } from "@/data/staticData";
+import {
+  getModuleStatusLabel,
+  type ModuleCatalogStatus,
+  useModuleCatalogStore,
+} from "@/stores/moduleCatalogStore";
 
 export default function SuperAdmin() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const statusByModuleId = useModuleCatalogStore((s) => s.statusByModuleId);
+  const priceByModuleId = useModuleCatalogStore((s) => s.priceByModuleId);
+  const setModuleStatus = useModuleCatalogStore((s) => s.setModuleStatus);
+  const setModulePrice = useModuleCatalogStore((s) => s.setModulePrice);
 
   if (!isSuperAdmin()) {
     return <Navigate to="/" replace />;
@@ -137,6 +149,58 @@ export default function SuperAdmin() {
                         >
                           <Trash2 size={14} />
                         </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="rounded-lg border overflow-hidden" style={{ borderColor: "hsl(var(--border))" }}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Module</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-[180px]">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {PREDEFINED_MODULES.map((module) => {
+                const status = statusByModuleId[module.id] ?? "FREE";
+                const price = priceByModuleId[module.id] ?? "10$";
+                return (
+                  <TableRow key={module.id}>
+                    <TableCell className="font-medium">{module.name}</TableCell>
+                    <TableCell className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {module.description}
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-2">
+                        <Select
+                          value={status}
+                          onValueChange={(value) => setModuleStatus(module.id, value as ModuleCatalogStatus)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Choisir..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="FREE">{getModuleStatusLabel("FREE")}</SelectItem>
+                            <SelectItem value="PAID">Payant</SelectItem>
+                            <SelectItem value="SOON">{getModuleStatusLabel("SOON")}</SelectItem>
+                            <SelectItem value="COMING_SOON">{getModuleStatusLabel("COMING_SOON")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {status === "PAID" && (
+                          <Input
+                            value={price}
+                            onChange={(event) => setModulePrice(module.id, event.target.value)}
+                            placeholder="Ex: 10$"
+                            className="h-8"
+                          />
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

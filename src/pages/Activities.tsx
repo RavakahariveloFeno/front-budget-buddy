@@ -39,6 +39,7 @@ import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { getActivityModules } from "@/api/moduleApi";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
+import { isModuleBlockedByStatus, useModuleCatalogStore } from "@/stores/moduleCatalogStore";
 
 /* ─────────────────────────── constants ─────────────────────────── */
 
@@ -133,6 +134,7 @@ export default function Activities() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Activity | null>(null);
   const currentUser = getCurrentUser();
+  const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
   const isManagedProfile = Boolean(currentUser?.profileId);
   const canManageActivities = !isManagedProfile;
   const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
@@ -343,7 +345,9 @@ export default function Activities() {
                 Boolean(managedProfile?.moduleLinks?.some((link) => link.startsWith(`${act.id}::`))));
 
             const moduleIds = getModuleIds(act.id);
-            const linkedMods = PREDEFINED_MODULES.filter((m) => moduleIds.includes(m.id));
+            const linkedMods = PREDEFINED_MODULES
+              .filter((m) => moduleIds.includes(m.id))
+              .filter((m) => !isModuleBlockedByStatus(getModuleStatus(m.id)));
 
             return (
               <div

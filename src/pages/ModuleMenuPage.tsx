@@ -7,6 +7,11 @@ import { PREDEFINED_MODULES } from "@/data/staticData";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
+import {
+  getModuleStatusLabel,
+  isModuleBlockedByStatus,
+  useModuleCatalogStore,
+} from "@/stores/moduleCatalogStore";
 
 // ── Vente ──
 import StockPage from "@/pages/modules/sale-management/StockPage";
@@ -69,6 +74,7 @@ export default function ModuleMenuPage() {
   const currentUser = getCurrentUser();
   const isManagedProfile = Boolean(currentUser?.profileId);
   const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
+  const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
 
   useEffect(() => {
     if (activityId) {
@@ -78,6 +84,21 @@ export default function ModuleMenuPage() {
 
   const module = PREDEFINED_MODULES.find((m) => m.id === moduleId);
   const menu = module?.menus.find((m) => m.path === menuPath);
+  const moduleStatus = moduleId ? getModuleStatus(moduleId) : "FREE";
+  const moduleBlocked = isModuleBlockedByStatus(moduleStatus);
+
+  if (moduleBlocked) {
+    return (
+      <div className="animate-fade-in p-6">
+        <button onClick={() => navigate(`/activities/${activityId}`)} className="flex items-center gap-2 text-sm mb-4" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <ArrowLeft size={16} /> Retour
+        </button>
+        <p style={{ color: "hsl(var(--muted-foreground))" }}>
+          Ce module est indisponible ({getModuleStatusLabel(moduleStatus)}).
+        </p>
+      </div>
+    );
+  }
 
   if (isManagedProfile) {
     if (isLoadingManagedProfile) {

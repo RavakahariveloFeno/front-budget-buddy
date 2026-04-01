@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getActivityModules } from "@/api/moduleApi";
 import { PREDEFINED_MODULES } from "@/data/staticData";
 import * as Icons from "lucide-react";
+import { isModuleBlockedByStatus, useModuleCatalogStore } from "@/stores/moduleCatalogStore";
 
 const superAdminNavItem = { key: "superadmin", to: "/superadmin", icon: Shield, label: "Superadmin" };
 
@@ -56,6 +57,7 @@ export default function Sidebar({
   const { data: managedProfile } = useActiveManagedProfile();
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [collapsed, setCollapsed] = useState(false);
+  const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
   const location = useLocation();
   const isDrawer = mode === "drawer";
   const effectiveCollapsed = isDrawer ? false : collapsed;
@@ -72,14 +74,16 @@ export default function Sidebar({
       return [];
     }
 
-    const linked = PREDEFINED_MODULES.filter((module) => selectedActivityModuleIds.includes(module.id));
+    const linked = PREDEFINED_MODULES
+      .filter((module) => selectedActivityModuleIds.includes(module.id))
+      .filter((module) => !isModuleBlockedByStatus(getModuleStatus(module.id)));
     if (!isManagedProfile) {
       return linked;
     }
 
     const allowedLinks = new Set(managedProfile?.moduleLinks ?? []);
     return linked.filter((module) => allowedLinks.has(`${selectedActivityId}::${module.id}`));
-  }, [isManagedProfile, managedProfile?.moduleLinks, selectedActivityId, selectedActivityModuleIds]);
+  }, [getModuleStatus, isManagedProfile, managedProfile?.moduleLinks, selectedActivityId, selectedActivityModuleIds]);
 
   const visibleNavItems = useMemo(() => {
     const baseItems = [...navItems, ...(isSuperAdminUser ? [superAdminNavItem] : [])];

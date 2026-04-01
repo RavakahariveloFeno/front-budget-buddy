@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, LayoutGrid } from "lucide-react";
+import { Check, Download, LayoutGrid, Unlink } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES, type Activity } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
@@ -10,6 +10,42 @@ import { useModuleStore } from "@/stores/moduleStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import {
+  getModuleStatusLabel,
+  isModuleBlockedByStatus,
+  type ModuleCatalogStatus,
+  useModuleCatalogStore,
+} from "@/stores/moduleCatalogStore";
+
+function getStatusStyles(status: ModuleCatalogStatus): { bg: string; color: string; border: string } {
+  switch (status) {
+    case "COMING_SOON":
+      return {
+        bg: "hsl(var(--warning-dim))",
+        color: "hsl(var(--warning))",
+        border: "hsl(var(--warning) / 0.35)",
+      };
+    case "SOON":
+      return {
+        bg: "hsl(var(--secondary))",
+        color: "hsl(var(--muted-foreground))",
+        border: "hsl(var(--border))",
+      };
+    case "PAID":
+      return {
+        bg: "hsl(var(--purple-dim))",
+        color: "hsl(var(--purple))",
+        border: "hsl(var(--purple) / 0.35)",
+      };
+    case "FREE":
+    default:
+      return {
+        bg: "hsl(var(--primary-dim))",
+        color: "hsl(var(--primary))",
+        border: "hsl(var(--primary) / 0.35)",
+      };
+  }
+}
 
 export default function Modules() {
   const isManagedProfile = Boolean(getCurrentUser()?.profileId);
@@ -22,6 +58,8 @@ export default function Modules() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedActivityIds, setSelectedActivityIds] = useState<string[]>([]);
   const [modalMode, setModalMode] = useState<"import" | "remove">("import");
+  const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
+  const getModulePrice = useModuleCatalogStore((s) => s.getModulePrice);
 
   useEffect(() => {
     const load = async () => {
@@ -213,6 +251,10 @@ export default function Modules() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {sortedModules.map((module) => {
               const isSaving = savingKey === module.id;
+              const moduleStatus = getModuleStatus(module.id);
+              const modulePrice = getModulePrice(module.id);
+              const isBlocked = isModuleBlockedByStatus(moduleStatus);
+              const statusStyle = getStatusStyles(moduleStatus);
               return (
                 <div
                   key={module.id}
@@ -244,22 +286,40 @@ export default function Modules() {
                       {moduleActivityCount[module.id] ?? 0} activite(s) utilisent ce module
                     </span>
                     <div className="flex items-center gap-2">
+                      <span
+                        className="text-xs px-2.5 py-1 rounded-full border font-medium"
+                        style={{
+                          borderColor: statusStyle.border,
+                          color: statusStyle.color,
+                          background: statusStyle.bg,
+                        }}
+                      >
+                        {getModuleStatusLabel(moduleStatus, modulePrice)}
+                      </span>
                       {(moduleActivityCount[module.id] ?? 0) > 0 && (
                         <Button
                           variant="outline"
                           onClick={() => openRemoveModal(module.id)}
                           disabled={isManagedProfile || isSaving}
-                          className="h-8"
+                          className="h-9 w-9 p-0 border-border hover:bg-secondary"
+                          title="Retirer des activites"
+                          aria-label="Retirer des activites"
                         >
-                          Retirer
+                          <Unlink size={14} />
                         </Button>
                       )}
                       <Button
                         onClick={() => openImportModal(module.id)}
-                        disabled={isManagedProfile || isSaving}
-                        className="h-8"
+                        disabled={isManagedProfile || isSaving || isBlocked}
+                        className="h-9 w-9 p-0"
+                        title={isBlocked ? "Module indisponible pour le moment" : undefined}
+                        aria-label="Importer vers des activites"
+                        style={{
+                          background: isBlocked ? "hsl(var(--secondary))" : `hsl(var(--${module.color}))`,
+                          color: isBlocked ? "hsl(var(--muted-foreground))" : "hsl(var(--background))",
+                        }}
                       >
-                        {isSaving ? "..." : "Importer"}
+                        {isSaving ? <span className="text-[11px]">...</span> : <Download size={14} />}
                       </Button>
                     </div>
                   </div>

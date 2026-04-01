@@ -10,6 +10,7 @@ import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { getActivityModules } from "@/api/moduleApi";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
+import { isModuleBlockedByStatus, useModuleCatalogStore } from "@/stores/moduleCatalogStore";
 
 function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: React.CSSProperties }) {
   const Icon = (Icons as unknown as Record<string, React.ComponentType<any>>)[name];
@@ -24,6 +25,7 @@ export default function ActivityDetail() {
   const getModuleIds = useModuleStore((s) => s.getModuleIds);
   const setLinks = useModuleStore((s) => s.setLinks);
   const currentUser = getCurrentUser();
+  const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
   const isManagedProfile = Boolean(currentUser?.profileId);
   const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
 
@@ -74,7 +76,9 @@ export default function ActivityDetail() {
         ? []
         : linkedModuleIds.filter((moduleId) => managedProfile.moduleLinks.includes(`${activity.id}::${moduleId}`));
 
-  const linkedModules = PREDEFINED_MODULES.filter((m) => allowedModuleIds.includes(m.id));
+  const linkedModules = PREDEFINED_MODULES
+    .filter((m) => allowedModuleIds.includes(m.id))
+    .filter((m) => !isModuleBlockedByStatus(getModuleStatus(m.id)));
 
   return (
     <div className="animate-fade-in">
