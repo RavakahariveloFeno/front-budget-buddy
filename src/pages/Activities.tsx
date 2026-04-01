@@ -35,6 +35,7 @@ import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { useModuleStore } from "@/stores/moduleStore";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { getActivityModules } from "@/api/moduleApi";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
@@ -122,6 +123,7 @@ function MetricCell({
 
 export default function Activities() {
   const navigate = useNavigate();
+  const setSelectedActivityId = useActivityFilterStore((s) => s.setSelectedActivityId);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const { getModuleIds, setLinks, reset } = useModuleStore();
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
@@ -533,16 +535,26 @@ export default function Activities() {
                         style={{ color: "hsl(var(--muted-foreground))" }}
                       />
                       {linkedMods.map((mod) => (
-                        <span
+                        <button
                           key={mod.id}
-                          className="text-xs px-2 py-0.5 rounded-full"
+                          type="button"
+                          onClick={() => {
+                            setSelectedActivityId(act.id);
+                            const firstMenuPath = mod.menus[0]?.path;
+                            if (firstMenuPath) {
+                              navigate(`/activities/${act.id}/modules/${mod.id}/${firstMenuPath}`);
+                              return;
+                            }
+                            navigate(`/activities/${act.id}`);
+                          }}
+                          className="text-xs px-2 py-0.5 rounded-full transition-opacity hover:opacity-85"
                           style={{
                             background: `hsl(var(--${mod.color}-dim))`,
                             color: `hsl(var(--${mod.color}))`,
                           }}
                         >
                           {mod.name}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}

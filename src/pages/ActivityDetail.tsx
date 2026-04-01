@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES, type Activity, type AppModule } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
 import { useModuleStore } from "@/stores/moduleStore";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { getActivityModules } from "@/api/moduleApi";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
@@ -18,12 +19,19 @@ function DynamicIcon({ name, ...props }: { name: string; size?: number; classNam
 export default function ActivityDetail() {
   const { activityId } = useParams<{ activityId: string }>();
   const navigate = useNavigate();
+  const setSelectedActivityId = useActivityFilterStore((s) => s.setSelectedActivityId);
   const [activity, setActivity] = useState<Activity | null>(null);
   const getModuleIds = useModuleStore((s) => s.getModuleIds);
   const setLinks = useModuleStore((s) => s.setLinks);
   const currentUser = getCurrentUser();
   const isManagedProfile = Boolean(currentUser?.profileId);
   const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
+
+  useEffect(() => {
+    if (activityId) {
+      setSelectedActivityId(activityId);
+    }
+  }, [activityId, setSelectedActivityId]);
 
   useEffect(() => {
     const load = async () => {

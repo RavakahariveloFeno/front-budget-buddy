@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, LayoutGrid } from "lucide-react";
 import * as Icons from "lucide-react";
@@ -5,6 +6,7 @@ import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES } from "@/data/staticData";
 import { getCurrentUser } from "@/api/authApi";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 // ── Vente ──
 import StockPage from "@/pages/modules/sale-management/StockPage";
@@ -63,9 +65,16 @@ function DynamicIcon({ name, ...props }: { name: string; size?: number; classNam
 export default function ModuleMenuPage() {
   const { activityId, moduleId, menuPath } = useParams<{ activityId: string; moduleId: string; menuPath: string }>();
   const navigate = useNavigate();
+  const setSelectedActivityId = useActivityFilterStore((s) => s.setSelectedActivityId);
   const currentUser = getCurrentUser();
   const isManagedProfile = Boolean(currentUser?.profileId);
   const { data: managedProfile, isLoading: isLoadingManagedProfile } = useActiveManagedProfile();
+
+  useEffect(() => {
+    if (activityId) {
+      setSelectedActivityId(activityId);
+    }
+  }, [activityId, setSelectedActivityId]);
 
   const module = PREDEFINED_MODULES.find((m) => m.id === moduleId);
   const menu = module?.menus.find((m) => m.path === menuPath);
