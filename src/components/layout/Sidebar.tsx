@@ -92,7 +92,12 @@ export default function Sidebar({
       return effectiveItems;
     }
     const allowed = new Set(managedProfile?.menuAccess ?? []);
-    return effectiveItems.filter((item) => allowed.has(item.key));
+    return effectiveItems.filter((item) => {
+      if (item.key === "modules") {
+        return allowed.has("modules") || allowed.has("activities");
+      }
+      return allowed.has(item.key);
+    });
   }, [isManagedProfile, isSuperAdminUser, managedProfile?.menuAccess, selectedActivityId]);
 
   return (

@@ -38,6 +38,8 @@ const ROLE_OPTIONS: { value: ProfileRole; label: string }[] = [
 ];
 
 const MANAGED_PROFILE_MENU_ITEMS = MENU_ACCESS_ITEMS.filter((item) => item.key !== "settings");
+const MODULES_MENU_KEY = "modules";
+const ACTIVITIES_MENU_KEY = "activities";
 
 const ROLE_COLORS: Record<ProfileRole, string> = {
   admin: "bg-destructive/20 text-destructive border-destructive/30",
@@ -46,6 +48,23 @@ const ROLE_COLORS: Record<ProfileRole, string> = {
 };
 
 type ManagedProfileFormState = Omit<ManagedProfile, "id" | "isDisabled" | "disabledAt"> & { password: string };
+
+function normalizeMenuAccessForForm(values: string[]): string[] {
+  const dedup = Array.from(new Set(values.filter((key) => key !== "settings")));
+  if (dedup.includes(ACTIVITIES_MENU_KEY) && !dedup.includes(MODULES_MENU_KEY)) {
+    dedup.push(MODULES_MENU_KEY);
+  }
+  return dedup;
+}
+
+function buildMenuAccessPayload(values: string[]): string[] {
+  const dedup = Array.from(new Set(values.filter((key) => key !== "settings")));
+  // Compat backend: si "modules" est sélectionné, garder aussi "activities".
+  if (dedup.includes(MODULES_MENU_KEY) && !dedup.includes(ACTIVITIES_MENU_KEY)) {
+    dedup.push(ACTIVITIES_MENU_KEY);
+  }
+  return dedup;
+}
 
 export default function Settings() {
   const { toast } = useToast();
@@ -340,7 +359,7 @@ export default function Settings() {
       role: profile.role,
       activities: [...profile.activities],
       moduleLinks: [...profile.moduleLinks],
-      menuAccess: profile.menuAccess.filter((key) => key !== "settings"),
+      menuAccess: normalizeMenuAccessForForm(profile.menuAccess),
     });
     setDialogOpen(true);
   };
@@ -374,7 +393,7 @@ export default function Settings() {
         role: formProfile.role,
         activities: formProfile.activities,
         moduleLinks: formProfile.moduleLinks,
-        menuAccess: formProfile.menuAccess.filter((key) => key !== "settings"),
+        menuAccess: buildMenuAccessPayload(formProfile.menuAccess),
       };
 
       if (editingProfile) {
@@ -789,13 +808,25 @@ export default function Settings() {
                 {MANAGED_PROFILE_MENU_ITEMS.map((item) => (
                   <label key={item.key} className="flex items-center gap-3 cursor-pointer py-1">
                     <Checkbox
-                      checked={formProfile.menuAccess.includes(item.key)}
+                      checked={
+                        item.key === MODULES_MENU_KEY
+                          ? formProfile.menuAccess.includes(MODULES_MENU_KEY) || formProfile.menuAccess.includes(ACTIVITIES_MENU_KEY)
+                          : formProfile.menuAccess.includes(item.key)
+                      }
                       onCheckedChange={() =>
                         setFormProfile((prev) => ({
                           ...prev,
-                          menuAccess: prev.menuAccess.includes(item.key)
-                            ? prev.menuAccess.filter((key) => key !== item.key)
-                            : [...prev.menuAccess, item.key],
+                          menuAccess: (() => {
+                            const current = normalizeMenuAccessForForm(prev.menuAccess);
+                            if (item.key === MODULES_MENU_KEY) {
+                              return current.includes(MODULES_MENU_KEY)
+                                ? current.filter((key) => key !== MODULES_MENU_KEY)
+                                : [...current, MODULES_MENU_KEY];
+                            }
+                            return current.includes(item.key)
+                              ? current.filter((key) => key !== item.key)
+                              : [...current, item.key];
+                          })(),
                         }))
                       }
                     />

@@ -60,7 +60,9 @@ function MenuRoute({ menuKey, children }: { menuKey: MenuAccessKey; children: Re
   }
 
   const allowed = new Set(managedProfile?.menuAccess ?? []);
-  if (allowed.has(menuKey)) {
+  const hasAccess =
+    allowed.has(menuKey) || (menuKey === "modules" && allowed.has("activities"));
+  if (hasAccess) {
     return <>{children}</>;
   }
 
