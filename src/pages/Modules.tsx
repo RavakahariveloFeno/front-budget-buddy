@@ -21,6 +21,7 @@ export default function Modules() {
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedActivityIds, setSelectedActivityIds] = useState<string[]>([]);
+  const [modalMode, setModalMode] = useState<"import" | "remove">("import");
 
   useEffect(() => {
     const load = async () => {
@@ -75,35 +76,29 @@ export default function Modules() {
     () => PREDEFINED_MODULES.find((module) => module.id === activeModuleId) ?? null,
     [activeModuleId],
   );
-
-  const toggleAssignment = async (activityId: string, moduleId: string) => {
-    if (isManagedProfile) {
-      toast({ title: "Acces refuse", description: "Seul le compte principal peut modifier les modules." });
-      return;
-    }
-    const key = `${activityId}::${moduleId}`;
-    const current = modulesByActivityId[activityId] ?? [];
-    const next = current.includes(moduleId)
-      ? current.filter((id) => id !== moduleId)
-      : [...current, moduleId];
-
-    setSavingKey(key);
-    setModulesByActivityId((prev) => ({ ...prev, [activityId]: next }));
-    try {
-      await setActivityModules(activityId, next);
-      setLinks(activityId, next);
-    } catch (error) {
-      console.error("Impossible de modifier l'association module/activite.", error);
-      setModulesByActivityId((prev) => ({ ...prev, [activityId]: current }));
-      toast({ title: "Erreur", description: "Modification impossible pour le moment." });
-    } finally {
-      setSavingKey(null);
-    }
-  };
+  const linkedActivitiesForActiveModule = useMemo(
+    () =>
+      !activeModuleId
+        ? []
+        : activities.filter((activity) => (modulesByActivityId[activity.id] ?? []).includes(activeModuleId)),
+    [activeModuleId, activities, modulesByActivityId],
+  );
 
   const openImportModal = (moduleId: string) => {
+    setModalMode("import");
     setActiveModuleId(moduleId);
     setSelectedActivityIds([]);
+    setModalOpen(true);
+  };
+
+  const openRemoveModal = (moduleId: string) => {
+    setModalMode("remove");
+    setActiveModuleId(moduleId);
+    const linkedIds = activities
+      .filter((activity) => (modulesByActivityId[activity.id] ?? []).includes(moduleId))
+      .map((activity) => activity.id);
+    // Retrait par deselection: toutes les activites liees sont cochees au depart.
+    setSelectedActivityIds(linkedIds);
     setModalOpen(true);
   };
 
@@ -149,6 +144,53 @@ export default function Modules() {
       console.error("Impossible d'importer le module.", error);
       setModulesByActivityId(snapshot);
       toast({ title: "Erreur", description: "Import impossible pour le moment." });
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const handleRemoveModule = async () => {
+    if (!activeModuleId) {
+      return;
+    }
+
+    if (isManagedProfile) {
+      toast({ title: "Acces refuse", description: "Seul le compte principal peut modifier les modules." });
+      return;
+    }
+
+    setSavingKey(activeModuleId);
+    const snapshot = { ...modulesByActivityId };
+    const nextState = { ...modulesByActivityId };
+    const linkedIds = activities
+      .filter((activity) => (modulesByActivityId[activity.id] ?? []).includes(activeModuleId))
+      .map((activity) => activity.id);
+    const toRemoveIds = linkedIds.filter((activityId) => !selectedActivityIds.includes(activityId));
+    if (toRemoveIds.length === 0) {
+      setSavingKey(null);
+      return;
+    }
+    toRemoveIds.forEach((activityId) => {
+      const current = nextState[activityId] ?? [];
+      nextState[activityId] = current.filter((id) => id !== activeModuleId);
+    });
+    setModulesByActivityId(nextState);
+
+    try {
+      await Promise.all(
+        toRemoveIds.map(async (activityId) => {
+          const nextModules = nextState[activityId] ?? [];
+          await setActivityModules(activityId, nextModules);
+          setLinks(activityId, nextModules);
+        }),
+      );
+      toast({ title: "Suppression effectuee", description: "Liaison module/activite supprimee." });
+      setModalOpen(false);
+      setSelectedActivityIds([]);
+    } catch (error) {
+      console.error("Impossible de supprimer la liaison module/activite.", error);
+      setModulesByActivityId(snapshot);
+      toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     } finally {
       setSavingKey(null);
     }
@@ -201,13 +243,25 @@ export default function Modules() {
                     <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
                       {moduleActivityCount[module.id] ?? 0} activite(s) utilisent ce module
                     </span>
-                    <Button
-                      onClick={() => openImportModal(module.id)}
-                      disabled={isManagedProfile || isSaving}
-                      className="h-8"
-                    >
-                      {isSaving ? "Import..." : "Importer"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {(moduleActivityCount[module.id] ?? 0) > 0 && (
+                        <Button
+                          variant="outline"
+                          onClick={() => openRemoveModal(module.id)}
+                          disabled={isManagedProfile || isSaving}
+                          className="h-8"
+                        >
+                          Retirer
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => openImportModal(module.id)}
+                        disabled={isManagedProfile || isSaving}
+                        className="h-8"
+                      >
+                        {isSaving ? "..." : "Importer"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -220,15 +274,19 @@ export default function Modules() {
         <DialogContent className="border-border max-h-[85vh] overflow-y-auto" style={{ background: "hsl(225, 27%, 10%)" }}>
           <DialogHeader>
             <DialogTitle className="font-display">
-              Importer {activeModule?.name ?? "le module"}
+              {modalMode === "import" ? "Importer" : "Retirer"} {activeModule?.name ?? "le module"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-2 mt-2">
-            {activities.map((activity) => {
+            {(modalMode === "remove" ? linkedActivitiesForActiveModule : activities).map((activity) => {
               const alreadyAssigned = activeModuleId
                 ? (modulesByActivityId[activity.id] ?? []).includes(activeModuleId)
                 : false;
+              const isDisabledForMode =
+                modalMode === "import"
+                  ? alreadyAssigned || Boolean(savingKey)
+                  : !alreadyAssigned || Boolean(savingKey);
               const checked = selectedActivityIds.includes(activity.id);
               return (
                 <label
@@ -236,21 +294,21 @@ export default function Modules() {
                   className="flex items-center justify-between gap-3 rounded-lg border p-3"
                   style={{
                     borderColor: "hsl(var(--border))",
-                    background: alreadyAssigned ? "hsl(var(--secondary))" : "transparent",
-                    opacity: alreadyAssigned ? 0.55 : 1,
+                    background: isDisabledForMode ? "hsl(var(--secondary))" : "transparent",
+                    opacity: isDisabledForMode ? 0.55 : 1,
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <Checkbox
                       checked={checked}
-                      disabled={alreadyAssigned || Boolean(savingKey)}
+                      disabled={isDisabledForMode}
                       onCheckedChange={() => toggleActivitySelection(activity.id)}
                     />
                     <span className="text-sm" style={{ color: "hsl(var(--foreground))" }}>
                       {activity.name}
                     </span>
                   </div>
-                  {alreadyAssigned && (
+                  {modalMode === "import" && alreadyAssigned && (
                     <span className="text-xs px-2 py-0.5 rounded-full border" style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
                       Deja utilise
                     </span>
@@ -258,14 +316,27 @@ export default function Modules() {
                 </label>
               );
             })}
+            {modalMode === "remove" && linkedActivitiesForActiveModule.length === 0 && (
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Aucune activite liee a ce module.
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setModalOpen(false)} disabled={Boolean(savingKey)}>
               Annuler
             </Button>
-            <Button onClick={() => void handleImportModule()} disabled={selectedActivityIds.length === 0 || Boolean(savingKey)}>
-              Importer
+            <Button
+              onClick={() => void (modalMode === "import" ? handleImportModule() : handleRemoveModule())}
+              disabled={
+                Boolean(savingKey) ||
+                (modalMode === "import"
+                  ? selectedActivityIds.length === 0
+                  : linkedActivitiesForActiveModule.every((activity) => selectedActivityIds.includes(activity.id)))
+              }
+            >
+              {modalMode === "import" ? "Importer" : "Retirer les deselections"}
             </Button>
           </div>
         </DialogContent>
