@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 const paymentTypeOptions = [
   { value: "CARD", label: "Carte" },
   { value: "CASH", label: "Espèces" },
+  { value: "MOBILE", label: "Compte mobile" },
 ];
 
 interface Props {

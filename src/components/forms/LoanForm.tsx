@@ -16,6 +16,7 @@ const typeOptions = [
 const paymentTypeOptions = [
   { value: "CARD", label: "Carte" },
   { value: "CASH", label: "Espèces" },
+  { value: "MOBILE", label: "Compte mobile" },
 ];
 
 const directionOptions = [
