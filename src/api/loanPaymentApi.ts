@@ -38,7 +38,7 @@ function mapLoanPayment(item: unknown): LoanPayment | null {
   }
 
   const record = item as Record<string, unknown>;
-  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" || record.paymentType === "MOBILE" ? (record.paymentType as PaymentType) : undefined;
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),

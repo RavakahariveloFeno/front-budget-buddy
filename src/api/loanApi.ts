@@ -65,7 +65,7 @@ function mapLoanPayment(item: unknown): LoanPayment | null {
   }
 
   const record = item as Record<string, unknown>;
-  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" || record.paymentType === "MOBILE" ? (record.paymentType as PaymentType) : undefined;
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
@@ -88,7 +88,7 @@ function mapLoan(item: unknown): Loan | null {
 
   const rawStatus = record.status;
   const status: LoanStatus = isValidLoanStatus(rawStatus) ? rawStatus : Number(record.remainingAmount ?? 0) <= 0 ? "PAID" : "ACTIVE";
-  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
+  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" || record.paymentType === "MOBILE" ? (record.paymentType as PaymentType) : undefined;
   const direction: LoanDirection = isValidLoanDirection(record.direction) ? (record.direction as LoanDirection) : "BORROWED";
   const paymentsRaw = Array.isArray(record.payments) ? record.payments : [];
   const payments = paymentsRaw.map((payment): LoanPayment | null => mapLoanPayment(payment)).filter((payment): payment is LoanPayment => Boolean(payment && payment.id && Number.isFinite(payment.amount) && payment.date && payment.loanId));

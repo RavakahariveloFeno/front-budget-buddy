@@ -21,6 +21,9 @@ const paymentTypeBadge = (paymentType?: string) => {
   if (paymentType === "CASH") {
     return { label: "Espèces", className: "badge-income" };
   }
+  if (paymentType === "MOBILE") {
+    return { label: "Compte mobile", className: "badge-purple" };
+  }
   return { label: "Carte", className: "badge-info" };
 };
 const directionBadge = (direction?: string) => {
