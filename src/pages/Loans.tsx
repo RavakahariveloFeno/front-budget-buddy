@@ -247,23 +247,26 @@ export default function Loans() {
                           sur {formatCurrency(loan.totalAmount)}
                         </p>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
-                          <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
-                        </button>
-                        <button onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                          <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
-                        </button>
-                      </div>
                       {isExpanded ? <ChevronDown size={16} style={{ color: "hsl(var(--muted-foreground))" }} /> : <ChevronRight size={16} style={{ color: "hsl(var(--muted-foreground))" }} />}
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>Remboursement</span>
-                      <span style={{ color: "hsl(var(--primary))" }}>{pct}%</span>
-                    </div>
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span style={{color: "hsl(var(--muted-foreground))"}}>Remboursement</span>
+                        <div className="relative flex items-center">
+                          <div className="absolute right-full mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                              <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button type="button" onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                              <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
+                          <span style={{color: "hsl(var(--primary))"}}>{pct}%</span>
+                        </div>
+                       
+                      </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-primary)" }} />
                     </div>
@@ -354,22 +357,25 @@ export default function Loans() {
                           sur {formatCurrency(loan.totalAmount)}
                         </p>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
-                          <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
-                        </button>
-                        <button onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                          <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
-                        </button>
-                      </div>
                       {isExpanded ? <ChevronDown size={16} style={{ color: "hsl(var(--muted-foreground))" }} /> : <ChevronRight size={16} style={{ color: "hsl(var(--muted-foreground))" }} />}
                     </div>
                   </div>
 
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1.5">
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>Remboursement</span>
-                      <span style={{ color: "hsl(var(--primary))" }}>{pct}%</span>
+                      <span style={{color: "hsl(var(--muted-foreground))"}}>Remboursement</span>
+                      <div className="relative flex items-center">
+                          <div className="absolute right-full mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                              <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button type="button" onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                              <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
+                          <span style={{color: "hsl(var(--primary))"}}>{pct}%</span>
+                        </div>
+                      
                     </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-primary)" }} />
@@ -483,3 +489,4 @@ export default function Loans() {
     </div>
   );
 }
+
