@@ -2,6 +2,7 @@ import type { Loan, LoanDirection, LoanPayment, LoanStatus, LoanType, PaymentTyp
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const LOAN_API_URL = `${import.meta.env.VITE_API_URL}/loan`;
+const LOAN_OPS_API_URL = `${import.meta.env.VITE_API_URL}/loans`;
 const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface LoanPayload {
@@ -97,6 +98,7 @@ function mapLoan(item: unknown): Loan | null {
     id: String(record.id ?? ""),
     totalAmount: Number(record.totalAmount ?? 0),
     remainingAmount: Number(record.remainingAmount ?? 0),
+    settledOutsideSystem: Boolean(record.settledOutsideSystem),
     ...(paymentType ? { paymentType } : {}),
     direction,
     type: record.type,
@@ -255,4 +257,22 @@ export async function deleteLoan(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
+}
+
+export async function markLoanAsAlreadyRepaid(id: string): Promise<Loan> {
+  const response = await fetch(`${LOAN_OPS_API_URL}/${id}/mark-already-repaid`, {
+    method: "POST",
+    headers: buildAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  const data: unknown = await response.json();
+  const loan = mapLoan(data);
+  if (!loan) {
+    throw new Error("Invalid loan response");
+  }
+
+  return loan;
 }
