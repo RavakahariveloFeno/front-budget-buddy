@@ -4,7 +4,7 @@ import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Loan, LoanStatus } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
-import { createLoan, deleteLoan, getLoanPaymentHistory, getLoans, updateLoan } from "@/api/loanApi";
+import { closeLoan, createLoan, deleteLoan, getLoanPaymentHistory, getLoans, updateLoan } from "@/api/loanApi";
 import type { LoanPayload } from "@/api/loanApi";
 import { createLoanPayment } from "@/api/loanPaymentApi";
 import type { LoanPaymentPayload } from "@/api/loanPaymentApi";
@@ -53,11 +53,14 @@ export default function Loans() {
       const mergedLoans = remoteLoans.map((loan) => {
         const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])].sort(compareByMostRecent(["createdAt", "date"]));
         const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-        const remainingAmount = Math.max(loan.totalAmount - totalPaid, 0);
+        const computedRemaining = Math.max(loan.totalAmount - totalPaid, 0);
+        const remainingAmount = Number.isFinite(loan.remainingAmount) ? loan.remainingAmount : computedRemaining;
+        const rawStatus = loan.status;
+        const status: LoanStatus = rawStatus === "ACTIVE" || rawStatus === "PAID" ? rawStatus : remainingAmount <= 0 ? "PAID" : "ACTIVE";
         return {
           ...loan,
           remainingAmount,
-          status: (remainingAmount === 0 ? "PAID" : "ACTIVE") as LoanStatus,
+          status,
           payments,
         };
       });
@@ -167,6 +170,17 @@ export default function Loans() {
     await createLoanPayment(payload);
     await loadLoans();
     toast({ title: "Paiement ajoute", description: formatCurrency(payload.amount) });
+  };
+
+  const handleCloseLoan = async (loan: Loan) => {
+    try {
+      await closeLoan(loan.id);
+      await loadLoans();
+      toast({ title: "Pret marque comme rembourse", description: loan.lenderName });
+    } catch (error) {
+      console.error("Impossible de marquer le pret comme rembourse.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Operation impossible pour le moment." });
+    }
   };
 
   return (
@@ -279,9 +293,18 @@ export default function Loans() {
                         <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                           Historique des paiements
                         </p>
-                        <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
-                          + Ajouter paiement
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleCloseLoan(loan)}
+                            className="text-xs px-3 py-1 rounded-lg"
+                            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
+                          >
+                            Marquer remboursé
+                          </button>
+                          <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
+                            + Ajouter paiement
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {loan.payments.map((payment) => (
@@ -386,9 +409,18 @@ export default function Loans() {
                         <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                           Historique des remboursements
                         </p>
-                        <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
-                          + Ajouter remboursement
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleCloseLoan(loan)}
+                            className="text-xs px-3 py-1 rounded-lg"
+                            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
+                          >
+                            Marquer remboursé
+                          </button>
+                          <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
+                            + Ajouter remboursement
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {loan.payments.map((payment) => (

@@ -2,6 +2,7 @@ import type { Loan, LoanDirection, LoanPayment, LoanStatus, LoanType, PaymentTyp
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const LOAN_API_URL = `${import.meta.env.VITE_API_URL}/loan`;
+const LOAN_OPS_API_URL = `${import.meta.env.VITE_API_URL}/loans`;
 const STATISTICS_API_URL = `${import.meta.env.VITE_API_URL}/statistics`;
 
 export interface LoanPayload {
@@ -255,4 +256,23 @@ export async function deleteLoan(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
+}
+
+export async function closeLoan(id: string): Promise<Loan> {
+  const response = await fetch(`${LOAN_OPS_API_URL}/${id}/close`, {
+    method: "POST",
+    headers: buildAuthHeaders(true),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiErrorMessage(response));
+  }
+
+  const data: unknown = await response.json();
+  const loan = mapLoan(data);
+  if (!loan) {
+    throw new Error("Invalid loan response");
+  }
+
+  return loan;
 }
