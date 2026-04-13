@@ -98,6 +98,7 @@ function mapLoan(item: unknown): Loan | null {
     id: String(record.id ?? ""),
     totalAmount: Number(record.totalAmount ?? 0),
     remainingAmount: Number(record.remainingAmount ?? 0),
+    settledOutsideSystem: Boolean(record.settledOutsideSystem),
     ...(paymentType ? { paymentType } : {}),
     direction,
     type: record.type,
@@ -261,9 +262,8 @@ export async function deleteLoan(id: string): Promise<void> {
 export async function closeLoan(id: string): Promise<Loan> {
   const response = await fetch(`${LOAN_OPS_API_URL}/${id}/close`, {
     method: "POST",
-    headers: buildAuthHeaders(true),
+    headers: buildAuthHeaders(),
   });
-
   if (!response.ok) {
     throw new Error(await readApiErrorMessage(response));
   }

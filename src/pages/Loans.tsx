@@ -11,6 +11,7 @@ import type { LoanPaymentPayload } from "@/api/loanPaymentApi";
 import LoanForm from "@/components/forms/LoanForm";
 import LoanPaymentForm from "@/components/forms/LoanPaymentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
@@ -42,6 +43,8 @@ export default function Loans() {
   const [editItem, setEditItem] = useState<Loan | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Loan | null>(null);
+  const [markRepaidOpen, setMarkRepaidOpen] = useState(false);
+  const [markRepaidTarget, setMarkRepaidTarget] = useState<Loan | null>(null);
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [paymentLoanId, setPaymentLoanId] = useState("");
 
@@ -54,15 +57,9 @@ export default function Loans() {
         const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])].sort(compareByMostRecent(["createdAt", "date"]));
         const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
         const computedRemaining = Math.max(loan.totalAmount - totalPaid, 0);
-        const remainingAmount = Number.isFinite(loan.remainingAmount) ? loan.remainingAmount : computedRemaining;
-        const rawStatus = loan.status;
-        const status: LoanStatus = rawStatus === "ACTIVE" || rawStatus === "PAID" ? rawStatus : remainingAmount <= 0 ? "PAID" : "ACTIVE";
-        return {
-          ...loan,
-          remainingAmount,
-          status,
-          payments,
-        };
+        const status: LoanStatus = loan.status === "PAID" ? "PAID" : computedRemaining <= 0 ? "PAID" : "ACTIVE";
+        const remainingAmount = status === "PAID" ? loan.remainingAmount : computedRemaining;
+        return { ...loan, remainingAmount, status, payments };
       });
 
       setLoanList(mergedLoans);
@@ -136,6 +133,10 @@ export default function Loans() {
     setPaymentLoanId(loanId);
     setPaymentFormOpen(true);
   };
+  const handleAskMarkAsAlreadyRepaid = (loan: Loan) => {
+    setMarkRepaidTarget(loan);
+    setMarkRepaidOpen(true);
+  };
 
   const handleCreate = async (payload: LoanPayload) => {
     const created = await createLoan(payload);
@@ -172,14 +173,21 @@ export default function Loans() {
     toast({ title: "Paiement ajoute", description: formatCurrency(payload.amount) });
   };
 
-  const handleCloseLoan = async (loan: Loan) => {
+  const confirmMarkAsAlreadyRepaid = async () => {
+    if (!markRepaidTarget) {
+      return;
+    }
+
     try {
-      await closeLoan(loan.id);
-      await loadLoans();
-      toast({ title: "Pret marque comme rembourse", description: loan.lenderName });
+      const updated = await closeLoan(markRepaidTarget.id);
+      setLoanList((prev) => prev.map((loan) => (loan.id === updated.id ? { ...loan, ...updated, payments: loan.payments } : loan)));
+      toast({ title: "Pret regularise", description: "Pret marque comme rembourse (sans impact sur le solde)." });
     } catch (error) {
-      console.error("Impossible de marquer le pret comme rembourse.", error);
+      console.error("Impossible de regulariser le pret.", error);
       toast({ title: "Erreur", description: error instanceof Error ? error.message : "Operation impossible pour le moment." });
+    } finally {
+      setMarkRepaidOpen(false);
+      setMarkRepaidTarget(null);
     }
   };
 
@@ -261,23 +269,26 @@ export default function Loans() {
                           sur {formatCurrency(loan.totalAmount)}
                         </p>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
-                          <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
-                        </button>
-                        <button onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                          <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
-                        </button>
-                      </div>
                       {isExpanded ? <ChevronDown size={16} style={{ color: "hsl(var(--muted-foreground))" }} /> : <ChevronRight size={16} style={{ color: "hsl(var(--muted-foreground))" }} />}
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>Remboursement</span>
-                      <span style={{ color: "hsl(var(--primary))" }}>{pct}%</span>
-                    </div>
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span style={{color: "hsl(var(--muted-foreground))"}}>Remboursement</span>
+                        <div className="relative flex items-center">
+                          <div className="absolute right-full mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                              <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button type="button" onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                              <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
+                          <span style={{color: "hsl(var(--primary))"}}>{pct}%</span>
+                        </div>
+                       
+                      </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-primary)" }} />
                     </div>
@@ -294,11 +305,7 @@ export default function Loans() {
                           Historique des paiements
                         </p>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleCloseLoan(loan)}
-                            className="text-xs px-3 py-1 rounded-lg"
-                            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
-                          >
+                          <button onClick={() => handleAskMarkAsAlreadyRepaid(loan)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}>
                             Marquer remboursé
                           </button>
                           <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
@@ -377,22 +384,25 @@ export default function Loans() {
                           sur {formatCurrency(loan.totalAmount)}
                         </p>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
-                          <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
-                        </button>
-                        <button onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                          <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
-                        </button>
-                      </div>
                       {isExpanded ? <ChevronDown size={16} style={{ color: "hsl(var(--muted-foreground))" }} /> : <ChevronRight size={16} style={{ color: "hsl(var(--muted-foreground))" }} />}
                     </div>
                   </div>
 
                   <div className="mt-4">
                     <div className="flex justify-between text-xs mb-1.5">
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>Remboursement</span>
-                      <span style={{ color: "hsl(var(--primary))" }}>{pct}%</span>
+                      <span style={{color: "hsl(var(--muted-foreground))"}}>Remboursement</span>
+                      <div className="relative flex items-center">
+                          <div className="absolute right-full mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleEdit(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors">
+                              <Pencil size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
+                            </button>
+                            <button type="button" onClick={() => handleDelete(loan)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                              <Trash2 size={13} style={{ color: "hsl(var(--destructive))" }} />
+                            </button>
+                          </div>
+                          <span style={{color: "hsl(var(--primary))"}}>{pct}%</span>
+                        </div>
+                      
                     </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--gradient-primary)" }} />
@@ -410,11 +420,7 @@ export default function Loans() {
                           Historique des remboursements
                         </p>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleCloseLoan(loan)}
-                            className="text-xs px-3 py-1 rounded-lg"
-                            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
-                          >
+                          <button onClick={() => handleAskMarkAsAlreadyRepaid(loan)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}>
                             Marquer remboursé
                           </button>
                           <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
@@ -475,6 +481,7 @@ export default function Loans() {
                         <span className={loanTypeColors[loan.type]}>{loanTypeLabels[loan.type]}</span>
                         <span className={directionBadge(loan.direction).className}>{directionBadge(loan.direction).label}</span>
                         <span className="badge-income">Rembourse</span>
+                        {loan.settledOutsideSystem && <span className="badge-info">Hors systeme</span>}
                       </div>
                     </div>
                   </div>
@@ -512,6 +519,15 @@ export default function Loans() {
         description={`Supprimer le pret de "${deleteTarget?.lenderName}" ? Tous les paiements associes seront supprimes.`}
         onConfirm={confirmDelete}
       />
+      <ActionConfirmDialog
+        open={markRepaidOpen}
+        onOpenChange={setMarkRepaidOpen}
+        title="Marquer comme remboursé"
+        description={`Confirmer le marquage du pret "${markRepaidTarget?.lenderName ?? ""}" comme remboursé ? Aucun paiement ne sera créé et aucun impact ne sera appliqué au solde global.`}
+        confirmLabel="Confirmer"
+        onConfirm={confirmMarkAsAlreadyRepaid}
+      />
     </div>
   );
 }
+
