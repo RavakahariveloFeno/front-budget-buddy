@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, ChevronDown, ChevronRight, CreditCard, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
-import type { Activity, Loan, LoanStatus } from "@/data/staticData";
+import type { Activity, Loan } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
-import { createLoan, deleteLoan, getLoanPaymentHistory, getLoans, updateLoan } from "@/api/loanApi";
+import { createLoan, deleteLoan, getLoanPaymentHistory, getLoans, markLoanAsAlreadyRepaid, updateLoan } from "@/api/loanApi";
 import type { LoanPayload } from "@/api/loanApi";
 import { createLoanPayment } from "@/api/loanPaymentApi";
 import type { LoanPaymentPayload } from "@/api/loanPaymentApi";
 import LoanForm from "@/components/forms/LoanForm";
 import LoanPaymentForm from "@/components/forms/LoanPaymentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
@@ -42,6 +43,8 @@ export default function Loans() {
   const [editItem, setEditItem] = useState<Loan | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Loan | null>(null);
+  const [markRepaidOpen, setMarkRepaidOpen] = useState(false);
+  const [markRepaidTarget, setMarkRepaidTarget] = useState<Loan | null>(null);
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [paymentLoanId, setPaymentLoanId] = useState("");
 
@@ -52,12 +55,8 @@ export default function Loans() {
 
       const mergedLoans = remoteLoans.map((loan) => {
         const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])].sort(compareByMostRecent(["createdAt", "date"]));
-        const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-        const remainingAmount = Math.max(loan.totalAmount - totalPaid, 0);
         return {
           ...loan,
-          remainingAmount,
-          status: (remainingAmount === 0 ? "PAID" : "ACTIVE") as LoanStatus,
           payments,
         };
       });
@@ -133,6 +132,10 @@ export default function Loans() {
     setPaymentLoanId(loanId);
     setPaymentFormOpen(true);
   };
+  const handleAskMarkAsAlreadyRepaid = (loan: Loan) => {
+    setMarkRepaidTarget(loan);
+    setMarkRepaidOpen(true);
+  };
 
   const handleCreate = async (payload: LoanPayload) => {
     const created = await createLoan(payload);
@@ -167,6 +170,24 @@ export default function Loans() {
     await createLoanPayment(payload);
     await loadLoans();
     toast({ title: "Paiement ajoute", description: formatCurrency(payload.amount) });
+  };
+
+  const confirmMarkAsAlreadyRepaid = async () => {
+    if (!markRepaidTarget) {
+      return;
+    }
+
+    try {
+      const updated = await markLoanAsAlreadyRepaid(markRepaidTarget.id);
+      setLoanList((prev) => prev.map((loan) => (loan.id === updated.id ? { ...loan, ...updated, payments: loan.payments } : loan)));
+      toast({ title: "Pret regularise", description: "Pret marque comme deja rembourse hors systeme." });
+    } catch (error) {
+      console.error("Impossible de regulariser le pret.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Operation impossible pour le moment." });
+    } finally {
+      setMarkRepaidOpen(false);
+      setMarkRepaidTarget(null);
+    }
   };
 
   return (
@@ -282,9 +303,14 @@ export default function Loans() {
                         <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                           Historique des paiements
                         </p>
-                        <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
-                          + Ajouter paiement
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleAskMarkAsAlreadyRepaid(loan)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}>
+                            Marquer deja rembourse
+                          </button>
+                          <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
+                            + Ajouter paiement
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {loan.payments.map((payment) => (
@@ -392,9 +418,14 @@ export default function Loans() {
                         <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                           Historique des remboursements
                         </p>
-                        <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
-                          + Ajouter remboursement
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleAskMarkAsAlreadyRepaid(loan)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}>
+                            Marquer deja rembourse
+                          </button>
+                          <button onClick={() => handleAddPayment(loan.id)} className="text-xs px-3 py-1 rounded-lg" style={{ background: "hsl(var(--primary-dim))", color: "hsl(var(--primary))" }}>
+                            + Ajouter remboursement
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         {loan.payments.map((payment) => (
@@ -449,6 +480,7 @@ export default function Loans() {
                         <span className={loanTypeColors[loan.type]}>{loanTypeLabels[loan.type]}</span>
                         <span className={directionBadge(loan.direction).className}>{directionBadge(loan.direction).label}</span>
                         <span className="badge-income">Rembourse</span>
+                        {loan.settledOutsideSystem && <span className="badge-info">Hors systeme</span>}
                       </div>
                     </div>
                   </div>
@@ -485,6 +517,14 @@ export default function Loans() {
         title="Supprimer le pret"
         description={`Supprimer le pret de "${deleteTarget?.lenderName}" ? Tous les paiements associes seront supprimes.`}
         onConfirm={confirmDelete}
+      />
+      <ActionConfirmDialog
+        open={markRepaidOpen}
+        onOpenChange={setMarkRepaidOpen}
+        title="Marquer comme deja rembourse"
+        description={`Confirmer la regularisation du pret "${markRepaidTarget?.lenderName ?? ""}" comme rembourse hors systeme ? Aucun paiement ne sera cree et aucun impact ne sera applique au solde global.`}
+        confirmLabel="Confirmer"
+        onConfirm={confirmMarkAsAlreadyRepaid}
       />
     </div>
   );

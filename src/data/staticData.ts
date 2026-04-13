@@ -94,6 +94,7 @@ export interface Loan {
   id: string;
   totalAmount: number;
   remainingAmount: number;
+  settledOutsideSystem?: boolean;
   paymentType?: PaymentType;
   direction?: LoanDirection;
   type: LoanType;
