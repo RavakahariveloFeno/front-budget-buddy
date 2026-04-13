@@ -324,7 +324,7 @@ export default function Dashboard() {
     () =>
       dashboard.monthlyData.map((m) => ({
         ...m,
-        solde: (m.revenus ?? 0) - (m.depenses ?? 0),
+        solde: Math.max(0, (m.revenus ?? 0) - (m.depenses ?? 0)),
       })),
     [dashboard.monthlyData],
   );
@@ -704,6 +704,7 @@ export default function Dashboard() {
                   tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
+                  domain={[0, "dataMax"]}
                   tickFormatter={(value) => `${value / 1000}k`}
                 />
                 <Tooltip
