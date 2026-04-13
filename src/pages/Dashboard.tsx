@@ -27,7 +27,10 @@ import {
 } from "recharts";
 import Header from "@/components/layout/Header";
 import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
+import { getInvestments } from "@/api/investmentApi";
+import { getLoans } from "@/api/loanApi";
 import { formatCurrency, formatDate } from "@/data/staticData";
+import type { Investment, Loan } from "@/data/staticData";
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
@@ -227,6 +230,8 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 export default function Dashboard() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
+  const [investmentList, setInvestmentList] = useState<Investment[]>([]);
+  const [loanList, setLoanList] = useState<Loan[]>([]);
 
   const recentTransactions = useMemo(
     () =>
@@ -235,6 +240,114 @@ export default function Dashboard() {
         .slice(0, 6),
     [dashboard.recentTransactions],
   );
+
+  type RecentAction =
+    | {
+        id: string;
+        kind: "income";
+        amount: number;
+        date: string;
+        createdAt?: string;
+        description?: string;
+        activityName?: string;
+        categoryName?: string;
+        categoryIcon?: string;
+      }
+    | {
+        id: string;
+        kind: "expense";
+        amount: number;
+        date: string;
+        createdAt?: string;
+        description?: string;
+        activityName?: string;
+        categoryName?: string;
+        categoryIcon?: string;
+      }
+    | {
+        id: string;
+        kind: "loan";
+        amount: number;
+        date: string;
+        createdAt?: string;
+        direction?: string;
+        lenderName: string;
+        activityName?: string;
+      }
+    | {
+        id: string;
+        kind: "investment";
+        amount: number;
+        date: string;
+        createdAt?: string;
+        fromActivityId: string;
+        toActivityId: string;
+        fromActivityName?: string;
+        toActivityName?: string;
+      };
+
+  const activityNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const activity of dashboard.activities) {
+      map.set(activity.activityId, activity.name);
+    }
+    return map;
+  }, [dashboard.activities]);
+
+  const recentActions = useMemo(() => {
+    const filteredInvestments = selectedActivityId
+      ? investmentList.filter(
+          (investment) =>
+            investment.fromActivityId === selectedActivityId ||
+            investment.toActivityId === selectedActivityId,
+        )
+      : investmentList;
+
+    const filteredLoans = selectedActivityId
+      ? loanList.filter((loan) => loan.activityId === selectedActivityId)
+      : loanList;
+
+    const loanActions: RecentAction[] = filteredLoans.map((loan) => ({
+      id: loan.id,
+      kind: "loan",
+      amount: loan.totalAmount,
+      date: loan.startDate,
+      direction: loan.direction,
+      lenderName: loan.lenderName,
+      ...(loan.activityId ? { activityName: activityNameById.get(loan.activityId) } : {}),
+    }));
+
+    const investmentActions: RecentAction[] = filteredInvestments.map((investment) => ({
+      id: investment.id,
+      kind: "investment",
+      amount: investment.amount,
+      date: investment.date,
+      fromActivityId: investment.fromActivityId,
+      toActivityId: investment.toActivityId,
+      fromActivityName: activityNameById.get(investment.fromActivityId),
+      toActivityName: activityNameById.get(investment.toActivityId),
+    }));
+
+    const transactionActions: RecentAction[] = recentTransactions.map((tx) => ({
+      id: tx.id,
+      kind: tx.kind,
+      amount: tx.amount,
+      date: tx.date,
+      ...(tx.createdAt ? { createdAt: tx.createdAt } : {}),
+      ...(tx.description ? { description: tx.description } : {}),
+      ...(tx.activityName ? { activityName: tx.activityName } : {}),
+      ...(tx.categoryName ? { categoryName: tx.categoryName } : {}),
+      ...(tx.categoryIcon ? { categoryIcon: tx.categoryIcon } : {}),
+    }));
+
+    const merged: RecentAction[] = [
+      ...transactionActions,
+      ...loanActions,
+      ...investmentActions,
+    ];
+
+    return merged.sort(compareByMostRecent<RecentAction>(["createdAt", "date"])).slice(0, 6);
+  }, [activityNameById, investmentList, loanList, recentTransactions, selectedActivityId]);
 
   const activeLoans = useMemo(
     () =>
@@ -300,11 +413,20 @@ export default function Dashboard() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const stats = await getDashboardStats({ activityId: selectedActivityId ?? undefined });
+        const [stats, investments, loans] = await Promise.all([
+          getDashboardStats({ activityId: selectedActivityId ?? undefined }),
+          getInvestments(),
+          getLoans(),
+        ]);
+
         setDashboard(stats);
+        setInvestmentList(investments);
+        setLoanList(loans);
       } catch (error) {
         console.error("Impossible de charger les statistiques dashboard depuis l'API.", error);
         setDashboard(EMPTY_DASHBOARD);
+        setInvestmentList([]);
+        setLoanList([]);
       }
     };
 
@@ -721,12 +843,70 @@ export default function Dashboard() {
               >
                 Transactions récentes
               </p>
-              <span className="badge-info">{recentTransactions.length} lignes</span>
+              <span className="badge-info">{recentActions.length} lignes</span>
             </div>
             <div className="space-y-2">
-              {recentTransactions.length ? (
-                recentTransactions.map((tx, index) => {
+              {recentActions.length ? (
+                recentActions.map((tx, index) => {
                   const isIncome = tx.kind === "income";
+                  const isExpense = tx.kind === "expense";
+                  const isLoan = tx.kind === "loan";
+                  const isInvestment = tx.kind === "investment";
+
+                  let investmentSign = "";
+                  if (tx.kind === "investment" && selectedActivityId) {
+                    if (tx.toActivityId === selectedActivityId) {
+                      investmentSign = "+";
+                    } else if (tx.fromActivityId === selectedActivityId) {
+                      investmentSign = "-";
+                    }
+                  }
+
+                  const isPositive =
+                    isIncome ||
+                    (isLoan && tx.direction !== "LENT") ||
+                    (isInvestment && investmentSign === "+");
+                  const isNegative =
+                    isExpense ||
+                    (isLoan && tx.direction === "LENT") ||
+                    (isInvestment && investmentSign === "-");
+
+                  const accentColor = isPositive
+                    ? "hsl(var(--primary) / 0.6)"
+                    : isNegative
+                      ? "hsl(var(--destructive) / 0.6)"
+                      : "hsl(var(--purple) / 0.6)";
+
+                  const pillBg = isPositive
+                    ? "hsl(var(--primary-dim))"
+                    : isNegative
+                      ? "hsl(var(--destructive-dim))"
+                      : "hsl(var(--purple-dim))";
+
+                  const pillFg = isPositive
+                    ? "hsl(var(--primary))"
+                    : isNegative
+                      ? "hsl(var(--destructive))"
+                      : "hsl(var(--purple))";
+
+                  const iconBg = pillBg;
+
+                  let title = "";
+                  let subtitle = "";
+                  if (tx.kind === "income") {
+                    title = tx.description || "Revenu";
+                    subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
+                  } else if (tx.kind === "expense") {
+                    title = tx.description || "Depense";
+                    subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
+                  } else if (tx.kind === "loan") {
+                    title = `${tx.direction === "LENT" ? "Prêt accordé" : "Emprunt"} · ${tx.lenderName}`;
+                    subtitle = `${formatDate(tx.date)} · ${tx.activityName || "-"}`;
+                  } else {
+                    title = `Transfert · ${tx.fromActivityName || "-"} → ${tx.toActivityName || "-"}`;
+                    subtitle = `${formatDate(tx.date)} · ${tx.fromActivityName || "-"} → ${tx.toActivityName || "-"}`;
+                  }
+
                   return (
                     <div
                       key={`${tx.kind}-${tx.id}`}
@@ -736,34 +916,36 @@ export default function Dashboard() {
                         background: "hsl(var(--background) / 0.18)",
                         animationDelay: `${index * 50}ms`,
                         borderLeftWidth: "3px",
-                        borderLeftColor: isIncome
-                          ? "hsl(var(--primary) / 0.6)"
-                          : "hsl(var(--destructive) / 0.6)",
+                        borderLeftColor: accentColor,
                       }}
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className="flex h-9 w-9 items-center justify-center rounded-lg text-sm"
                           style={{
-                            background: isIncome
-                              ? "hsl(var(--primary-dim))"
-                              : "hsl(var(--destructive-dim))",
+                            background: iconBg,
                           }}
                         >
-                          {tx.categoryIcon || (isIncome ? "$$" : "--")}
+                          {tx.kind === "income" || tx.kind === "expense" ? (
+                            tx.categoryIcon || (isIncome ? "$$" : "--")
+                          ) : tx.kind === "loan" ? (
+                            <CreditCard size={16} style={{ color: pillFg }} />
+                          ) : (
+                            <ArrowLeftRight size={16} style={{ color: pillFg }} />
+                          )}
                         </div>
                         <div>
                           <p
                             className="text-sm font-medium"
                             style={{ color: "hsl(var(--foreground))" }}
                           >
-                            {tx.description || (isIncome ? "Revenu" : "Depense")}
+                            {title}
                           </p>
                           <p
                             className="text-xs"
                             style={{ color: "hsl(var(--muted-foreground))" }}
                           >
-                            {formatDate(tx.date)} · {tx.activityName || tx.categoryName || "-"}
+                            {subtitle}
                           </p>
                         </div>
                       </div>
@@ -771,26 +953,34 @@ export default function Dashboard() {
                         <span
                           className="text-sm font-semibold"
                           style={{
-                            color: isIncome
-                              ? "hsl(var(--primary))"
-                              : "hsl(var(--destructive))",
+                            color: pillFg,
                           }}
                         >
-                          {isIncome ? "+" : "-"}
+                          {tx.kind === "income"
+                            ? "+"
+                            : tx.kind === "expense"
+                              ? "-"
+                              : tx.kind === "loan"
+                                ? tx.direction === "LENT"
+                                  ? "-"
+                                  : "+"
+                                : investmentSign}
                           {formatCurrency(tx.amount)}
                         </span>
                         <span
                           className="rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide"
                           style={{
-                            background: isIncome
-                              ? "hsl(var(--primary-dim))"
-                              : "hsl(var(--destructive-dim))",
-                            color: isIncome
-                              ? "hsl(var(--primary))"
-                              : "hsl(var(--destructive))",
+                            background: pillBg,
+                            color: pillFg,
                           }}
                         >
-                          {isIncome ? "Entrée" : "Sortie"}
+                          {tx.kind === "income"
+                            ? "Entrée"
+                            : tx.kind === "expense"
+                              ? "Sortie"
+                              : tx.kind === "loan"
+                                ? "Prêt"
+                                : "Invest."}
                         </span>
                       </div>
                     </div>
