@@ -9,7 +9,6 @@ import {
   Target,
   TrendingDown,
   TrendingUp,
-  Wallet,
 } from "lucide-react";
 import {
   Area,
@@ -28,8 +27,7 @@ import {
 } from "recharts";
 import Header from "@/components/layout/Header";
 import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
-import { getBudgets, getBudgetStatistics, type BudgetStatistics } from "@/api/budgetApi";
-import { formatCurrency, formatDate, type Budget, type BudgetPeriod } from "@/data/staticData";
+import { formatCurrency, formatDate } from "@/data/staticData";
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
@@ -210,32 +208,6 @@ const EMPTY_DASHBOARD: DashboardStats = {
   activities: [],
 };
 
-const EMPTY_BUDGET_STATS: BudgetStatistics = {
-  spentByPeriod: {
-    DAY: 0,
-    WEEK: 0,
-    MONTH: 0,
-  },
-};
-
-const BUDGET_LABELS: Record<BudgetPeriod, string> = {
-  DAY: "Jour",
-  WEEK: "Semaine",
-  MONTH: "Mois",
-};
-
-const BUDGET_COLORS: Record<BudgetPeriod, string> = {
-  DAY: "hsl(var(--primary))",
-  WEEK: "hsl(var(--warning))",
-  MONTH: "hsl(var(--purple))",
-};
-
-const BUDGET_BACKGROUNDS: Record<BudgetPeriod, string> = {
-  DAY: "hsl(var(--primary-dim))",
-  WEEK: "hsl(var(--warning-dim))",
-  MONTH: "hsl(var(--purple-dim))",
-};
-
 const ACTIVITY_TYPE_COLORS: Record<string, string> = {
   SALARY: "badge-income",
   BUSINESS: "badge-purple",
@@ -255,8 +227,6 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 export default function Dashboard() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [budgetStats, setBudgetStats] = useState<BudgetStatistics>(EMPTY_BUDGET_STATS);
 
   const recentTransactions = useMemo(
     () =>
@@ -281,18 +251,6 @@ export default function Dashboard() {
         .slice(0, 4),
     [dashboard.toRecoverLoans],
   );
-
-  const budgetCards = useMemo(() => {
-    return (["DAY", "WEEK", "MONTH"] as BudgetPeriod[]).map((period) => {
-      const budget = budgets.find((item) => item.period === period);
-      const amount = budget?.amount ?? 0;
-      const spent = budgetStats.spentByPeriod[period] ?? 0;
-      const remaining = amount - spent;
-      const progress = amount > 0 ? Math.min(100, Math.round((spent / amount) * 100)) : 0;
-
-      return { period, amount, spent, remaining, progress };
-    });
-  }, [budgetStats.spentByPeriod, budgets]);
 
   const insights = useMemo(() => {
     const savingsRate =
@@ -342,19 +300,11 @@ export default function Dashboard() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [stats, budgetList, budgetStatistics] = await Promise.all([
-          getDashboardStats({ activityId: selectedActivityId ?? undefined }),
-          getBudgets(selectedActivityId ?? undefined),
-          getBudgetStatistics({ activityId: selectedActivityId ?? undefined }),
-        ]);
+        const stats = await getDashboardStats({ activityId: selectedActivityId ?? undefined });
         setDashboard(stats);
-        setBudgets(budgetList);
-        setBudgetStats(budgetStatistics);
       } catch (error) {
         console.error("Impossible de charger les statistiques dashboard depuis l'API.", error);
         setDashboard(EMPTY_DASHBOARD);
-        setBudgets([]);
-        setBudgetStats(EMPTY_BUDGET_STATS);
       }
     };
 
@@ -581,86 +531,6 @@ export default function Dashboard() {
               delay={190}
             />
           </div>
-        </div>
-
-        {/* ── Budget Cards (with circular progress) ── */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {budgetCards.map((budget, index) => {
-            const isOver = budget.amount > 0 && budget.spent > budget.amount;
-            const circleColor = isOver
-              ? "hsl(var(--destructive))"
-              : BUDGET_COLORS[budget.period];
-
-            return (
-              <div
-                key={budget.period}
-                className="stat-card animate-fade-in transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-                style={{ animationDelay: `${70 * index}ms`, animationFillMode: "both" }}
-              >
-                <div className="flex items-center gap-4">
-                  {/* Circular progress as the icon area */}
-                  <div className="relative flex-shrink-0">
-                    <CircularProgress
-                      value={budget.progress}
-                      color={circleColor}
-                      size={60}
-                      strokeWidth={5}
-                    />
-                    <div
-                      className="absolute inset-0 flex items-center justify-center text-[11px] font-bold"
-                      style={{ color: circleColor }}
-                    >
-                      {budget.progress}%
-                    </div>
-                  </div>
-
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span
-                        className="rounded-full px-2 py-0.5 text-xs font-medium"
-                        style={{
-                          background: BUDGET_BACKGROUNDS[budget.period],
-                          color: BUDGET_COLORS[budget.period],
-                        }}
-                      >
-                        {BUDGET_LABELS[budget.period]}
-                      </span>
-                      <Wallet size={13} style={{ color: "hsl(var(--muted-foreground))" }} />
-                    </div>
-
-                    <p
-                      className="text-xl font-display font-bold"
-                      style={{ color: "hsl(var(--foreground))" }}
-                    >
-                      {formatCurrency(budget.amount)}
-                    </p>
-
-                    <div className="mt-1.5 flex items-center justify-between text-xs">
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>
-                        Dépensé: {formatCurrency(budget.spent)}
-                      </span>
-                    </div>
-
-                    <p
-                      className="mt-1 text-xs font-medium"
-                      style={{
-                        color: isOver
-                          ? "hsl(var(--destructive))"
-                          : "hsl(var(--muted-foreground))",
-                      }}
-                    >
-                      {budget.amount > 0
-                        ? isOver
-                          ? `Dépassé de ${formatCurrency(Math.abs(budget.remaining))}`
-                          : `Reste ${formatCurrency(budget.remaining)}`
-                        : "Aucun budget défini"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
 
         {/* ── Charts Row ── */}
