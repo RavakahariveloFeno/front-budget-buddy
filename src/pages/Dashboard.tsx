@@ -390,16 +390,6 @@ export default function Dashboard() {
     ];
   }, [dashboard]);
 
-  /* Monthly data enriched with computed net balance */
-  const monthlyDataWithBalance = useMemo(
-    () =>
-      dashboard.monthlyData.map((m) => ({
-        ...m,
-        solde: Math.max(0, (m.revenus ?? 0) - (m.depenses ?? 0)),
-      })),
-    [dashboard.monthlyData],
-  );
-
   /* Expense ratio (income vs expense) for the hero bar */
   const expenseBarWidth = useMemo(() => {
     const total = dashboard.totals.income + dashboard.totals.expense;
@@ -658,19 +648,19 @@ export default function Dashboard() {
         {/* ── Charts Row ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
-          {/* Area chart — Revenus vs Dépenses + Solde net */}
+          {/* Area chart — Revenus vs Dépenses */}
           <div className="stat-card lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
               <p
                 className="font-display font-semibold"
                 style={{ color: "hsl(var(--foreground))" }}
               >
-                Revenus, Dépenses &amp; Solde net
+                Revenus &amp; Dépenses
               </p>
               <span className="badge-info">Tendance mensuelle</span>
             </div>
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={monthlyDataWithBalance}>
+              <AreaChart data={dashboard.monthlyData}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(158,64%,52%)" stopOpacity={0.3} />
@@ -679,10 +669,6 @@ export default function Dashboard() {
                   <linearGradient id="colorDep" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(351,75%,58%)" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(351,75%,58%)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorSolde" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(224,22%,18%)" />
@@ -719,15 +705,6 @@ export default function Dashboard() {
                   stroke="hsl(351,75%,58%)"
                   fill="url(#colorDep)"
                   strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="solde"
-                  name="Solde net"
-                  stroke="#3b82f6"
-                  fill="url(#colorSolde)"
-                  strokeWidth={2}
-                  strokeDasharray="4 2"
                 />
               </AreaChart>
             </ResponsiveContainer>
