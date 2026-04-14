@@ -276,6 +276,17 @@ export default function Dashboard() {
       }
     | {
         id: string;
+        kind: "loanPayment";
+        amount: number;
+        date: string;
+        loanId: string;
+        lenderName: string;
+        direction?: string;
+        activityName?: string;
+        note?: string;
+      }
+    | {
+        id: string;
         kind: "investment";
         amount: number;
         date: string;
@@ -317,6 +328,20 @@ export default function Dashboard() {
       ...(loan.activityId ? { activityName: activityNameById.get(loan.activityId) } : {}),
     }));
 
+    const loanPaymentActions: RecentAction[] = filteredLoans.flatMap((loan) =>
+      loan.payments.map((payment) => ({
+        id: payment.id,
+        kind: "loanPayment",
+        amount: payment.amount,
+        date: payment.date,
+        loanId: payment.loanId,
+        lenderName: loan.lenderName,
+        direction: loan.direction,
+        ...(loan.activityId ? { activityName: activityNameById.get(loan.activityId) } : {}),
+        ...(payment.note ? { note: payment.note } : {}),
+      })),
+    );
+
     const investmentActions: RecentAction[] = filteredInvestments.map((investment) => ({
       id: investment.id,
       kind: "investment",
@@ -343,6 +368,7 @@ export default function Dashboard() {
     const merged: RecentAction[] = [
       ...transactionActions,
       ...loanActions,
+      ...loanPaymentActions,
       ...investmentActions,
     ];
 
@@ -828,6 +854,7 @@ export default function Dashboard() {
                   const isIncome = tx.kind === "income";
                   const isExpense = tx.kind === "expense";
                   const isLoan = tx.kind === "loan";
+                  const isLoanPayment = tx.kind === "loanPayment";
                   const isInvestment = tx.kind === "investment";
 
                   let investmentSign = "";
@@ -842,10 +869,12 @@ export default function Dashboard() {
                   const isPositive =
                     isIncome ||
                     (isLoan && tx.direction !== "LENT") ||
+                    (isLoanPayment && tx.direction === "LENT") ||
                     (isInvestment && investmentSign === "+");
                   const isNegative =
                     isExpense ||
                     (isLoan && tx.direction === "LENT") ||
+                    (isLoanPayment && tx.direction !== "LENT") ||
                     (isInvestment && investmentSign === "-");
 
                   const accentColor = isPositive
@@ -870,7 +899,10 @@ export default function Dashboard() {
 
                   let title = "";
                   let subtitle = "";
-                  if (tx.kind === "income") {
+                  if (tx.kind === "loanPayment") {
+                    title = `Paiement pret Â· ${tx.lenderName}`;
+                    subtitle = `${formatDate(tx.date)} Â· ${tx.activityName || "-"}${tx.note ? ` Â· ${tx.note}` : ""}`;
+                  } else if (tx.kind === "income") {
                     title = tx.description || "Revenu";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "expense") {
@@ -905,7 +937,7 @@ export default function Dashboard() {
                         >
                           {tx.kind === "income" || tx.kind === "expense" ? (
                             tx.categoryIcon || (isIncome ? "$$" : "--")
-                          ) : tx.kind === "loan" ? (
+                          ) : tx.kind === "loan" || tx.kind === "loanPayment" ? (
                             <CreditCard size={16} style={{ color: pillFg }} />
                           ) : (
                             <ArrowLeftRight size={16} style={{ color: pillFg }} />
@@ -941,6 +973,10 @@ export default function Dashboard() {
                                 ? tx.direction === "LENT"
                                   ? "-"
                                   : "+"
+                                : tx.kind === "loanPayment"
+                                  ? tx.direction === "LENT"
+                                    ? "+"
+                                    : "-"
                                 : investmentSign}
                           {formatCurrency(tx.amount)}
                         </span>
@@ -957,6 +993,8 @@ export default function Dashboard() {
                               ? "Sortie"
                               : tx.kind === "loan"
                                 ? "Prêt"
+                                : tx.kind === "loanPayment"
+                                  ? "Paiement"
                                 : "Invest."}
                         </span>
                       </div>
