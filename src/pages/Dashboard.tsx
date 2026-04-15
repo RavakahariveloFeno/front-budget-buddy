@@ -28,7 +28,7 @@ import {
 import Header from "@/components/layout/Header";
 import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
 import { getInvestments } from "@/api/investmentApi";
-import { getLoans } from "@/api/loanApi";
+import { getLoans, getLoanPaymentHistory } from "@/api/loanApi";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Investment, Loan } from "@/data/staticData";
 import { compareByMostRecent } from "@/lib/recent-sort";
@@ -429,15 +429,23 @@ export default function Dashboard() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [stats, investments, loans] = await Promise.all([
+        const [stats, investments, remoteLoans, paymentHistory] = await Promise.all([
           getDashboardStats({ activityId: selectedActivityId ?? undefined }),
           getInvestments(),
           getLoans(),
+          getLoanPaymentHistory(),
         ]);
+
+        const paymentsByLoanId = new Map(paymentHistory.map((item) => [item.loanId, item.payments]));
+
+        const mergedLoans = remoteLoans.map((loan) => {
+          const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])];
+          return { ...loan, payments };
+        });
 
         setDashboard(stats);
         setInvestmentList(investments);
-        setLoanList(loans);
+        setLoanList(mergedLoans);
       } catch (error) {
         console.error("Impossible de charger les statistiques dashboard depuis l'API.", error);
         setDashboard(EMPTY_DASHBOARD);
