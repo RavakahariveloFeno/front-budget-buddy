@@ -19,6 +19,7 @@ export interface StockItem {
   emplacement: string;
   derniereMaj: string;
   paymentType?: "CASH" | "CARD";
+  linkedToGlobalExpense?: boolean;
 }
 
 export interface Client {
@@ -47,6 +48,7 @@ export interface Facture {
   statut: FactureStatut;
   total: number;
   paymentType?: "CASH" | "CARD";
+  linkedToGlobalIncome?: boolean;
 }
 
 // ── Static produits ──

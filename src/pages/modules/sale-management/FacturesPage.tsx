@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { FileText, Plus, Pencil, Trash2, Eye, PlusCircle, X, ArrowLeft } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { FileText, Plus, Pencil, Trash2, Eye, PlusCircle, X, ArrowLeft, Link, Link2Off } from "lucide-react";
 import type { Facture, FactureStatut, LigneFacture, Client, Produit } from "@/data/venteData";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import Header from "@/components/layout/Header";
@@ -11,9 +11,11 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import FormDialog from "@/components/dialogs/FormDialog";
+import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { createClient, createFacture, createProduit, deleteFacture, getClients, getFactures, getProduits, updateFacture } from "@/api/saleApi";
+import { createClient, createFacture, createProduit, deleteFacture, getClients, getFactures, getProduits, linkAllInvoicesIncome, linkInvoiceIncome, updateFacture } from "@/api/saleApi";
+import type { FacturePayload } from "@/api/saleApi";
 
 function clientNom(id: string, clients: Client[]) { return id ? (clients.find((c) => c.id === id)?.nom ?? "—") : "Sans client"; }
 function produitNom(id: string, produits: Produit[]) { return produits.find((p) => p.id === id)?.nom ?? "—"; }
@@ -33,6 +35,7 @@ type ViewMode = "list" | "form";
 
 export default function FacturesPage() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { activityId } = useParams<{ activityId: string }>();
   const [factures, setFactures] = useState<Facture[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -48,6 +51,8 @@ export default function FacturesPage() {
   const [newClientTelephone, setNewClientTelephone] = useState("");
   const [newClientAdresse, setNewClientAdresse] = useState("");
   const [produitFormOpen, setProduitFormOpen] = useState(false);
+  const [linkConfirmOpen, setLinkConfirmOpen] = useState(false);
+  const [pendingCreatePayload, setPendingCreatePayload] = useState<FacturePayload | null>(null);
   const [newProdNom, setNewProdNom] = useState("");
   const [newProdRef, setNewProdRef] = useState("");
   const [newProdPrixAchat, setNewProdPrixAchat] = useState("");
@@ -122,13 +127,70 @@ export default function FacturesPage() {
         setFactures((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
         toast({ title: "Facture modifiée" });
       } else {
-        const created = await createFacture({ activityId }, payload);
-        setFactures((prev) => [...prev, created]);
-        toast({ title: "Facture créée" });
+        setPendingCreatePayload(payload);
+        setLinkConfirmOpen(true);
+        return;
       }
       setViewMode("list");
     } catch {
       toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
+    }
+  };
+
+  const confirmCreateFacture = async (linkToGlobalIncome: boolean) => {
+    if (!activityId || !pendingCreatePayload) return;
+    try {
+      const created = await createFacture(
+        { activityId },
+        { ...pendingCreatePayload, linkToGlobalIncome },
+      );
+      setFactures((prev) => [...prev, created]);
+      setLinkConfirmOpen(false);
+      setPendingCreatePayload(null);
+      setViewMode("list");
+      if (activityId) {
+        navigate(`/activities/${activityId}/modules/mod-vente/factures`);
+      }
+      toast({ title: "Facture créée" });
+    } catch {
+      toast({ title: "Erreur lors de l'enregistrement", variant: "destructive" });
+    }
+  };
+
+  const handleLinkOne = async (facture: Facture) => {
+    if (!activityId) return;
+    const nextLinked = !Boolean(facture.linkedToGlobalIncome);
+    if (nextLinked && facture.statut !== "PAYÉE") {
+      toast({ title: "Seules les factures payées peuvent être liées", variant: "destructive" });
+      return;
+    }
+    try {
+      await linkInvoiceIncome({ activityId }, facture.id, nextLinked);
+      setFactures((prev) =>
+        prev.map((row) =>
+          row.id === facture.id
+            ? { ...row, linkedToGlobalIncome: nextLinked }
+            : row,
+        ),
+      );
+      toast({
+        title: nextLinked
+          ? "Facture liée au revenu global"
+          : "Liaison au compte global annulée",
+      });
+    } catch (error) {
+      toast({ title: "Impossible de mettre à jour la liaison", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const handleLinkAll = async () => {
+    if (!activityId) return;
+    try {
+      const linkedCount = await linkAllInvoicesIncome({ activityId });
+      setFactures((prev) => prev.map((row) => (row.statut === "PAYÉE" ? { ...row, linkedToGlobalIncome: true } : row)));
+      toast({ title: `${linkedCount} facture(s) liée(s) au revenu global` });
+    } catch (error) {
+      toast({ title: "Impossible de lier toutes les factures", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -290,7 +352,12 @@ export default function FacturesPage() {
         <div className="stat-card p-0 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h3 className="font-display font-semibold text-foreground">Liste des factures</h3>
-            <Button size="sm" onClick={openAdd}><Plus size={14} className="mr-1" /> Nouvelle facture</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleLinkAll}>
+                <Link size={14} className="mr-1" /> Tout lier
+              </Button>
+              <Button size="sm" onClick={openAdd}><Plus size={14} className="mr-1" /> Nouvelle facture</Button>
+            </div>
           </div>
           <Table>
             <TableHeader>
@@ -315,6 +382,9 @@ export default function FacturesPage() {
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <button onClick={() => handleLinkOne(f)} disabled={f.statut !== "PAYÉE" && !f.linkedToGlobalIncome} className="p-1.5 rounded hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed">
+                        {f.linkedToGlobalIncome ? <Link2Off size={14} className="text-destructive" /> : <Link size={14} className="text-primary" />}
+                      </button>
                       <button onClick={() => { setViewing(f); setDetailOpen(true); }} className="p-1.5 rounded hover:bg-accent"><Eye size={14} className="text-primary" /></button>
                       <button onClick={() => openEdit(f)} className="p-1.5 rounded hover:bg-accent"><Pencil size={14} className="text-muted-foreground" /></button>
                       <button onClick={() => { setEditing(f); setDeleteOpen(true); }} className="p-1.5 rounded hover:bg-accent"><Trash2 size={14} className="text-destructive" /></button>
@@ -362,6 +432,16 @@ export default function FacturesPage() {
       </Dialog>
 
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} title="Supprimer cette facture ?" description="Cette action est irréversible." />
+      <ActionConfirmDialog
+        open={linkConfirmOpen}
+        onOpenChange={setLinkConfirmOpen}
+        title="Lier au compte global ?"
+        description="Souhaitez-vous lier cette facture au revenu global (income) ?"
+        confirmLabel="Oui, lier"
+        cancelLabel="Non, ne pas lier"
+        onCancelAction={() => { void confirmCreateFacture(false); }}
+        onConfirm={() => { void confirmCreateFacture(true); }}
+      />
 
       <FormDialog open={clientFormOpen} onOpenChange={setClientFormOpen} title="Nouveau client">
         <form onSubmit={async (e) => {

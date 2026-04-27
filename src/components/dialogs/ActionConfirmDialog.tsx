@@ -15,6 +15,8 @@ interface ActionConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
+  cancelLabel?: string;
+  onCancelAction?: () => void;
   onConfirm: () => void;
 }
 
@@ -24,6 +26,8 @@ export default function ActionConfirmDialog({
   title,
   description,
   confirmLabel = "Continuer",
+  cancelLabel = "Annuler",
+  onCancelAction,
   onConfirm,
 }: ActionConfirmDialogProps) {
   return (
@@ -35,10 +39,11 @@ export default function ActionConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel
+            onClick={onCancelAction}
             className="border-border"
             style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
           >
-            Annuler
+            {cancelLabel}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}

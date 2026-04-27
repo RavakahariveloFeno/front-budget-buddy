@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Package, AlertTriangle, Plus, Pencil, Trash2, MapPin } from "lucide-react";
+import { Package, AlertTriangle, Plus, Pencil, Trash2, MapPin, Link, Link2Off } from "lucide-react";
 import type { StockItem, Produit } from "@/data/venteData";
 import { formatDate } from "@/data/staticData";
 import Header from "@/components/layout/Header";
@@ -11,9 +11,10 @@ import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
-import { createProduit, createProductCategory, createStockItem, deleteStockItem, getProductCategories, getProduits, getStock, updateStockItem } from "@/api/saleApi";
-import type { ProductCategoryOption } from "@/api/saleApi";
+import { createProduit, createProductCategory, createStockItem, deleteStockItem, getProductCategories, getProduits, getStock, linkAllStockExpense, linkStockExpense, updateStockItem } from "@/api/saleApi";
+import type { ProductCategoryOption, StockPayload } from "@/api/saleApi";
 
 function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
 
@@ -25,6 +26,8 @@ export default function StockPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
+  const [linkConfirmOpen, setLinkConfirmOpen] = useState(false);
+  const [pendingCreatePayload, setPendingCreatePayload] = useState<StockPayload | null>(null);
 
   const [produitId, setProduitId] = useState("");
   const [quantite, setQuantite] = useState("");
@@ -116,13 +119,63 @@ export default function StockPage() {
         setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
         toast({ title: "Stock mis à jour" });
       } else {
-        const created = await createStockItem({ activityId }, payload);
-        setItems((prev) => [...prev, created]);
-        toast({ title: "Stock ajouté" });
+        setPendingCreatePayload(payload);
+        setLinkConfirmOpen(true);
+        return;
       }
       setFormOpen(false);
     } catch (error) {
       toast({ title: "Erreur lors de l'enregistrement", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const confirmCreateStock = async (linkToGlobalExpense: boolean) => {
+    if (!activityId || !pendingCreatePayload) return;
+    try {
+      const created = await createStockItem(
+        { activityId },
+        { ...pendingCreatePayload, linkToGlobalExpense },
+      );
+      setItems((prev) => [...prev, created]);
+      setFormOpen(false);
+      setLinkConfirmOpen(false);
+      setPendingCreatePayload(null);
+      toast({ title: "Stock ajouté" });
+    } catch (error) {
+      toast({ title: "Erreur lors de l'enregistrement", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const handleLinkOne = async (item: StockItem) => {
+    if (!activityId) return;
+    const nextLinked = !Boolean(item.linkedToGlobalExpense);
+    try {
+      await linkStockExpense({ activityId }, item.id, nextLinked);
+      setItems((prev) =>
+        prev.map((row) =>
+          row.id === item.id
+            ? { ...row, linkedToGlobalExpense: nextLinked }
+            : row,
+        ),
+      );
+      toast({
+        title: nextLinked
+          ? "Stock lié à la dépense globale"
+          : "Liaison au compte global annulée",
+      });
+    } catch (error) {
+      toast({ title: "Impossible de mettre à jour la liaison", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    }
+  };
+
+  const handleLinkAll = async () => {
+    if (!activityId) return;
+    try {
+      const linkedCount = await linkAllStockExpense({ activityId });
+      setItems((prev) => prev.map((row) => ({ ...row, linkedToGlobalExpense: true })));
+      toast({ title: `${linkedCount} ligne(s) liée(s) à la dépense globale` });
+    } catch (error) {
+      toast({ title: "Impossible de lier toutes les lignes", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   };
 
@@ -168,7 +221,12 @@ export default function StockPage() {
         <div className="stat-card p-0 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "hsl(var(--border))" }}>
             <h3 className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>Inventaire</h3>
-            <Button size="sm" onClick={openAdd}><Plus size={14} className="mr-1" /> Ajouter</Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleLinkAll}>
+                <Link size={14} className="mr-1" /> Tout lier
+              </Button>
+              <Button size="sm" onClick={openAdd}><Plus size={14} className="mr-1" /> Ajouter</Button>
+            </div>
           </div>
           <Table>
             <TableHeader>
@@ -195,6 +253,11 @@ export default function StockPage() {
                   <TableCell style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(s.derniereMaj)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <button onClick={() => handleLinkOne(s)} className="p-1.5 rounded hover:bg-accent">
+                        {s.linkedToGlobalExpense
+                          ? <Link2Off size={14} style={{ color: "hsl(var(--destructive))" }} />
+                          : <Link size={14} style={{ color: "hsl(var(--primary))" }} />}
+                      </button>
                       <button onClick={() => openEdit(s)} className="p-1.5 rounded hover:bg-accent"><Pencil size={14} style={{ color: "hsl(var(--muted-foreground))" }} /></button>
                       <button onClick={() => { setEditing(s); setDeleteOpen(true); }} className="p-1.5 rounded hover:bg-accent"><Trash2 size={14} style={{ color: "hsl(var(--destructive))" }} /></button>
                     </div>
@@ -229,6 +292,16 @@ export default function StockPage() {
         </form>
       </FormDialog>
       <DeleteConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={handleDelete} title="Supprimer ce stock ?" description="Cette action est irréversible." />
+      <ActionConfirmDialog
+        open={linkConfirmOpen}
+        onOpenChange={setLinkConfirmOpen}
+        title="Lier au compte global ?"
+        description="Souhaitez-vous lier cet approvisionnement à la dépense globale (expense) ?"
+        confirmLabel="Oui, lier"
+        cancelLabel="Non, ne pas lier"
+        onCancelAction={() => { void confirmCreateStock(false); }}
+        onConfirm={() => { void confirmCreateStock(true); }}
+      />
 
       <FormDialog open={produitFormOpen} onOpenChange={setProduitFormOpen} title="Nouveau produit">
         <form onSubmit={async (e) => {

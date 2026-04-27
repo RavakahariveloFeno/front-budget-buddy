@@ -88,6 +88,7 @@ function mapFacture(data: any): Facture {
     statut,
     total: Number(data.total ?? 0),
     ...(paymentType ? { paymentType } : {}),
+    linkedToGlobalIncome: Boolean(data?.linkedToGlobalIncome),
   };
 }
 
@@ -105,6 +106,7 @@ function mapStockItem(data: any): StockItem {
     emplacement: String(data.location ?? ""),
     derniereMaj: String(data.lastUpdated ?? ""),
     ...(paymentType ? { paymentType } : {}),
+    linkedToGlobalExpense: Boolean(data?.linkedToGlobalExpense),
   };
 }
 
@@ -338,6 +340,7 @@ export interface FacturePayload {
   date: string;
   statut: FactureStatutInput;
   paymentType?: "CASH" | "CARD";
+  linkToGlobalIncome?: boolean;
   lignes: LigneFacture[];
 }
 
@@ -363,6 +366,7 @@ export async function createFacture(params: SaleContextParams, payload: FactureP
       date: new Date(payload.date).toISOString(),
       status: payload.statut,
       paymentType: payload.paymentType,
+      linkToGlobalIncome: payload.linkToGlobalIncome,
       lines: payload.lignes.map((l) => ({
         productId: l.produitId,
         quantity: l.quantite,
@@ -392,6 +396,7 @@ export async function updateFacture(
       date: new Date(payload.date).toISOString(),
       status: payload.statut,
       paymentType: payload.paymentType,
+      linkToGlobalIncome: payload.linkToGlobalIncome,
       lines: payload.lignes.map((l) => ({
         productId: l.produitId,
         quantity: l.quantite,
@@ -424,6 +429,7 @@ export interface StockPayload {
   seuilAlerte: number;
   emplacement: string;
   paymentType?: "CASH" | "CARD";
+  linkToGlobalExpense?: boolean;
 }
 
 export async function getStock(params: SaleContextParams): Promise<StockItem[]> {
@@ -453,6 +459,7 @@ export async function createStockItem(
       alertThreshold: payload.seuilAlerte,
       location: payload.emplacement,
       paymentType: payload.paymentType,
+      linkToGlobalExpense: payload.linkToGlobalExpense,
       userId,
       activityId,
     }),
@@ -479,6 +486,7 @@ export async function updateStockItem(
       alertThreshold: payload.seuilAlerte,
       location: payload.emplacement,
       paymentType: payload.paymentType,
+      linkToGlobalExpense: payload.linkToGlobalExpense,
       userId,
     }),
   });
@@ -494,5 +502,57 @@ export async function deleteStockItem(params: SaleContextParams, id: string): Pr
     headers: buildAuthHeaders(),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
+export async function linkStockExpense(
+  params: SaleContextParams,
+  id: string,
+  linked = true,
+): Promise<void> {
+  const { userId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/stock/${id}/link-expense`, {
+    method: "POST",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({ userId, linked }),
+  });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response));
+}
+
+export async function linkAllStockExpense(params: SaleContextParams): Promise<number> {
+  const { userId, activityId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/stock/link-expense-all`, {
+    method: "POST",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({ userId, activityId }),
+  });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response));
+  const data = await response.json() as { linkedCount?: number };
+  return Number(data.linkedCount ?? 0);
+}
+
+export async function linkInvoiceIncome(
+  params: SaleContextParams,
+  id: string,
+  linked = true,
+): Promise<void> {
+  const { userId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/invoices/${id}/link-income`, {
+    method: "POST",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({ userId, linked }),
+  });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response));
+}
+
+export async function linkAllInvoicesIncome(params: SaleContextParams): Promise<number> {
+  const { userId, activityId } = getContext(params);
+  const response = await fetch(`${SALE_API_URL}/invoices/link-income-all`, {
+    method: "POST",
+    headers: buildAuthHeaders(true),
+    body: JSON.stringify({ userId, activityId }),
+  });
+  if (!response.ok) throw new Error(await readApiErrorMessage(response));
+  const data = await response.json() as { linkedCount?: number };
+  return Number(data.linkedCount ?? 0);
 }
 
