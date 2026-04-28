@@ -49,7 +49,7 @@ export default function ExpenseForm({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [paymentType, setPaymentType] = useState<"CARD" | "CASH">("CARD");
+  const [paymentType, setPaymentType] = useState<"CARD" | "CASH" | "MOBILE">("CARD");
   const [categoryId, setCategoryId] = useState("none");
   const [activityId, setActivityId] = useState("none");
   const [isRecurring, setIsRecurring] = useState(false);
@@ -79,6 +79,7 @@ export default function ExpenseForm({
     () => [
       { value: "CARD", label: "Carte" },
       { value: "CASH", label: "Especes" },
+      { value: "MOBILE", label: "Compte mobile" },
     ],
     [],
   );
@@ -192,7 +193,7 @@ export default function ExpenseForm({
         <FormFieldInput label="Montant (MGA)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />
         <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
-        <SelectField label="Paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as "CARD" | "CASH")} options={paymentOptions} />
+        <SelectField label="Paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as "CARD" | "CASH" | "MOBILE")} options={paymentOptions} />
         <SelectField label="Categorie" value={categoryId} onValueChange={setCategoryId} options={catOptions} onAddClick={onCreateCategory ? () => setCategoryFormOpen(true) : undefined} />
         <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={actOptions} required disabled={Boolean(lockedActivityId)} />
         {!isEdit ? (

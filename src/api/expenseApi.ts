@@ -96,7 +96,10 @@ function mapExpense(item: unknown): Expense | null {
   }
 
   const record = item as Record<string, unknown>;
-  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
+  const paymentType =
+    record.paymentType === "CASH" || record.paymentType === "CARD" || record.paymentType === "MOBILE"
+      ? (record.paymentType as PaymentType)
+      : undefined;
   return {
     id: String(record.id ?? ""),
     amount: Number(record.amount ?? 0),
@@ -121,7 +124,10 @@ function mapRecurringExpense(item: unknown): RecurringExpense | null {
   const amount = Number(record.amount ?? 0);
   const startDate = String(record.startDate ?? "");
   const frequency = String(record.frequency ?? "") as ExpenseRecurrenceFrequency;
-  const paymentType = record.paymentType === "CASH" || record.paymentType === "CARD" ? (record.paymentType as PaymentType) : undefined;
+  const paymentType =
+    record.paymentType === "CASH" || record.paymentType === "CARD" || record.paymentType === "MOBILE"
+      ? (record.paymentType as PaymentType)
+      : undefined;
 
   if (!id || !Number.isFinite(amount) || !startDate || !["DAY", "WEEK", "MONTH"].includes(frequency)) {
     return null;

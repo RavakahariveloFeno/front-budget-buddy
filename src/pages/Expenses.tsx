@@ -63,7 +63,7 @@ export default function Expenses() {
   const [recurringStartDate, setRecurringStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [recurringEndDate, setRecurringEndDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
-  const [recurringPaymentType, setRecurringPaymentType] = useState<"CARD" | "CASH">("CARD");
+  const [recurringPaymentType, setRecurringPaymentType] = useState<"CARD" | "CASH" | "MOBILE">("CARD");
   const [recurringCategoryId, setRecurringCategoryId] = useState("none");
   const [recurringActivityId, setRecurringActivityId] = useState("none");
   const [recurringActive, setRecurringActive] = useState(true);
@@ -250,7 +250,18 @@ export default function Expenses() {
   const paymentOptions = [
     { value: "CARD", label: "Carte" },
     { value: "CASH", label: "Especes" },
+    { value: "MOBILE", label: "Compte mobile" },
   ];
+
+  const getPaymentBadge = (paymentType?: "CARD" | "CASH" | "MOBILE") => {
+    if (paymentType === "CARD") {
+      return { className: "badge-info text-xs", label: "Carte" };
+    }
+    if (paymentType === "MOBILE") {
+      return { className: "badge-income text-xs", label: "Compte mobile" };
+    }
+    return { className: "badge-warning text-xs", label: "Cash" };
+  };
 
   const handleEditRecurring = (item: RecurringExpense) => {
     setRecurringEditItem(item);
@@ -419,6 +430,7 @@ export default function Expenses() {
                     .map((expense) => {
                     const category = expense.categoryId ? categoryById.get(expense.categoryId) : undefined;
                     const activity = expense.activityId ? activityById.get(expense.activityId) : undefined;
+                    const paymentBadge = expense.paymentType ? getPaymentBadge(expense.paymentType) : null;
                     return (
                       <tr key={expense.id}>
                         <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(expense.date)}</td>
@@ -434,10 +446,8 @@ export default function Expenses() {
                         </td>
                         <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
                         <td>
-                          {expense.paymentType ? (
-                            <span className={expense.paymentType === "CARD" ? "badge-info text-xs" : "badge-warning text-xs"}>
-                              {expense.paymentType === "CARD" ? "Carte" : "Cash"}
-                            </span>
+                          {paymentBadge ? (
+                            <span className={paymentBadge.className}>{paymentBadge.label}</span>
                           ) : (
                             "-"
                           )}
@@ -495,6 +505,7 @@ export default function Expenses() {
               <tbody>
                 {[...visibleRecurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
                   const activity = item.activityId ? activityById.get(item.activityId) : undefined;
+                  const paymentBadge = item.paymentType ? getPaymentBadge(item.paymentType) : null;
                   return (
                     <tr key={item.id}>
                       <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(item.startDate)}</td>
@@ -502,13 +513,7 @@ export default function Expenses() {
                       <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
                       <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
                       <td>
-                        {item.paymentType ? (
-                          <span className={item.paymentType === "CARD" ? "badge-info text-xs" : "badge-warning text-xs"}>
-                            {item.paymentType === "CARD" ? "Carte" : "Cash"}
-                          </span>
-                        ) : (
-                          "-"
-                        )}
+                        {paymentBadge ? <span className={paymentBadge.className}>{paymentBadge.label}</span> : "-"}
                       </td>
                       <td>
                         <span className={item.isActive ? "badge-income" : "badge-warning"}>{item.isActive ? "Active" : "Pause"}</span>
@@ -575,7 +580,12 @@ export default function Expenses() {
           <FormFieldInput label="Date de debut" id="rec-exp-start" type="date" value={recurringStartDate} onChange={setRecurringStartDate} required />
           <FormFieldInput label="Date de fin (optionnel)" id="rec-exp-end" type="date" value={recurringEndDate} onChange={setRecurringEndDate} />
           <SelectField label="Frequence" value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as "DAY" | "WEEK" | "MONTH")} options={frequencyOptions} />
-          <SelectField label="Paiement" value={recurringPaymentType} onValueChange={(v) => setRecurringPaymentType(v as "CARD" | "CASH")} options={paymentOptions} />
+          <SelectField
+            label="Paiement"
+            value={recurringPaymentType}
+            onValueChange={(v) => setRecurringPaymentType(v as "CARD" | "CASH" | "MOBILE")}
+            options={paymentOptions}
+          />
           <SelectField
             label="Categorie"
             value={recurringCategoryId}
