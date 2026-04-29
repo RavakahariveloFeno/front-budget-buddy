@@ -25,6 +25,7 @@ import JournalPage from "@/pages/modules/accounting-management/JournalPage";
 import PlanComptablePage from "@/pages/modules/accounting-management/PlanComptablePage";
 import BilanPage from "@/pages/modules/accounting-management/BilanPage";
 import TresoreriePage from "@/pages/modules/accounting-management/TresoreriePage";
+import StaticAccountingPage from "@/pages/modules/accounting-management/StaticAccountingPage";
 
 // ── Paie ──
 import EmployesPage from "@/pages/modules/payroll-management/EmployesPage";
@@ -48,8 +49,29 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   // Comptabilité
   journal: JournalPage,
   "plan-comptable": PlanComptablePage,
+  balance: StaticAccountingPage,
   bilan: BilanPage,
   tresorerie: TresoreriePage,
+  "centres-cout": StaticAccountingPage,
+  projets: StaticAccountingPage,
+  repartition: StaticAccountingPage,
+  rentabilite: StaticAccountingPage,
+  "tva-collectee": StaticAccountingPage,
+  "tva-deductible": StaticAccountingPage,
+  declarations: StaticAccountingPage,
+  "rapports-fiscaux": StaticAccountingPage,
+  facturation: StaticAccountingPage,
+  creances: StaticAccountingPage,
+  "reglements-clients": StaticAccountingPage,
+  relances: StaticAccountingPage,
+  "bons-commande": StaticAccountingPage,
+  dettes: StaticAccountingPage,
+  "factures-fournisseurs": StaticAccountingPage,
+  paiements: StaticAccountingPage,
+  acquisitions: StaticAccountingPage,
+  amortissements: StaticAccountingPage,
+  cessions: StaticAccountingPage,
+  vnc: StaticAccountingPage,
   // Paie
   employes: EmployesPage,
   "fiches-paie": FichesPaiePage,
@@ -147,7 +169,7 @@ export default function ModuleMenuPage() {
           <DynamicIcon name={module.icon} size={16} style={{ color: `hsl(var(--${module.color}))` }} />
           <span className="text-sm font-semibold truncate" style={{ color: "hsl(var(--foreground))" }}>{module.name}</span>
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-            {moduleId === "mod-comptabilite" && <span className="badge-warning text-[10px]">En cours</span>}
+            {moduleId?.startsWith("mod-comptabilite-") && <span className="badge-warning text-[10px]">En cours</span>}
             {moduleId === "mod-vente" && <span className="badge-income text-[10px]">Disponible</span>}
           </div>
         </div>

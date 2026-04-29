@@ -391,90 +391,92 @@ export default function Expenses() {
             </div>
           </div>
 
-          <div className="stat-card lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                Toutes les depenses{" "}
-                <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  ({expenseList.length})
-                </span>
-              </p>
-              <button
-                onClick={() => {
-                  setEditItem(null);
-                  setFormOpen(true);
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--gradient-danger)", color: "hsl(var(--destructive-foreground))" }}
-              >
-                <Plus size={13} /> Ajouter
-              </button>
-            </div>
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
-              <table className="w-full data-table">
-                <thead className="sticky top-0" style={{ background: "hsl(var(--card))" }}>
-                  <tr>
-                    <th className="text-left">Date</th>
-                    <th className="text-left">Description</th>
-                    <th className="text-left">Categorie</th>
-                    <th className="text-left">Activite</th>
-                    <th className="text-left">Paiement</th>
-                    <th className="text-left">Type</th>
-                    <th className="text-right">Montant</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...expenseList]
-                    .sort(compareByMostRecent(["createdAt", "date"]))
-                    .map((expense) => {
-                    const category = expense.categoryId ? categoryById.get(expense.categoryId) : undefined;
-                    const activity = expense.activityId ? activityById.get(expense.activityId) : undefined;
-                    const paymentBadge = expense.paymentType ? getPaymentBadge(expense.paymentType) : null;
-                    return (
-                      <tr key={expense.id}>
-                        <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(expense.date)}</td>
-                        <td style={{ color: "hsl(var(--foreground))" }}>{expense.description || "-"}</td>
-                        <td>
-                          {category ? (
-                            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: (category.color || "#8b5cf6") + "30", color: category.color || "#8b5cf6" }}>
-                              {category.icon} {category.name}
+          <div className="lg:col-span-2 relative">
+            <div className="stat-card lg:absolute lg:inset-0 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                  Toutes les depenses{" "}
+                  <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    ({expenseList.length})
+                  </span>
+                </p>
+                <button
+                  onClick={() => {
+                    setEditItem(null);
+                    setFormOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: "var(--gradient-danger)", color: "hsl(var(--destructive-foreground))" }}
+                >
+                  <Plus size={13} /> Ajouter
+                </button>
+              </div>
+              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+                <table className="w-full data-table">
+                  <thead className="sticky top-0" style={{ background: "hsl(var(--card))" }}>
+                    <tr>
+                      <th className="text-left">Date</th>
+                      <th className="text-left">Description</th>
+                      <th className="text-left">Categorie</th>
+                      <th className="text-left">Activite</th>
+                      <th className="text-left">Paiement</th>
+                      <th className="text-left">Type</th>
+                      <th className="text-right">Montant</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...expenseList]
+                      .sort(compareByMostRecent(["createdAt", "date"]))
+                      .map((expense) => {
+                      const category = expense.categoryId ? categoryById.get(expense.categoryId) : undefined;
+                      const activity = expense.activityId ? activityById.get(expense.activityId) : undefined;
+                      const paymentBadge = expense.paymentType ? getPaymentBadge(expense.paymentType) : null;
+                      return (
+                        <tr key={expense.id}>
+                          <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(expense.date)}</td>
+                          <td style={{ color: "hsl(var(--foreground))" }}>{expense.description || "-"}</td>
+                          <td>
+                            {category ? (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: (category.color || "#8b5cf6") + "30", color: category.color || "#8b5cf6" }}>
+                                {category.icon} {category.name}
+                              </span>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
+                          <td>
+                            {paymentBadge ? (
+                              <span className={paymentBadge.className}>{paymentBadge.label}</span>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td>
+                            <span className={expense.recurringExpenseId ? "badge-warning text-xs" : "badge-info text-xs"}>
+                              {expense.recurringExpenseId ? "Automatique" : "Manuel"}
                             </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
-                        <td>
-                          {paymentBadge ? (
-                            <span className={paymentBadge.className}>{paymentBadge.label}</span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td>
-                          <span className={expense.recurringExpenseId ? "badge-warning text-xs" : "badge-info text-xs"}>
-                            {expense.recurringExpenseId ? "Automatique" : "Manuel"}
-                          </span>
-                        </td>
-                        <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
-                          -{formatCurrency(expense.amount)}
-                        </td>
-                        <td className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleEdit(expense)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
-                              <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                            </button>
-                            <button onClick={() => handleDelete(expense)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                              <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
+                            -{formatCurrency(expense.amount)}
+                          </td>
+                          <td className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => handleEdit(expense)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                                <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                              </button>
+                              <button onClick={() => handleDelete(expense)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                                <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
