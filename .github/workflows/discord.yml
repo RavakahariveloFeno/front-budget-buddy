@@ -11,39 +11,7 @@ jobs:
       - name: Send embed to Discord
         uses: Ilshidur/action-discord@master
         with:
-          args: |
-            {
-              "embeds": [
-                {
-                  "title": "🚀 Nouveau push détecté",
-                  "color": 3066993,
-                  "fields": [
-                    {
-                      "name": "Repository",
-                      "value": "${{ github.repository }}",
-                      "inline": true
-                    },
-                    {
-                      "name": "Auteur",
-                      "value": "${{ github.actor }}",
-                      "inline": true
-                    },
-                    {
-                      "name": "Branche",
-                      "value": "${{ github.ref_name }}",
-                      "inline": true
-                    },
-                    {
-                      "name": "Message commit",
-                      "value": "${{ github.event.head_commit.message }}"
-                    },
-                    {
-                      "name": "Lien",
-                      "value": "${{ github.event.head_commit.url }}"
-                    }
-                  ]
-                }
-              ]
-            }
+          args: >
+            {"embeds":[{"title":"🚀 Nouveau push détecté","color":3066993,"fields":[{"name":"Repository","value":"${{ github.repository }}","inline":true},{"name":"Auteur","value":"${{ github.actor }}","inline":true},{"name":"Branche","value":"${{ github.ref_name }}","inline":true},{"name":"Message commit","value":"${{ github.event.head_commit.message }}"},{"name":"Lien","value":"${{ github.event.head_commit.url }}"}]}]}
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
