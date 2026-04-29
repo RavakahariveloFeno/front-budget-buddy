@@ -8,15 +8,27 @@ export type BackendModuleType = "SALE_MANAGEMENT" | "PAYROLL" | "ACCOUNTING" | "
 const MODULE_ID_TO_TYPE: Record<string, BackendModuleType> = {
   "mod-vente": "SALE_MANAGEMENT",
   "mod-paie": "PAYROLL",
-  "mod-comptabilite": "ACCOUNTING",
+  "mod-comptabilite-generale": "ACCOUNTING",
+  "mod-comptabilite-analytique": "ACCOUNTING",
+  "mod-comptabilite-fiscale": "ACCOUNTING",
+  "mod-comptabilite-client": "ACCOUNTING",
+  "mod-comptabilite-fournisseur": "ACCOUNTING",
+  "mod-comptabilite-immobilisations": "ACCOUNTING",
   "mod-tresorerie": "CASH_MANAGEMENT",
 };
 
-const MODULE_TYPE_TO_ID: Record<BackendModuleType, string> = {
-  SALE_MANAGEMENT: "mod-vente",
-  PAYROLL: "mod-paie",
-  ACCOUNTING: "mod-comptabilite",
-  CASH_MANAGEMENT: "mod-tresorerie",
+const MODULE_TYPE_TO_IDS: Record<BackendModuleType, string[]> = {
+  SALE_MANAGEMENT: ["mod-vente"],
+  PAYROLL: ["mod-paie"],
+  ACCOUNTING: [
+    "mod-comptabilite-generale",
+    "mod-comptabilite-analytique",
+    "mod-comptabilite-fiscale",
+    "mod-comptabilite-client",
+    "mod-comptabilite-fournisseur",
+    "mod-comptabilite-immobilisations",
+  ],
+  CASH_MANAGEMENT: ["mod-tresorerie"],
 };
 
 export function mapModuleIdsToTypes(ids: string[]): BackendModuleType[] {
@@ -33,9 +45,11 @@ export function mapModuleIdsToTypes(ids: string[]): BackendModuleType[] {
 export function mapModuleTypesToIds(types: BackendModuleType[]): string[] {
   const ids: string[] = [];
   for (const t of types) {
-    const id = MODULE_TYPE_TO_ID[t];
-    if (id && !ids.includes(id)) {
-      ids.push(id);
+    const mappedIds = MODULE_TYPE_TO_IDS[t] ?? [];
+    for (const id of mappedIds) {
+      if (!ids.includes(id)) {
+        ids.push(id);
+      }
     }
   }
   return ids;
