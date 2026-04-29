@@ -158,19 +158,6 @@ export const PREDEFINED_MODULES: AppModule[] = [
     ],
   },
   {
-    id: "mod-achat-revente",
-    name: "Achat–revente de marchandises",
-    description: "Suivi des achats et reventes de marchandises",
-    icon: "Repeat",
-    color: "purple",
-    menus: [
-      { id: "menu-achats", label: "Achats", icon: "ShoppingBag", path: "achats" },
-      { id: "menu-reventes", label: "Reventes", icon: "DollarSign", path: "reventes" },
-      { id: "menu-marge", label: "Marges", icon: "TrendingUp", path: "marges" },
-      { id: "menu-fournisseur", label: "Fournisseurs", icon: "Truck", path: "fournisseurs" },
-    ],
-  },
-  {
     id: "mod-comptabilite-generale",
     name: "Comptabilité générale",
     description: "Journal, grand livre, balance, bilan et compte de résultat",
