@@ -1,0 +1,22 @@
+name: Issue Assigned Notification
+
+on:
+  issues:
+    types: [assigned]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Discord message
+        uses: Ilshidur/action-discord@master
+        with:
+          args: |
+            📌 Nouvelle tâche assignée !
+            👤 Assigné à: ${{ github.event.assignee.login }}
+            🧑‍💻 Par: ${{ github.actor }}
+            📝 Issue: ${{ github.event.issue.title }}
+            🔗 Lien: ${{ github.event.issue.html_url }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_ISSUE }}
