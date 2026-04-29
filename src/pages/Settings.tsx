@@ -105,6 +105,7 @@ export default function Settings() {
     activities: [],
     moduleLinks: [],
     menuAccess: [],
+    hasAllActivitiesAccess: false,
   });
 
   useEffect(() => {
@@ -344,7 +345,7 @@ export default function Settings() {
   const openAddProfile = () => {
     setEditingProfile(null);
     setShowManagedProfilePassword(false);
-    setFormProfile({ firstName: "", lastName: "", email: "", password: "", role: "user", activities: [], moduleLinks: [], menuAccess: [] });
+    setFormProfile({ firstName: "", lastName: "", email: "", password: "", role: "user", activities: [], moduleLinks: [], menuAccess: [], hasAllActivitiesAccess: false });
     setDialogOpen(true);
   };
 
@@ -360,6 +361,7 @@ export default function Settings() {
       activities: [...profile.activities],
       moduleLinks: [...profile.moduleLinks],
       menuAccess: normalizeMenuAccessForForm(profile.menuAccess),
+      hasAllActivitiesAccess: profile.hasAllActivitiesAccess,
     });
     setDialogOpen(true);
   };
