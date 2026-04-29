@@ -9,15 +9,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send Discord message
+      - name: Send Discord embed
         uses: Ilshidur/action-discord@master
         with:
           args: |
-            ${{ github.event.action == 'assigned' && '📌 Nouvelle tâche assignée !' || '🚫 Assignation annulée !' }}
-            
-            🧑‍💻 Utilisateur: ${{ github.event.assignee.login }}
-            👤 Action par: ${{ github.actor }}
-            📝 Issue: ${{ github.event.issue.title }}
-            🔗 Lien: ${{ github.event.issue.html_url }}
+            {
+              "embeds": [
+                {
+                  "title": "${{ github.event.action == 'assigned' && '📌 Nouvelle tâche assignée' || '🚫 Assignation annulée' }}",
+                  "color": "${{ github.event.action == 'assigned' && 5763719 || 15548997 }}",
+                  "fields": [
+                    {
+                      "name": "Utilisateur concerné",
+                      "value": "${{ github.event.assignee.login }}"
+                    },
+                    {
+                      "name": "Action par",
+                      "value": "${{ github.actor }}"
+                    },
+                    {
+                      "name": "Issue",
+                      "value": "${{ github.event.issue.title }}"
+                    },
+                    {
+                      "name": "Lien",
+                      "value": "${{ github.event.issue.html_url }}"
+                    }
+                  ]
+                }
+              ]
+            }
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_ISSUE }}
