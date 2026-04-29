@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Download, LayoutGrid, Unlink } from "lucide-react";
+import { Download, LayoutGrid, Unlink } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES, type Activity } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
@@ -132,11 +132,8 @@ export default function Modules() {
   const openRemoveModal = (moduleId: string) => {
     setModalMode("remove");
     setActiveModuleId(moduleId);
-    const linkedIds = activities
-      .filter((activity) => (modulesByActivityId[activity.id] ?? []).includes(moduleId))
-      .map((activity) => activity.id);
-    // Retrait par deselection: toutes les activites liees sont cochees au depart.
-    setSelectedActivityIds(linkedIds);
+    // Retrait par selection: aucune activite cochee au depart.
+    setSelectedActivityIds([]);
     setModalOpen(true);
   };
 
@@ -188,7 +185,7 @@ export default function Modules() {
   };
 
   const handleRemoveModule = async () => {
-    if (!activeModuleId) {
+    if (!activeModuleId || selectedActivityIds.length === 0) {
       return;
     }
 
@@ -200,14 +197,19 @@ export default function Modules() {
     setSavingKey(activeModuleId);
     const snapshot = { ...modulesByActivityId };
     const nextState = { ...modulesByActivityId };
-    const linkedIds = activities
-      .filter((activity) => (modulesByActivityId[activity.id] ?? []).includes(activeModuleId))
-      .map((activity) => activity.id);
-    const toRemoveIds = linkedIds.filter((activityId) => !selectedActivityIds.includes(activityId));
+
+    // Securite: ne retirer que sur les activites liees actuellement.
+    const linkedIds = new Set(
+      activities
+        .filter((activity) => (modulesByActivityId[activity.id] ?? []).includes(activeModuleId))
+        .map((activity) => activity.id),
+    );
+    const toRemoveIds = selectedActivityIds.filter((activityId) => linkedIds.has(activityId));
     if (toRemoveIds.length === 0) {
       setSavingKey(null);
       return;
     }
+
     toRemoveIds.forEach((activityId) => {
       const current = nextState[activityId] ?? [];
       nextState[activityId] = current.filter((id) => id !== activeModuleId);
@@ -310,9 +312,9 @@ export default function Modules() {
                       )}
                       <Button
                         onClick={() => openImportModal(module.id)}
-                        disabled={isManagedProfile || isSaving || isBlocked}
+                        disabled={isManagedProfile || isSaving}
                         className="h-9 w-9 p-0"
-                        title={isBlocked ? "Module indisponible pour le moment" : undefined}
+                        title={isBlocked ? "Module indisponible pour le moment (mais assignable aux activites)" : undefined}
                         aria-label="Importer vers des activites"
                         style={{
                           background: isBlocked ? "hsl(var(--secondary))" : `hsl(var(--${module.color}))`,
@@ -393,10 +395,10 @@ export default function Modules() {
                 Boolean(savingKey) ||
                 (modalMode === "import"
                   ? selectedActivityIds.length === 0
-                  : linkedActivitiesForActiveModule.every((activity) => selectedActivityIds.includes(activity.id)))
+                  : selectedActivityIds.length === 0)
               }
             >
-              {modalMode === "import" ? "Importer" : "Retirer les deselections"}
+              {modalMode === "import" ? "Importer" : "Supprimer les liaisons"}
             </Button>
           </div>
         </DialogContent>
