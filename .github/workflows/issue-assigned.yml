@@ -1,8 +1,8 @@
-name: Issue Assigned Notification
+name: Issue Assignment Notification
 
 on:
   issues:
-    types: [assigned]
+    types: [assigned, unassigned]
 
 jobs:
   notify:
@@ -13,9 +13,10 @@ jobs:
         uses: Ilshidur/action-discord@master
         with:
           args: |
-            📌 Nouvelle tâche assignée !
-            👤 Assigné à: ${{ github.event.assignee.login }}
-            🧑‍💻 Par: ${{ github.actor }}
+            ${{ github.event.action == 'assigned' && '📌 Nouvelle tâche assignée !' || '🚫 Assignation annulée !' }}
+            
+            🧑‍💻 Utilisateur: ${{ github.event.assignee.login }}
+            👤 Action par: ${{ github.actor }}
             📝 Issue: ${{ github.event.issue.title }}
             🔗 Lien: ${{ github.event.issue.html_url }}
         env:
