@@ -25,6 +25,7 @@ import JournalPage from "@/pages/modules/accounting-management/JournalPage";
 import PlanComptablePage from "@/pages/modules/accounting-management/PlanComptablePage";
 import BilanPage from "@/pages/modules/accounting-management/BilanPage";
 import TresoreriePage from "@/pages/modules/accounting-management/TresoreriePage";
+import StaticAccountingPage from "@/pages/modules/accounting-management/StaticAccountingPage";
 
 // ── Paie ──
 import EmployesPage from "@/pages/modules/payroll-management/EmployesPage";
@@ -48,8 +49,29 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   // Comptabilité
   journal: JournalPage,
   "plan-comptable": PlanComptablePage,
+  balance: StaticAccountingPage,
   bilan: BilanPage,
   tresorerie: TresoreriePage,
+  "centres-cout": StaticAccountingPage,
+  projets: StaticAccountingPage,
+  repartition: StaticAccountingPage,
+  rentabilite: StaticAccountingPage,
+  "tva-collectee": StaticAccountingPage,
+  "tva-deductible": StaticAccountingPage,
+  declarations: StaticAccountingPage,
+  "rapports-fiscaux": StaticAccountingPage,
+  facturation: StaticAccountingPage,
+  creances: StaticAccountingPage,
+  "reglements-clients": StaticAccountingPage,
+  relances: StaticAccountingPage,
+  "bons-commande": StaticAccountingPage,
+  dettes: StaticAccountingPage,
+  "factures-fournisseurs": StaticAccountingPage,
+  paiements: StaticAccountingPage,
+  acquisitions: StaticAccountingPage,
+  amortissements: StaticAccountingPage,
+  cessions: StaticAccountingPage,
+  vnc: StaticAccountingPage,
   // Paie
   employes: EmployesPage,
   "fiches-paie": FichesPaiePage,
