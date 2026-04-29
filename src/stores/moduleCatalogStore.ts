@@ -4,6 +4,8 @@ import { PREDEFINED_MODULES } from "@/data/staticData";
 
 export type ModuleCatalogStatus = "FREE" | "PAID" | "COMING_SOON" | "SOON";
 
+const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-tresorerie"]);
+
 interface ModuleCatalogStore {
   statusByModuleId: Record<string, ModuleCatalogStatus>;
   priceByModuleId: Record<string, string>;
@@ -54,7 +56,7 @@ export const useModuleCatalogStore = create<ModuleCatalogStore>()(
         set((state) => ({
           statusByModuleId: {
             ...state.statusByModuleId,
-            [moduleId]: status,
+            [moduleId]: ALWAYS_AVAILABLE_MODULE_IDS.has(moduleId) ? "FREE" : status,
           },
         })),
       setModulePrice: (moduleId, price) =>
@@ -64,7 +66,7 @@ export const useModuleCatalogStore = create<ModuleCatalogStore>()(
             [moduleId]: price.trim() || "10$",
           },
         })),
-      getModuleStatus: (moduleId) => get().statusByModuleId[moduleId] ?? "FREE",
+      getModuleStatus: (moduleId) => ALWAYS_AVAILABLE_MODULE_IDS.has(moduleId) ? "FREE" : get().statusByModuleId[moduleId] ?? "FREE",
       getModulePrice: (moduleId) => get().priceByModuleId[moduleId] ?? "10$",
     }),
     {
