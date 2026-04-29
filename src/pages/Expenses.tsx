@@ -391,7 +391,7 @@ export default function Expenses() {
             </div>
           </div>
 
-          <div className="stat-card lg:col-span-2">
+          <div className="stat-card lg:col-span-2 flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
                 Toutes les depenses{" "}
@@ -410,7 +410,7 @@ export default function Expenses() {
                 <Plus size={13} /> Ajouter
               </button>
             </div>
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
               <table className="w-full data-table">
                 <thead className="sticky top-0" style={{ background: "hsl(var(--card))" }}>
                   <tr>
