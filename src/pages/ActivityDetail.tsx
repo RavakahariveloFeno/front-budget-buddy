@@ -111,7 +111,7 @@ export default function ActivityDetail() {
 }
 
 function ModuleCard({ module, activityId }: { module: AppModule; activityId: string }) {
-  const isAccounting = module.id === "mod-comptabilite";
+  const isAccounting = module.id.startsWith("mod-comptabilite-");
   const isSaleManagement = module.id === "mod-vente";
   return (
     <div className="stat-card">
