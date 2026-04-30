@@ -411,7 +411,10 @@ export default function Expenses() {
                   <Plus size={13} /> Ajouter
                 </button>
               </div>
-              <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+              <div
+                className="overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[60vh] lg:max-h-none"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
                 <table className="w-full data-table">
                   <thead className="sticky top-0" style={{ background: "hsl(var(--card))" }}>
                     <tr>
