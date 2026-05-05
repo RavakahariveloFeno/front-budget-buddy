@@ -387,7 +387,7 @@ export default function AgendaPage() {
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             <Bell size={14} /> Activer la notification
           </label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="space-y-3">
             <FormFieldInput
               label="Rappel (minutes avant)"
               id="evt-reminder"
