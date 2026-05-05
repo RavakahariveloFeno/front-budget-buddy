@@ -4,7 +4,7 @@ import { PREDEFINED_MODULES } from "@/data/staticData";
 
 export type ModuleCatalogStatus = "FREE" | "PAID" | "COMING_SOON" | "SOON";
 
-const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-tresorerie"]);
+const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-tresorerie", "mod-calendrier"]);
 
 interface ModuleCatalogStore {
   statusByModuleId: Record<string, ModuleCatalogStatus>;
