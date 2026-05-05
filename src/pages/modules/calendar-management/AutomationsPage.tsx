@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { Bell, Zap, Calendar as CalendarIcon, CheckCircle2, Clock } from "lucide-react";
+import { Bell, Zap, Calendar as CalendarIcon, CheckCircle2, Clock, Mail, Webhook } from "lucide-react";
 import { useCalendarStore } from "@/stores/calendarStore";
 import { formatCurrency } from "@/data/staticData";
 
@@ -17,6 +17,7 @@ export default function AutomationsPage() {
   const triggered = automations.filter((e) => e.triggered).length;
   const pending = automations.length - triggered;
   const notifyCount = events.filter((e) => e.notify).length;
+  const reminderCount = events.filter((e) => (e.reminderMinutes ?? 0) > 0).length;
 
   return (
     <div className="p-6 space-y-4 animate-fade-in">
@@ -58,6 +59,26 @@ export default function AutomationsPage() {
           </div>
         </div>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <Bell size={20} style={{ color: "hsl(var(--chart-1))" }} />
+            <div>
+              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Notifications actives</p>
+              <p className="font-display font-semibold text-xl" style={{ color: "hsl(var(--foreground))" }}>{notifyCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <Clock size={20} style={{ color: "hsl(var(--chart-3))" }} />
+            <div>
+              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Rappels configurés</p>
+              <p className="font-display font-semibold text-xl" style={{ color: "hsl(var(--foreground))" }}>{reminderCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
         <table className="w-full text-sm">
@@ -66,6 +87,8 @@ export default function AutomationsPage() {
               <th className="text-left p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Évènement</th>
               <th className="text-left p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Date</th>
               <th className="text-left p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Action</th>
+              <th className="text-left p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Rappel</th>
+              <th className="text-left p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Cible notif.</th>
               <th className="text-right p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Montant</th>
               <th className="text-center p-3 font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Statut</th>
             </tr>
@@ -73,7 +96,7 @@ export default function AutomationsPage() {
           <tbody>
             {events.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-8 text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
+                <td colSpan={7} className="p-8 text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
                   <CalendarIcon size={32} className="mx-auto mb-2 opacity-60" />
                   Aucun évènement planifié.
                 </td>
@@ -89,6 +112,24 @@ export default function AutomationsPage() {
                   {new Date(e.start).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                 </td>
                 <td className="p-3" style={{ color: "hsl(var(--foreground))" }}>{automationLabels[e.automation.type]}</td>
+                <td className="p-3" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  {(e.reminderMinutes ?? 0) > 0 ? `${e.reminderMinutes} min avant` : "Aucun"}
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {e.notificationTargets?.email && (
+                      <span className="inline-flex items-center gap-1">
+                        <Mail size={11} /> Email
+                      </span>
+                    )}
+                    {e.notificationTargets?.discordWebhook && (
+                      <span className="inline-flex items-center gap-1">
+                        <Webhook size={11} /> Discord
+                      </span>
+                    )}
+                    {!e.notificationTargets?.email && !e.notificationTargets?.discordWebhook && "—"}
+                  </div>
+                </td>
                 <td className="p-3 text-right" style={{ color: "hsl(var(--foreground))" }}>
                   {e.automation.amount ? formatCurrency(e.automation.amount) : "—"}
                 </td>

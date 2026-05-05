@@ -10,6 +10,12 @@ export interface CalendarEvent {
   start: string; // ISO
   end: string; // ISO
   notify: boolean;
+  reminderMinutes?: number;
+  reminderSentAt?: string;
+  notificationTargets?: {
+    email?: string;
+    discordWebhook?: string;
+  };
   notified?: boolean;
   triggered?: boolean;
   activityId: string;

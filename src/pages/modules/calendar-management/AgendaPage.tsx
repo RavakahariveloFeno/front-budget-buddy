@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Calendar, dateFnsLocalizer, View, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -55,6 +55,9 @@ export default function AgendaPage() {
   const [start, setStart] = useState(toLocalInput(new Date()));
   const [end, setEnd] = useState(toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
   const [notify, setNotify] = useState(true);
+  const [reminderMinutes, setReminderMinutes] = useState("15");
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [discordWebhook, setDiscordWebhook] = useState("");
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
   const [autoAmount, setAutoAmount] = useState("");
   const [autoDesc, setAutoDesc] = useState("");
@@ -76,19 +79,80 @@ export default function AgendaPage() {
     [activityEvents],
   );
 
+  const sendDiscordNotification = useCallback(async (webhookUrl: string, ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: [
+            mode === "REMINDER" ? "Rappel d'évènement" : "Notification d'évènement",
+            `Titre: ${ev.title}`,
+            `Date: ${new Date(ev.start).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`,
+            ev.note ? `Note: ${ev.note}` : "",
+            ev.automation.type !== "NONE" ? `Automatisation: ${ev.automation.type}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        }),
+      });
+    } catch (error) {
+      console.error("Discord webhook notification failed", error);
+      toast.error("Impossible d'envoyer la notification Discord", { description: ev.title });
+    }
+  }, []);
+
+  const dispatchNotification = useCallback(async (ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
+    const title = mode === "REMINDER" ? `Rappel: ${ev.title}` : ev.title;
+    const description =
+      ev.note ||
+      (mode === "REMINDER"
+        ? `Échéance dans ${ev.reminderMinutes ?? 0} min`
+        : ev.automation.type !== "NONE"
+          ? "Action automatique en cours…"
+          : undefined);
+
+    if (ev.notify) {
+      toast(title, {
+        description,
+        icon: <Bell size={16} />,
+      });
+    }
+
+    if (mode === "EVENT" && "Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body: description });
+    }
+
+    if (mode === "EVENT" && "Notification" in window && Notification.permission === "default") {
+      void Notification.requestPermission();
+    }
+
+    if (ev.notificationTargets?.discordWebhook) {
+      await sendDiscordNotification(ev.notificationTargets.discordWebhook, ev, mode);
+    }
+
+    if (ev.notificationTargets?.email && ev.notify) {
+      toast.info("Destinataire e-mail configuré", {
+        description: `${ev.notificationTargets.email} recevra ce rappel via votre service externe.`,
+      });
+    }
+  }, [sendDiscordNotification]);
+
   // Notification + automation polling
   useEffect(() => {
     const tick = async () => {
       const now = Date.now();
       for (const ev of activityEvents) {
-        const t = new Date(ev.start).getTime();
-        if (t <= now && !ev.notified) {
-          if (ev.notify) {
-            toast(ev.title, {
-              description: ev.note || (ev.automation.type !== "NONE" ? "Action automatique en cours…" : undefined),
-              icon: <Bell size={16} />,
-            });
-          }
+        const eventTime = new Date(ev.start).getTime();
+        const reminderAt = eventTime - (ev.reminderMinutes ?? 0) * 60_000;
+
+        if (ev.notify && (ev.reminderMinutes ?? 0) > 0 && reminderAt <= now && !ev.reminderSentAt) {
+          await dispatchNotification(ev, "REMINDER");
+          updateEvent(ev.id, { reminderSentAt: new Date().toISOString() });
+        }
+
+        if (eventTime <= now && !ev.notified) {
+          await dispatchNotification(ev, "EVENT");
           markNotified(ev.id);
 
           if (ev.automation.type !== "NONE" && !ev.triggered && ev.automation.amount) {
@@ -123,7 +187,7 @@ export default function AgendaPage() {
     tick();
     const i = setInterval(tick, 30_000);
     return () => clearInterval(i);
-  }, [activityEvents, markNotified, markTriggered]);
+  }, [activityEvents, markNotified, markTriggered, updateEvent]);
 
   const resetForm = () => {
     setEditing(null);
@@ -132,6 +196,9 @@ export default function AgendaPage() {
     setStart(toLocalInput(new Date()));
     setEnd(toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
     setNotify(true);
+    setReminderMinutes("15");
+    setNotifyEmail("");
+    setDiscordWebhook("");
     setAutoType("NONE");
     setAutoAmount("");
     setAutoDesc("");
@@ -153,6 +220,9 @@ export default function AgendaPage() {
     setStart(toLocalInput(new Date(ev.start)));
     setEnd(toLocalInput(new Date(ev.end)));
     setNotify(ev.notify);
+    setReminderMinutes(ev.reminderMinutes !== undefined ? String(ev.reminderMinutes) : "15");
+    setNotifyEmail(ev.notificationTargets?.email || "");
+    setDiscordWebhook(ev.notificationTargets?.discordWebhook || "");
     setAutoType(ev.automation.type);
     setAutoAmount(ev.automation.amount ? String(ev.automation.amount) : "");
     setAutoDesc(ev.automation.description || "");
@@ -165,16 +235,31 @@ export default function AgendaPage() {
       toast.error("Titre requis");
       return;
     }
+    if (notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail.trim())) {
+      toast.error("Adresse e-mail invalide");
+      return;
+    }
+    if (discordWebhook && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/.+/.test(discordWebhook.trim())) {
+      toast.error("Lien webhook Discord invalide");
+      return;
+    }
+    const nextStart = new Date(start).toISOString();
     const payload: CalendarEvent = {
       id: editing?.id || `evt-${Date.now()}`,
       title: title.trim(),
       note: note.trim() || undefined,
-      start: new Date(start).toISOString(),
+      start: nextStart,
       end: new Date(end).toISOString(),
       notify,
+      reminderMinutes: reminderMinutes ? Math.max(0, Number(reminderMinutes)) : 0,
+      reminderSentAt: editing?.reminderSentAt && editing.start === nextStart ? editing.reminderSentAt : undefined,
+      notificationTargets: {
+        email: notifyEmail.trim() || undefined,
+        discordWebhook: discordWebhook.trim() || undefined,
+      },
       activityId,
-      notified: editing?.notified && editing.start === new Date(start).toISOString() ? true : false,
-      triggered: editing?.triggered && editing.start === new Date(start).toISOString() ? true : false,
+      notified: editing?.notified && editing.start === nextStart ? true : false,
+      triggered: editing?.triggered && editing.start === nextStart ? true : false,
       automation: {
         type: autoType,
         amount: autoAmount ? Number(autoAmount) : undefined,
@@ -287,6 +372,33 @@ export default function AgendaPage() {
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
             <Bell size={14} /> Activer la notification
           </label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <FormFieldInput
+              label="Rappel (minutes avant)"
+              id="evt-reminder"
+              type="number"
+              min="0"
+              value={reminderMinutes}
+              onChange={setReminderMinutes}
+              placeholder="15"
+            />
+            <FormFieldInput
+              label="Email notification (optionnel)"
+              id="evt-notify-email"
+              type="email"
+              value={notifyEmail}
+              onChange={setNotifyEmail}
+              placeholder="vous@exemple.com"
+            />
+            <FormFieldInput
+              label="Webhook Discord (optionnel)"
+              id="evt-discord-webhook"
+              type="url"
+              value={discordWebhook}
+              onChange={setDiscordWebhook}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+          </div>
 
           <div className="rounded-lg p-3 space-y-3" style={{ background: "hsl(var(--secondary))" }}>
             <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
