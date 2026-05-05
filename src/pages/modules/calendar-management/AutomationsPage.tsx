@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Bell, Zap, Calendar as CalendarIcon, CheckCircle2, Clock, Mail, Webhook } from "lucide-react";
 import { useCalendarStore } from "@/stores/calendarStore";
@@ -11,13 +12,24 @@ const automationLabels: Record<string, string> = {
 
 export default function AutomationsPage() {
   const { activityId } = useParams<{ activityId: string }>();
-  const events = useCalendarStore((s) => s.events.filter((e) => e.activityId === activityId));
+  const allEvents = useCalendarStore((s) => s.events);
+  const events = useMemo(
+    () => allEvents.filter((e) => e.activityId === activityId),
+    [allEvents, activityId],
+  );
 
   const automations = events.filter((e) => e.automation.type !== "NONE");
   const triggered = automations.filter((e) => e.triggered).length;
   const pending = automations.length - triggered;
   const notifyCount = events.filter((e) => e.notify).length;
   const reminderCount = events.filter((e) => (e.reminderMinutes ?? 0) > 0).length;
+  const now = Date.now();
+  const nextRuns = automations
+    .filter((e) => !e.triggered && new Date(e.start).getTime() >= now)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    .slice(0, 3);
+  const emailTargets = events.filter((e) => Boolean(e.notificationTargets?.email)).length;
+  const webhookTargets = events.filter((e) => Boolean(e.notificationTargets?.discordWebhook)).length;
 
   return (
     <div className="p-6 space-y-4 animate-fade-in">
@@ -77,6 +89,39 @@ export default function AutomationsPage() {
               <p className="font-display font-semibold text-xl" style={{ color: "hsl(var(--foreground))" }}>{reminderCount}</p>
             </div>
           </div>
+        </div>
+      </div>
+      <div className="rounded-xl p-4 space-y-3" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>Prochaines exécutions automatiques</p>
+          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{nextRuns.length} planifiée(s)</p>
+        </div>
+        {nextRuns.length === 0 ? (
+          <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+            Aucune automatisation à venir. Crée un évènement avec action automatique depuis l'agenda.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {nextRuns.map((event) => (
+              <div
+                key={event.id}
+                className="rounded-lg px-3 py-2 flex items-center justify-between"
+                style={{ background: "hsl(var(--secondary))" }}
+              >
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{event.title}</p>
+                  <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {new Date(event.start).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                  </p>
+                </div>
+                <span className="badge-warning text-[10px]">{event.automation.type}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-4 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <span className="inline-flex items-center gap-1"><Mail size={12} /> {emailTargets} cible(s) email</span>
+          <span className="inline-flex items-center gap-1"><Webhook size={12} /> {webhookTargets} cible(s) Discord</span>
         </div>
       </div>
 
