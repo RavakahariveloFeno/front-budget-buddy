@@ -273,3 +273,36 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 }
+
+/* React Big Calendar — thème Pilgo */
+.pilgo-calendar .rbc-calendar { color: hsl(var(--foreground)); font-family: inherit; }
+.pilgo-calendar .rbc-toolbar { color: hsl(var(--foreground)); margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+.pilgo-calendar .rbc-toolbar button {
+  color: hsl(var(--foreground));
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.pilgo-calendar .rbc-toolbar button:hover { background: hsl(var(--accent)); }
+.pilgo-calendar .rbc-toolbar button.rbc-active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+}
+.pilgo-calendar .rbc-month-view,
+.pilgo-calendar .rbc-time-view,
+.pilgo-calendar .rbc-agenda-view { border-color: hsl(var(--border)); border-radius: 8px; overflow: hidden; }
+.pilgo-calendar .rbc-header,
+.pilgo-calendar .rbc-time-header-content,
+.pilgo-calendar .rbc-time-content,
+.pilgo-calendar .rbc-day-bg,
+.pilgo-calendar .rbc-month-row,
+.pilgo-calendar .rbc-time-slot { border-color: hsl(var(--border)); }
+.pilgo-calendar .rbc-header { background: hsl(var(--secondary)); padding: 8px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+.pilgo-calendar .rbc-off-range-bg { background: hsl(var(--muted) / 0.3); }
+.pilgo-calendar .rbc-today { background: hsl(var(--primary) / 0.08); }
+.pilgo-calendar .rbc-event { padding: 2px 6px; }
+.pilgo-calendar .rbc-show-more { color: hsl(var(--primary)); background: transparent; }
+.pilgo-calendar .rbc-agenda-table { color: hsl(var(--foreground)); }
+.pilgo-calendar .rbc-agenda-table thead { background: hsl(var(--secondary)); }
