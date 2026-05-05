@@ -39,6 +39,10 @@ import DecaissementsPage from "@/pages/modules/cash-management/DecaissementsPage
 import PrevisionsPage from "@/pages/modules/cash-management/PrevisionsPage";
 import RapportsPage from "@/pages/modules/cash-management/RapportsPage";
 
+// ── Calendrier ──
+import AgendaPage from "@/pages/modules/calendar-management/AgendaPage";
+import AutomationsPage from "@/pages/modules/calendar-management/AutomationsPage";
+
 const PAGE_MAP: Record<string, React.ComponentType> = {
   // Vente
   stock: StockPage,
@@ -82,6 +86,9 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   decaissements: DecaissementsPage,
   previsions: PrevisionsPage,
   rapports: RapportsPage,
+  // Calendrier
+  agenda: AgendaPage,
+  automatisations: AutomationsPage,
 };
 
 function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: React.CSSProperties }) {

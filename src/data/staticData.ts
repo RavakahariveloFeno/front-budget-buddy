@@ -249,6 +249,17 @@ export const PREDEFINED_MODULES: AppModule[] = [
     ],
   },
   {
+    id: "mod-calendrier",
+    name: "Calendrier & automatisation",
+    description: "Planifiez des événements, recevez des notifications et déclenchez des actions automatiques",
+    icon: "CalendarClock",
+    color: "primary",
+    menus: [
+      { id: "menu-cal-agenda", label: "Agenda", icon: "Calendar", path: "agenda" },
+      { id: "menu-cal-automations", label: "Automatisations", icon: "Zap", path: "automatisations" },
+    ],
+  },
+  {
     id: "mod-tresorerie",
     name: "Suivi de trésorerie",
     description: "Encaissements, décaissements et prévisions financières",

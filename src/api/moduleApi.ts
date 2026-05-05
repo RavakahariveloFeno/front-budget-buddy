@@ -1,4 +1,5 @@
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
+import { LOCAL_ONLY_MODULE_IDS, useLocalModuleLinksStore } from "@/stores/localModuleLinksStore";
 
 const ACTIVITY_API_URL = `${import.meta.env.VITE_API_URL}/activity`;
 
@@ -64,20 +65,25 @@ export async function getActivityModules(activityId: string): Promise<string[]> 
     throw new Error(`HTTP ${response.status}`);
   }
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
-  }
-  const types = data
-    .map((item) => String(item ?? ""))
-    .filter((v): v is BackendModuleType =>
-      v === "SALE_MANAGEMENT" || v === "PAYROLL" || v === "ACCOUNTING" || v === "CASH_MANAGEMENT",
-    );
-  return mapModuleTypesToIds(types);
+  const remoteIds = Array.isArray(data)
+    ? mapModuleTypesToIds(
+        data
+          .map((item) => String(item ?? ""))
+          .filter((v): v is BackendModuleType =>
+            v === "SALE_MANAGEMENT" || v === "PAYROLL" || v === "ACCOUNTING" || v === "CASH_MANAGEMENT",
+          ),
+      )
+    : [];
+  const localIds = useLocalModuleLinksStore.getState().getLinks(activityId);
+  return [...remoteIds, ...localIds.filter((id) => !remoteIds.includes(id))];
 }
 
 export async function setActivityModules(activityId: string, moduleIds: string[]): Promise<void> {
   const userId = getRequiredUserId();
-  const modules = mapModuleIdsToTypes(moduleIds);
+  const remoteIds = moduleIds.filter((id) => !LOCAL_ONLY_MODULE_IDS.has(id));
+  const localIds = moduleIds.filter((id) => LOCAL_ONLY_MODULE_IDS.has(id));
+  useLocalModuleLinksStore.getState().setLinks(activityId, localIds);
+  const modules = mapModuleIdsToTypes(remoteIds);
   const response = await fetch(`${ACTIVITY_API_URL}/${activityId}/modules`, {
     method: "PATCH",
     headers: buildAuthHeaders(true),
@@ -90,4 +96,5 @@ export async function setActivityModules(activityId: string, moduleIds: string[]
     throw new Error(`HTTP ${response.status}`);
   }
 }
+
 
