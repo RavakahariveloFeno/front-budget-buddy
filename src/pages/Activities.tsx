@@ -14,6 +14,7 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
+
 import Header from "@/components/layout/Header";
 import {
   formatCurrency,
