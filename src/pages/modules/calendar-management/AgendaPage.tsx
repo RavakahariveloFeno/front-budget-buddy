@@ -13,6 +13,7 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import { createIncome } from "@/api/incomeApi";
 import { createExpense } from "@/api/expenseApi";
+import { sendCalendarNotification } from "@/api/notificationApi";
 
 const locales = { fr };
 const localizer = dateFnsLocalizer({
@@ -79,29 +80,6 @@ export default function AgendaPage() {
     [activityEvents],
   );
 
-  const sendDiscordNotification = useCallback(async (webhookUrl: string, ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
-    try {
-      await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: [
-            mode === "REMINDER" ? "Rappel d'évènement" : "Notification d'évènement",
-            `Titre: ${ev.title}`,
-            `Date: ${new Date(ev.start).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}`,
-            ev.note ? `Note: ${ev.note}` : "",
-            ev.automation.type !== "NONE" ? `Automatisation: ${ev.automation.type}` : "",
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        }),
-      });
-    } catch (error) {
-      console.error("Discord webhook notification failed", error);
-      toast.error("Impossible d'envoyer la notification Discord", { description: ev.title });
-    }
-  }, []);
-
   const dispatchNotification = useCallback(async (ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
     const title = mode === "REMINDER" ? `Rappel: ${ev.title}` : ev.title;
     const description =
@@ -127,16 +105,29 @@ export default function AgendaPage() {
       void Notification.requestPermission();
     }
 
-    if (ev.notificationTargets?.discordWebhook) {
-      await sendDiscordNotification(ev.notificationTargets.discordWebhook, ev, mode);
+    if (ev.notificationTargets?.email || ev.notificationTargets?.discordWebhook) {
+      try {
+        const result = await sendCalendarNotification({
+          title: ev.title,
+          note: ev.note,
+          date: ev.start,
+          mode,
+          reminderMinutes: ev.reminderMinutes,
+          email: ev.notificationTargets?.email,
+          discordWebhook: ev.notificationTargets?.discordWebhook,
+        });
+        if (result.emailSent) {
+          toast.success("E-mail de notification envoyé", { description: ev.notificationTargets?.email });
+        }
+        if (result.webhookSent) {
+          toast.success("Webhook Discord envoyé", { description: ev.title });
+        }
+      } catch (error) {
+        console.error("Calendar notification API failed", error);
+        toast.error("Echec d'envoi de notification externe", { description: ev.title });
+      }
     }
-
-    if (ev.notificationTargets?.email && ev.notify) {
-      toast.info("Destinataire e-mail configuré", {
-        description: `${ev.notificationTargets.email} recevra ce rappel via votre service externe.`,
-      });
-    }
-  }, [sendDiscordNotification]);
+  }, []);
 
   // Notification + automation polling
   useEffect(() => {
@@ -145,13 +136,17 @@ export default function AgendaPage() {
       for (const ev of activityEvents) {
         const eventTime = new Date(ev.start).getTime();
         const reminderAt = eventTime - (ev.reminderMinutes ?? 0) * 60_000;
+        const isReminderDue = reminderAt <= now && now < eventTime;
+        const isEventDue = eventTime <= now;
 
-        if (ev.notify && (ev.reminderMinutes ?? 0) > 0 && reminderAt <= now && !ev.reminderSentAt) {
+        if (ev.notify && (ev.reminderMinutes ?? 0) > 0 && isReminderDue && !ev.reminderSentAt) {
           await dispatchNotification(ev, "REMINDER");
           updateEvent(ev.id, { reminderSentAt: new Date().toISOString() });
         }
 
-        if (eventTime <= now && !ev.notified) {
+        // Important: automation must run only when event datetime is reached,
+        // never when only the reminder window is reached.
+        if (isEventDue && !ev.notified) {
           await dispatchNotification(ev, "EVENT");
           markNotified(ev.id);
 
@@ -165,6 +160,16 @@ export default function AgendaPage() {
                   activityId: ev.activityId,
                 });
                 toast.success("Revenu créé automatiquement", { description: ev.title });
+
+                if (ev.notificationTargets?.email) {
+                  await sendCalendarNotification({
+                    title: "Revenu ajoute automatiquement",
+                    note: `${ev.automation.description || ev.title} - ${ev.automation.amount} MGA`,
+                    date: new Date(ev.start).toISOString(),
+                    mode: "EVENT",
+                    email: ev.notificationTargets.email,
+                  });
+                }
               } else if (ev.automation.type === "EXPENSE") {
                 await createExpense({
                   amount: ev.automation.amount,
@@ -174,6 +179,16 @@ export default function AgendaPage() {
                   categoryId: ev.automation.categoryId,
                 });
                 toast.success("Dépense créée automatiquement", { description: ev.title });
+
+                if (ev.notificationTargets?.email) {
+                  await sendCalendarNotification({
+                    title: "Depense ajoutee automatiquement",
+                    note: `${ev.automation.description || ev.title} - ${ev.automation.amount} MGA`,
+                    date: new Date(ev.start).toISOString(),
+                    mode: "EVENT",
+                    email: ev.notificationTargets.email,
+                  });
+                }
               }
               markTriggered(ev.id);
             } catch (err) {

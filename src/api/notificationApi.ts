@@ -7,6 +7,22 @@ export interface NotificationState {
   seenMap: Record<string, number>;
 }
 
+export interface CalendarNotificationPayload {
+  title: string;
+  note?: string;
+  date?: string;
+  mode?: "REMINDER" | "EVENT";
+  reminderMinutes?: number;
+  email?: string;
+  discordWebhook?: string;
+}
+
+export interface CalendarNotificationResult {
+  success: boolean;
+  emailSent: boolean;
+  webhookSent: boolean;
+}
+
 function mapState(data: unknown): NotificationState {
   if (!data || typeof data !== "object") {
     return { readIds: [], seenMap: {} };
@@ -56,4 +72,30 @@ export async function updateNotificationState(payload: NotificationState): Promi
 
   const data: unknown = await response.json();
   return mapState(data);
+}
+
+export async function sendCalendarNotification(
+  payload: CalendarNotificationPayload,
+): Promise<CalendarNotificationResult> {
+  const response = await fetch(`${NOTIFICATION_API_URL}/calendar`, {
+    method: "POST",
+    headers: { ...buildAuthHeaders(true), "x-bb-silent-loading": "1" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const data: unknown = await response.json();
+  if (!data || typeof data !== "object") {
+    return { success: false, emailSent: false, webhookSent: false };
+  }
+
+  const record = data as Record<string, unknown>;
+  return {
+    success: Boolean(record.success),
+    emailSent: Boolean(record.emailSent),
+    webhookSent: Boolean(record.webhookSent),
+  };
 }

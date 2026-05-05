@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getActivities } from "@/api/activityApi";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
+import { useCalendarStore, type CalendarEvent } from "@/stores/calendarStore";
 
 interface HeaderProps {
   title: string;
@@ -262,6 +263,61 @@ function buildLoanAlerts(loans: Loan[], today: Date): AppNotification[] {
     .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
+function buildCalendarAlerts(events: CalendarEvent[], now: Date, selectedActivityId: string | null): AppNotification[] {
+  const nowTime = now.getTime();
+  const visibleEvents = selectedActivityId ? events.filter((event) => event.activityId === selectedActivityId) : events;
+
+  return visibleEvents
+    .map((event) => {
+      const eventTime = new Date(event.start).getTime();
+      if (!Number.isFinite(eventTime)) {
+        return [];
+      }
+
+      const to = `/activities/${event.activityId}/modules/mod-calendrier/agenda`;
+      const items: AppNotification[] = [];
+
+      if (event.notify && (event.reminderMinutes ?? 0) > 0 && !event.reminderSentAt) {
+        const reminderAt = eventTime - (event.reminderMinutes ?? 0) * 60 * 1000;
+        if (reminderAt <= nowTime && eventTime + 60 * 60 * 1000 >= nowTime) {
+          items.push({
+            id: `cal-reminder-${event.id}-${event.start}`,
+            title: "Rappel evenement agenda",
+            description: `${event.title}${event.note ? ` - ${event.note}` : ""}`,
+            level: "medium",
+            to,
+            timestamp: reminderAt,
+          });
+        }
+      }
+
+      if (!event.notified && eventTime <= nowTime && eventTime + 24 * 60 * 60 * 1000 >= nowTime) {
+        items.push({
+          id: `cal-event-${event.id}-${event.start}`,
+          title: "Evenement agenda en cours",
+          description: event.title,
+          level: event.automation.type === "NONE" ? "medium" : "high",
+          to,
+          timestamp: eventTime,
+        });
+      }
+
+      if (event.triggered && eventTime + 24 * 60 * 60 * 1000 >= nowTime) {
+        items.push({
+          id: `cal-auto-${event.id}-${event.start}`,
+          title: "Action automatique agenda executee",
+          description: `${event.automation.type} - ${event.automation.description || event.title}`,
+          level: "medium",
+          to,
+          timestamp: eventTime + 1,
+        });
+      }
+
+      return items;
+    })
+    .flat();
+}
+
 export default function Header({ title, subtitle }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -281,6 +337,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const readNotificationIdsRef = useRef<string[]>([]);
   const seenNotificationMapRef = useRef<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(0);
+  const calendarEvents = useCalendarStore((s) => s.events);
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.id ?? null;
   const isManagedProfile = Boolean(currentUser?.profileId);
@@ -535,7 +592,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
       getLoans(),
     ]);
 
-    const today = getDayStart(new Date());
+    const now = new Date();
+    const today = getDayStart(now);
     const nextNotifications: AppNotification[] = [];
 
     if (recIncomeResult.status === "fulfilled") {
@@ -557,6 +615,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
     if (loansResult.status === "fulfilled") {
       nextNotifications.push(...buildLoanAlerts(loansResult.value, today));
     }
+
+    nextNotifications.push(...buildCalendarAlerts(calendarEvents, now, selectedActivityId ?? null));
 
     const failedCount = [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult].filter(
       (result) => result.status === "rejected",
@@ -584,7 +644,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
     });
     setNotifications(nextNotifications.slice(0, 8));
     setNotificationsLoading(false);
-  }, [trackSeenNotifications]);
+  }, [calendarEvents, selectedActivityId, trackSeenNotifications]);
 
   useEffect(() => {
     let cancelled = false;
