@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // IDs des modules qui ne sont pas connus du backend et doivent etre persistes localement.
-export const LOCAL_ONLY_MODULE_IDS = new Set<string>(["mod-calendrier"]);
+export const LOCAL_ONLY_MODULE_IDS = new Set<string>([]);
 
 interface LocalModuleLinksStore {
   // activityId -> moduleIds (only local-only ones)

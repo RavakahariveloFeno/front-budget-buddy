@@ -3,11 +3,17 @@ import { LOCAL_ONLY_MODULE_IDS, useLocalModuleLinksStore } from "@/stores/localM
 
 const ACTIVITY_API_URL = `${import.meta.env.VITE_API_URL}/activity`;
 
-export type BackendModuleType = "SALE_MANAGEMENT" | "PAYROLL" | "ACCOUNTING" | "CASH_MANAGEMENT";
+export type BackendModuleType =
+  | "SALE_MANAGEMENT"
+  | "CALENDAR_AUTOMATION"
+  | "PAYROLL"
+  | "ACCOUNTING"
+  | "CASH_MANAGEMENT";
 
 // Mapping entre les IDs de PREDEFINED_MODULES et les enums backend
 const MODULE_ID_TO_TYPE: Record<string, BackendModuleType> = {
   "mod-vente": "SALE_MANAGEMENT",
+  "mod-calendrier": "CALENDAR_AUTOMATION",
   "mod-paie": "PAYROLL",
   "mod-comptabilite-generale": "ACCOUNTING",
   "mod-comptabilite-analytique": "ACCOUNTING",
@@ -20,6 +26,7 @@ const MODULE_ID_TO_TYPE: Record<string, BackendModuleType> = {
 
 const MODULE_TYPE_TO_IDS: Record<BackendModuleType, string[]> = {
   SALE_MANAGEMENT: ["mod-vente"],
+  CALENDAR_AUTOMATION: ["mod-calendrier"],
   PAYROLL: ["mod-paie"],
   ACCOUNTING: [
     "mod-comptabilite-generale",
@@ -70,7 +77,11 @@ export async function getActivityModules(activityId: string): Promise<string[]> 
         data
           .map((item) => String(item ?? ""))
           .filter((v): v is BackendModuleType =>
-            v === "SALE_MANAGEMENT" || v === "PAYROLL" || v === "ACCOUNTING" || v === "CASH_MANAGEMENT",
+            v === "SALE_MANAGEMENT" ||
+            v === "CALENDAR_AUTOMATION" ||
+            v === "PAYROLL" ||
+            v === "ACCOUNTING" ||
+            v === "CASH_MANAGEMENT",
           ),
       )
     : [];
