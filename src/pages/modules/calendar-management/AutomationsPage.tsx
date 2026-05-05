@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Bell, Zap, Calendar as CalendarIcon, CheckCircle2, Clock, Mail, Webhook, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { formatCurrency } from "@/data/staticData";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
+import { deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
 
 const automationLabels: Record<string, string> = {
   NONE: "—",
@@ -29,12 +30,31 @@ function toLocalInput(date: Date) {
 export default function AutomationsPage() {
   const { activityId } = useParams<{ activityId: string }>();
   const allEvents = useCalendarStore((s) => s.events);
+  const setEventsForActivity = useCalendarStore((s) => s.setEventsForActivity);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
   const events = useMemo(
     () => allEvents.filter((e) => e.activityId === activityId),
     [allEvents, activityId],
   );
+
+  useEffect(() => {
+    if (!activityId) {
+      return;
+    }
+
+    const load = async () => {
+      try {
+        const remote = await getCalendarEvents(activityId);
+        setEventsForActivity(activityId, remote);
+      } catch (error) {
+        console.error("Failed to load calendar events", error);
+        toast.error("Impossible de charger les evenements");
+      }
+    };
+
+    void load();
+  }, [activityId, setEventsForActivity]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [title, setTitle] = useState("");
@@ -93,7 +113,7 @@ export default function AutomationsPage() {
     setOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing || !activityId) {
       return;
@@ -133,20 +153,32 @@ export default function AutomationsPage() {
         description: autoDesc.trim() || undefined,
       },
     };
-    updateEvent(editing.id, payload);
+    try {
+      const saved = await updateCalendarEvent(editing.id, payload);
+      updateEvent(editing.id, saved);
     toast.success("Évènement mis à jour");
     setOpen(false);
     resetForm();
+    } catch (error) {
+      console.error("Calendar event save failed", error);
+      toast.error("Sauvegarde impossible pour le moment");
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editing) {
       return;
     }
-    deleteEvent(editing.id);
+    try {
+      await deleteCalendarEvent(editing.id);
+      deleteEvent(editing.id);
     toast.success("Évènement supprimé");
     setOpen(false);
     resetForm();
+    } catch (error) {
+      console.error("Calendar event delete failed", error);
+      toast.error("Suppression impossible pour le moment");
+    }
   };
 
   return (

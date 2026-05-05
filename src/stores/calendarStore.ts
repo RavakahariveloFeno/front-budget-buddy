@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 export type AutomationType = "NONE" | "INCOME" | "EXPENSE";
 
@@ -29,6 +28,7 @@ export interface CalendarEvent {
 
 interface CalendarStore {
   events: CalendarEvent[];
+  setEventsForActivity: (activityId: string, events: CalendarEvent[]) => void;
   addEvent: (event: CalendarEvent) => void;
   updateEvent: (id: string, patch: Partial<CalendarEvent>) => void;
   deleteEvent: (id: string) => void;
@@ -37,20 +37,20 @@ interface CalendarStore {
   getEventsByActivity: (activityId: string) => CalendarEvent[];
 }
 
-export const useCalendarStore = create<CalendarStore>()(
-  persist(
-    (set, get) => ({
-      events: [],
-      addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
-      updateEvent: (id, patch) =>
-        set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
-      deleteEvent: (id) => set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
-      markNotified: (id) =>
-        set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, notified: true } : e)) })),
-      markTriggered: (id) =>
-        set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, triggered: true } : e)) })),
-      getEventsByActivity: (activityId) => get().events.filter((e) => e.activityId === activityId),
+export const useCalendarStore = create<CalendarStore>((set, get) => ({
+  events: [],
+  setEventsForActivity: (activityId, events) =>
+    set((s) => {
+      const other = s.events.filter((e) => e.activityId !== activityId);
+      return { events: [...other, ...events] };
     }),
-    { name: "pilgo:calendar-events" },
-  ),
-);
+  addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
+  updateEvent: (id, patch) =>
+    set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+  deleteEvent: (id) => set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
+  markNotified: (id) =>
+    set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, notified: true } : e)) })),
+  markTriggered: (id) =>
+    set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, triggered: true } : e)) })),
+  getEventsByActivity: (activityId) => get().events.filter((e) => e.activityId === activityId),
+}));

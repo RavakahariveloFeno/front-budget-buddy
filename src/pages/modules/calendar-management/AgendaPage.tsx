@@ -14,6 +14,7 @@ import SelectField from "@/components/dialogs/SelectField";
 import { createIncome } from "@/api/incomeApi";
 import { createExpense } from "@/api/expenseApi";
 import { sendCalendarNotification } from "@/api/notificationApi";
+import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
 
 const locales = { fr };
 const localizer = dateFnsLocalizer({
@@ -39,6 +40,7 @@ function toLocalInput(date: Date) {
 export default function AgendaPage() {
   const { activityId } = useParams<{ activityId: string }>();
   const events = useCalendarStore((s) => s.events);
+  const setEventsForActivity = useCalendarStore((s) => s.setEventsForActivity);
   const addEvent = useCalendarStore((s) => s.addEvent);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
@@ -67,6 +69,24 @@ export default function AgendaPage() {
     () => events.filter((e) => e.activityId === activityId),
     [events, activityId],
   );
+
+  useEffect(() => {
+    if (!activityId) {
+      return;
+    }
+
+    const load = async () => {
+      try {
+        const remote = await getCalendarEvents(activityId);
+        setEventsForActivity(activityId, remote);
+      } catch (error) {
+        console.error("Failed to load calendar events", error);
+        toast.error("Impossible de charger les evenements");
+      }
+    };
+
+    void load();
+  }, [activityId, setEventsForActivity]);
 
   const calendarEvents = useMemo(
     () =>
@@ -244,7 +264,7 @@ export default function AgendaPage() {
     setOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !activityId) {
       toast.error("Titre requis");
@@ -259,8 +279,7 @@ export default function AgendaPage() {
       return;
     }
     const nextStart = new Date(start).toISOString();
-    const payload: CalendarEvent = {
-      id: editing?.id || `evt-${Date.now()}`,
+    const payload = {
       title: title.trim(),
       note: note.trim() || undefined,
       start: nextStart,
@@ -280,24 +299,37 @@ export default function AgendaPage() {
         amount: autoAmount ? Number(autoAmount) : undefined,
         description: autoDesc.trim() || undefined,
       },
-    };
-    if (editing) {
-      updateEvent(editing.id, payload);
+    } as Omit<CalendarEvent, "id">;
+    try {
+      if (editing) {
+        const saved = await updateCalendarEvent(editing.id, payload);
+        updateEvent(editing.id, saved);
       toast.success("Évènement mis à jour");
     } else {
-      addEvent(payload);
+        const saved = await createCalendarEvent(payload);
+        addEvent(saved);
       toast.success("Évènement créé");
     }
     setOpen(false);
     resetForm();
+    } catch (error) {
+      console.error("Calendar event save failed", error);
+      toast.error("Sauvegarde impossible pour le moment");
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (editing) {
-      deleteEvent(editing.id);
+      try {
+        await deleteCalendarEvent(editing.id);
+        deleteEvent(editing.id);
       toast.success("Évènement supprimé");
-      setOpen(false);
-      resetForm();
+        setOpen(false);
+        resetForm();
+      } catch (error) {
+        console.error("Calendar event delete failed", error);
+        toast.error("Suppression impossible pour le moment");
+      }
     }
   };
 
