@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, LayoutGrid, Unlink } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import { PREDEFINED_MODULES, type Activity } from "@/data/staticData";
 import { getActivities } from "@/api/activityApi";
@@ -16,6 +17,8 @@ import {
   type ModuleCatalogStatus,
   useModuleCatalogStore,
 } from "@/stores/moduleCatalogStore";
+
+const ALLOWED_MODULE_IDS = new Set(["mod-vente", "mod-calendrier"]);
 
 function getStatusStyles(status: ModuleCatalogStatus): { bg: string; color: string; border: string } {
   switch (status) {
@@ -48,6 +51,7 @@ function getStatusStyles(status: ModuleCatalogStatus): { bg: string; color: stri
 }
 
 export default function Modules() {
+  const queryClient = useQueryClient();
   const isManagedProfile = Boolean(getCurrentUser()?.profileId);
   const setLinks = useModuleStore((s) => s.setLinks);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -60,6 +64,10 @@ export default function Modules() {
   const [modalMode, setModalMode] = useState<"import" | "remove">("import");
   const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
   const getModulePrice = useModuleCatalogStore((s) => s.getModulePrice);
+  const visibleModules = useMemo(
+    () => PREDEFINED_MODULES.filter((module) => ALLOWED_MODULE_IDS.has(module.id)),
+    [],
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -93,26 +101,26 @@ export default function Modules() {
 
   const moduleActivityCount = useMemo(() => {
     const counts: Record<string, number> = {};
-    PREDEFINED_MODULES.forEach((module) => {
+    visibleModules.forEach((module) => {
       counts[module.id] = activities.reduce((acc, activity) => {
         const linked = modulesByActivityId[activity.id] ?? [];
         return acc + (linked.includes(module.id) ? 1 : 0);
       }, 0);
     });
     return counts;
-  }, [activities, modulesByActivityId]);
+  }, [activities, modulesByActivityId, visibleModules]);
 
   const sortedModules = useMemo(
     () =>
-      [...PREDEFINED_MODULES].sort(
+      [...visibleModules].sort(
         (a, b) => (moduleActivityCount[b.id] ?? 0) - (moduleActivityCount[a.id] ?? 0),
       ),
-    [moduleActivityCount],
+    [moduleActivityCount, visibleModules],
   );
 
   const activeModule = useMemo(
-    () => PREDEFINED_MODULES.find((module) => module.id === activeModuleId) ?? null,
-    [activeModuleId],
+    () => visibleModules.find((module) => module.id === activeModuleId) ?? null,
+    [activeModuleId, visibleModules],
   );
   const linkedActivitiesForActiveModule = useMemo(
     () =>
@@ -172,6 +180,11 @@ export default function Modules() {
           setLinks(activityId, nextModules);
         }),
       );
+      await Promise.all(
+        selectedActivityIds.map((activityId) =>
+          queryClient.invalidateQueries({ queryKey: ["activityModules", activityId] }),
+        ),
+      );
       toast({ title: "Import effectue", description: "Module assigne aux activites selectionnees." });
       setModalOpen(false);
       setSelectedActivityIds([]);
@@ -223,6 +236,11 @@ export default function Modules() {
           await setActivityModules(activityId, nextModules);
           setLinks(activityId, nextModules);
         }),
+      );
+      await Promise.all(
+        toRemoveIds.map((activityId) =>
+          queryClient.invalidateQueries({ queryKey: ["activityModules", activityId] }),
+        ),
       );
       toast({ title: "Suppression effectuee", description: "Liaison module/activite supprimee." });
       setModalOpen(false);

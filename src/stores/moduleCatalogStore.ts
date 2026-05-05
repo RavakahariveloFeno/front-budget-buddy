@@ -4,7 +4,11 @@ import { PREDEFINED_MODULES } from "@/data/staticData";
 
 export type ModuleCatalogStatus = "FREE" | "PAID" | "COMING_SOON" | "SOON";
 
-const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-tresorerie", "mod-calendrier"]);
+const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-vente", "mod-calendrier"]);
+
+function getDefaultModuleStatus(moduleId: string): ModuleCatalogStatus {
+  return ALWAYS_AVAILABLE_MODULE_IDS.has(moduleId) ? "FREE" : "COMING_SOON";
+}
 
 interface ModuleCatalogStore {
   statusByModuleId: Record<string, ModuleCatalogStatus>;
@@ -17,7 +21,7 @@ interface ModuleCatalogStore {
 
 function buildDefaultStatuses(): Record<string, ModuleCatalogStatus> {
   return PREDEFINED_MODULES.reduce<Record<string, ModuleCatalogStatus>>((acc, module) => {
-    acc[module.id] = "FREE";
+    acc[module.id] = getDefaultModuleStatus(module.id);
     return acc;
   }, {});
 }
@@ -66,7 +70,10 @@ export const useModuleCatalogStore = create<ModuleCatalogStore>()(
             [moduleId]: price.trim() || "10$",
           },
         })),
-      getModuleStatus: (moduleId) => ALWAYS_AVAILABLE_MODULE_IDS.has(moduleId) ? "FREE" : get().statusByModuleId[moduleId] ?? "FREE",
+      getModuleStatus: (moduleId) =>
+        ALWAYS_AVAILABLE_MODULE_IDS.has(moduleId)
+          ? "FREE"
+          : get().statusByModuleId[moduleId] ?? getDefaultModuleStatus(moduleId),
       getModulePrice: (moduleId) => get().priceByModuleId[moduleId] ?? "10$",
     }),
     {

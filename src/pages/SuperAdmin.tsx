@@ -19,6 +19,12 @@ import {
   useModuleCatalogStore,
 } from "@/stores/moduleCatalogStore";
 
+const ALLOWED_MODULE_IDS = new Set(["mod-vente", "mod-calendrier"]);
+
+function getDefaultStatus(moduleId: string): ModuleCatalogStatus {
+  return moduleId === "mod-vente" || moduleId === "mod-calendrier" ? "FREE" : "COMING_SOON";
+}
+
 export default function SuperAdmin() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -168,8 +174,8 @@ export default function SuperAdmin() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {PREDEFINED_MODULES.map((module) => {
-                const status = statusByModuleId[module.id] ?? "FREE";
+              {PREDEFINED_MODULES.filter((module) => ALLOWED_MODULE_IDS.has(module.id)).map((module) => {
+                const status = statusByModuleId[module.id] ?? getDefaultStatus(module.id);
                 const price = priceByModuleId[module.id] ?? "10$";
                 return (
                   <TableRow key={module.id}>
