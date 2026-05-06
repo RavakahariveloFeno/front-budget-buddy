@@ -20,6 +20,7 @@ import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { useQuery } from "@tanstack/react-query";
 import { getActivityModules } from "@/api/moduleApi";
+import { getActivities } from "@/api/activityApi";
 import { PREDEFINED_MODULES } from "@/data/staticData";
 import * as Icons from "lucide-react";
 import { isModuleBlockedByStatus, useModuleCatalogStore } from "@/stores/moduleCatalogStore";
@@ -62,10 +63,40 @@ export default function Sidebar({
   const isDrawer = mode === "drawer";
   const effectiveCollapsed = isDrawer ? false : collapsed;
 
+  const { data: activities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: getActivities,
+    staleTime: 30_000,
+  });
+
+  const visibleActivities = useMemo(() => {
+    if (!isManagedProfile) {
+      return activities;
+    }
+
+    const allowed = new Set(managedProfile?.activities ?? []);
+    return activities.filter((activity) => allowed.has(activity.id));
+  }, [activities, isManagedProfile, managedProfile?.activities]);
+
   const { data: selectedActivityModuleIds = [] } = useQuery({
     queryKey: ["activityModules", selectedActivityId],
     queryFn: () => getActivityModules(selectedActivityId!),
     enabled: Boolean(selectedActivityId),
+    staleTime: 30_000,
+  });
+
+  const { data: activityModulesByActivity = {} } = useQuery({
+    queryKey: ["activityModulesAll", visibleActivities.map((activity) => activity.id).join("|")],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        visibleActivities.map(async (activity) => {
+          const moduleIds = await getActivityModules(activity.id);
+          return [activity.id, moduleIds] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, string[]>;
+    },
+    enabled: !selectedActivityId && visibleActivities.length > 0,
     staleTime: 30_000,
   });
 
@@ -84,6 +115,33 @@ export default function Sidebar({
     const allowedLinks = new Set(managedProfile?.moduleLinks ?? []);
     return linked.filter((module) => allowedLinks.has(`${selectedActivityId}::${module.id}`));
   }, [getModuleStatus, isManagedProfile, managedProfile?.moduleLinks, selectedActivityId, selectedActivityModuleIds]);
+
+  const activityModuleGroups = useMemo(() => {
+    if (selectedActivityId) {
+      return [];
+    }
+
+    const allowedLinks = new Set(managedProfile?.moduleLinks ?? []);
+
+    return visibleActivities
+      .map((activity) => {
+        const moduleIds = activityModulesByActivity[activity.id] ?? [];
+        const linked = PREDEFINED_MODULES
+          .filter((module) => moduleIds.includes(module.id))
+          .filter((module) => !isModuleBlockedByStatus(getModuleStatus(module.id)))
+          .filter((module) => (!isManagedProfile ? true : allowedLinks.has(`${activity.id}::${module.id}`)));
+
+        return linked.length > 0 ? { activity, modules: linked } : null;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [
+    activityModulesByActivity,
+    getModuleStatus,
+    isManagedProfile,
+    managedProfile?.moduleLinks,
+    selectedActivityId,
+    visibleActivities,
+  ]);
 
   const visibleNavItems = useMemo(() => {
     const baseItems = [...navItems, ...(isSuperAdminUser ? [superAdminNavItem] : [])];
@@ -138,26 +196,66 @@ export default function Sidebar({
           );
         })}
 
-        {selectedActivityId && visibleModules.length > 0 && (
+        {((selectedActivityId && visibleModules.length > 0) || (!selectedActivityId && activityModuleGroups.length > 0)) && (
           <div className="pt-3 mt-3 border-t" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
             {!effectiveCollapsed && (
               <p className="px-3 pb-2 text-[11px] uppercase tracking-wide" style={{ color: "hsl(var(--sidebar-foreground))" }}>
                 Modules
               </p>
             )}
-            {visibleModules.map((module) => {
-              const firstMenuPath = module.menus[0]?.path ?? "stock";
-              const to = `/activities/${selectedActivityId}/modules/${module.id}/${firstMenuPath}`;
-              const isActive = location.pathname.startsWith(`/activities/${selectedActivityId}/modules/${module.id}`);
-              return (
-                <NavLink key={module.id} to={to} onClick={onNavigate}>
-                  <div className={`nav-item ${isActive ? "active" : ""}`} title={effectiveCollapsed ? module.name : undefined}>
-                    <DynamicIcon name={module.icon} size={18} className="flex-shrink-0" style={{ color: `hsl(var(--${module.color}))` }} />
-                    {!effectiveCollapsed && <span className="animate-fade-in truncate">{module.name}</span>}
-                  </div>
-                </NavLink>
-              );
-            })}
+            {selectedActivityId
+              ? visibleModules.map((module) => {
+                  const firstMenuPath = module.menus[0]?.path ?? "stock";
+                  const to = `/activities/${selectedActivityId}/modules/${module.id}/${firstMenuPath}`;
+                  const isActive = location.pathname.startsWith(`/activities/${selectedActivityId}/modules/${module.id}`);
+                  return (
+                    <NavLink key={module.id} to={to} onClick={onNavigate}>
+                      <div className={`nav-item ${isActive ? "active" : ""}`} title={effectiveCollapsed ? module.name : undefined}>
+                        <DynamicIcon
+                          name={module.icon}
+                          size={18}
+                          className="flex-shrink-0"
+                          style={{ color: `hsl(var(--${module.color}))` }}
+                        />
+                        {!effectiveCollapsed && <span className="animate-fade-in truncate">{module.name}</span>}
+                      </div>
+                    </NavLink>
+                  );
+                })
+              : activityModuleGroups.flatMap((group) => {
+                  const activityLabel = !effectiveCollapsed ? (
+                    <p
+                      key={`activity-label-${group.activity.id}`}
+                      className="px-3 pb-1 pt-2 text-[10px] uppercase tracking-wide"
+                      style={{ color: "hsl(var(--sidebar-foreground))" }}
+                    >
+                      {group.activity.name}
+                    </p>
+                  ) : null;
+
+                  const moduleLinks = group.modules.map((module) => {
+                    const firstMenuPath = module.menus[0]?.path ?? "stock";
+                    const to = `/activities/${group.activity.id}/modules/${module.id}/${firstMenuPath}`;
+                    const isActive = location.pathname.startsWith(`/activities/${group.activity.id}/modules/${module.id}`);
+                    const tooltip = effectiveCollapsed ? `${group.activity.name} · ${module.name}` : undefined;
+
+                    return (
+                      <NavLink key={`${group.activity.id}-${module.id}`} to={to} onClick={onNavigate}>
+                        <div className={`nav-item ${isActive ? "active" : ""}`} title={tooltip}>
+                          <DynamicIcon
+                            name={module.icon}
+                            size={18}
+                            className="flex-shrink-0"
+                            style={{ color: `hsl(var(--${module.color}))` }}
+                          />
+                          {!effectiveCollapsed && <span className="animate-fade-in truncate">{module.name}</span>}
+                        </div>
+                      </NavLink>
+                    );
+                  });
+
+                  return activityLabel ? [activityLabel, ...moduleLinks] : moduleLinks;
+                })}
           </div>
         )}
       </nav>
