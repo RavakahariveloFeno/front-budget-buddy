@@ -4,6 +4,7 @@ import { Bell, Zap, Calendar as CalendarIcon, CheckCircle2, Clock, Mail, Webhook
 import { toast } from "sonner";
 import { useCalendarStore, type AutomationType, type CalendarEvent } from "@/stores/calendarStore";
 import { formatCurrency } from "@/data/staticData";
+import Header from "@/components/layout/Header";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
@@ -182,8 +183,11 @@ export default function AutomationsPage() {
   };
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <div>
+    <div className="animate-fade-in">
+      <Header title="Automatisations" subtitle="Suivi des actions automatiques planifiees sur l'agenda" />
+      <div className="p-6 space-y-4">
+        {false && (
+          <div>
         <h2 className="font-display font-semibold text-lg" style={{ color: "hsl(var(--foreground))" }}>
           Automatisations
         </h2>
@@ -191,6 +195,7 @@ export default function AutomationsPage() {
           Suivi des actions automatiques planifiées sur l'agenda
         </p>
       </div>
+        )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card">
@@ -443,6 +448,7 @@ export default function AutomationsPage() {
           </div>
         </form>
       </FormDialog>
+      </div>
     </div>
   );
 }

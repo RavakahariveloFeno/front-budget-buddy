@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
 import { useCalendarStore, type CalendarEvent, type AutomationType } from "@/stores/calendarStore";
+import Header from "@/components/layout/Header";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
@@ -334,29 +335,33 @@ export default function AgendaPage() {
   };
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+    <div className="animate-fade-in">
+      <Header title="Agenda & automatisations" subtitle={`${activityEvents.length} evenement(s) planifie(s)`} />
+      <div className="p-6 space-y-4">
+        <div className="flex items-center justify-end flex-wrap gap-3">
+          {false && (
+            <>
           <h2 className="font-display font-semibold text-lg" style={{ color: "hsl(var(--foreground))" }}>
             Agenda & automatisations
           </h2>
           <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
             {activityEvents.length} évènement(s) planifié(s)
           </p>
-        </div>
-        <button
-          onClick={() => openCreate()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-          style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-        >
+            </>
+          )}
+          <button
+            onClick={() => openCreate()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+          >
           <Plus size={16} /> Nouvel évènement
-        </button>
-      </div>
+          </button>
+        </div>
 
-      <div
-        className="rounded-xl p-4"
-        style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-      >
+        <div
+          className="rounded-xl p-4"
+          style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+        >
         <div style={{ height: 600 }} className="pilgo-calendar">
           <Calendar
             localizer={localizer}
@@ -397,7 +402,7 @@ export default function AgendaPage() {
             }}
           />
         </div>
-      </div>
+        </div>
 
       <FormDialog
         open={open}
@@ -500,6 +505,7 @@ export default function AgendaPage() {
           </div>
         </form>
       </FormDialog>
+      </div>
     </div>
   );
 }
