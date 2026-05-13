@@ -16,6 +16,7 @@ import { createIncome } from "@/api/incomeApi";
 import { createExpense } from "@/api/expenseApi";
 import { sendCalendarNotification } from "@/api/notificationApi";
 import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 const locales = { fr };
 const localizer = dateFnsLocalizer({
@@ -40,7 +41,9 @@ function toLocalInput(date: Date) {
 
 export default function AgendaPage() {
   const { activityId } = useParams<{ activityId: string }>();
+  const selectedActivityId = useActivityFilterStore((s) => s.selectedActivityId);
   const events = useCalendarStore((s) => s.events);
+  const setAllEvents = useCalendarStore((s) => s.setAllEvents);
   const setEventsForActivity = useCalendarStore((s) => s.setEventsForActivity);
   const addEvent = useCalendarStore((s) => s.addEvent);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
@@ -66,20 +69,38 @@ export default function AgendaPage() {
   const [autoAmount, setAutoAmount] = useState("");
   const [autoDesc, setAutoDesc] = useState("");
 
+  const showAllActivities = selectedActivityId === null;
+  const effectiveActivityId = selectedActivityId ?? activityId;
+
   const activityEvents = useMemo(
-    () => events.filter((e) => e.activityId === activityId),
-    [events, activityId],
+    () => (showAllActivities ? events : events.filter((e) => e.activityId === effectiveActivityId)),
+    [events, showAllActivities, effectiveActivityId],
   );
 
   useEffect(() => {
-    if (!activityId) {
+    if (showAllActivities) {
+      const loadAll = async () => {
+        try {
+          const remote = await getCalendarEvents();
+          setAllEvents(remote);
+        } catch (error) {
+          console.error("Failed to load calendar events", error);
+          toast.error("Impossible de charger les evenements");
+        }
+      };
+
+      void loadAll();
+      return;
+    }
+
+    if (!effectiveActivityId) {
       return;
     }
 
     const load = async () => {
       try {
-        const remote = await getCalendarEvents(activityId);
-        setEventsForActivity(activityId, remote);
+        const remote = await getCalendarEvents(effectiveActivityId);
+        setEventsForActivity(effectiveActivityId, remote);
       } catch (error) {
         console.error("Failed to load calendar events", error);
         toast.error("Impossible de charger les evenements");
@@ -87,7 +108,7 @@ export default function AgendaPage() {
     };
 
     void load();
-  }, [activityId, setEventsForActivity]);
+  }, [effectiveActivityId, showAllActivities, setAllEvents, setEventsForActivity]);
 
   const calendarEvents = useMemo(
     () =>

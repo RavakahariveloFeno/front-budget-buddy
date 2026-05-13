@@ -28,6 +28,7 @@ export interface CalendarEvent {
 
 interface CalendarStore {
   events: CalendarEvent[];
+  setAllEvents: (events: CalendarEvent[]) => void;
   setEventsForActivity: (activityId: string, events: CalendarEvent[]) => void;
   addEvent: (event: CalendarEvent) => void;
   updateEvent: (id: string, patch: Partial<CalendarEvent>) => void;
@@ -39,6 +40,7 @@ interface CalendarStore {
 
 export const useCalendarStore = create<CalendarStore>((set, get) => ({
   events: [],
+  setAllEvents: (events) => set({ events }),
   setEventsForActivity: (activityId, events) =>
     set((s) => {
       const other = s.events.filter((e) => e.activityId !== activityId);

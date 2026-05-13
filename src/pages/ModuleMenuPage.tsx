@@ -106,10 +106,10 @@ export default function ModuleMenuPage() {
   const getModuleStatus = useModuleCatalogStore((s) => s.getModuleStatus);
 
   useEffect(() => {
-    if (activityId) {
+    if (activityId && moduleId !== "mod-calendrier") {
       setSelectedActivityId(activityId);
     }
-  }, [activityId, setSelectedActivityId]);
+  }, [activityId, moduleId, setSelectedActivityId]);
 
   const module = PREDEFINED_MODULES.find((m) => m.id === moduleId);
   const menu = module?.menus.find((m) => m.path === menuPath);

@@ -9,6 +9,7 @@ import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import { deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
+import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
 const automationLabels: Record<string, string> = {
   NONE: "—",
@@ -30,24 +31,43 @@ function toLocalInput(date: Date) {
 
 export default function AutomationsPage() {
   const { activityId } = useParams<{ activityId: string }>();
+  const selectedActivityId = useActivityFilterStore((s) => s.selectedActivityId);
   const allEvents = useCalendarStore((s) => s.events);
+  const setAllEvents = useCalendarStore((s) => s.setAllEvents);
   const setEventsForActivity = useCalendarStore((s) => s.setEventsForActivity);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
+  const showAllActivities = selectedActivityId === null;
+  const effectiveActivityId = selectedActivityId ?? activityId;
   const events = useMemo(
-    () => allEvents.filter((e) => e.activityId === activityId),
-    [allEvents, activityId],
+    () => (showAllActivities ? allEvents : allEvents.filter((e) => e.activityId === effectiveActivityId)),
+    [allEvents, showAllActivities, effectiveActivityId],
   );
 
   useEffect(() => {
-    if (!activityId) {
+    if (showAllActivities) {
+      const loadAll = async () => {
+        try {
+          const remote = await getCalendarEvents();
+          setAllEvents(remote);
+        } catch (error) {
+          console.error("Failed to load calendar events", error);
+          toast.error("Impossible de charger les evenements");
+        }
+      };
+
+      void loadAll();
+      return;
+    }
+
+    if (!effectiveActivityId) {
       return;
     }
 
     const load = async () => {
       try {
-        const remote = await getCalendarEvents(activityId);
-        setEventsForActivity(activityId, remote);
+        const remote = await getCalendarEvents(effectiveActivityId);
+        setEventsForActivity(effectiveActivityId, remote);
       } catch (error) {
         console.error("Failed to load calendar events", error);
         toast.error("Impossible de charger les evenements");
@@ -55,7 +75,7 @@ export default function AutomationsPage() {
     };
 
     void load();
-  }, [activityId, setEventsForActivity]);
+  }, [effectiveActivityId, showAllActivities, setAllEvents, setEventsForActivity]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [title, setTitle] = useState("");
