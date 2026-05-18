@@ -1462,7 +1462,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* CENTER: progress (cash vs card) */}
-                  <div className="w-full lg:w-[180px] lg:shrink-0">
+                  <div className="hidden">
                     <div className="h-2 flex rounded-full overflow-hidden bg-border">
                       <div
                         style={{ width: `${cashPct}%` }}
