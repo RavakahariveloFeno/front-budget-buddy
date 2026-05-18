@@ -229,6 +229,7 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 
 export default function Dashboard() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
+  const isAllActivitiesSelected = !selectedActivityId || selectedActivityId === "all";
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [loanList, setLoanList] = useState<Loan[]>([]);
@@ -1366,6 +1367,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Répartition des activités ── */}
+        {isAllActivitiesSelected && (
         <div className="stat-card">
           <div className="mb-4 flex items-center justify-between">
             <p className="font-display font-semibold text-foreground">
@@ -1375,7 +1377,12 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            {(selectedActivityId ? dashboard.activities.filter((activity) => activity.activityId === selectedActivityId) : dashboard.activities).map((activity, index) => {
+            {(selectedActivityId && selectedActivityId !== "all"
+              ? dashboard.activities.filter(
+                  (activity) => activity.activityId === selectedActivityId
+                )
+              : dashboard.activities
+            ).map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
               const totalBalance =
                 activity.cashBalance + activity.cardBalance + activity.mobileBalance || 1;
@@ -1505,6 +1512,7 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
