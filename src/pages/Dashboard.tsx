@@ -1389,6 +1389,8 @@ export default function Dashboard() {
               const netInvest =
                 activity.receivedInvestment - activity.sentInvestment;
 
+              const margin = activity.income - activity.expense;
+
               return (
                 <div
                   key={activity.activityId}
@@ -1406,23 +1408,47 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      <span
-                        className={
-                          ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"
-                        }
-                      >
-                        {ACTIVITY_TYPE_LABELS[activity.type] ||
-                          activity.type}
-                      </span>
-
-                      {netInvest !== 0 && (
-                        <span className="badge-purple">
-                          Invest. {formatCurrency(netInvest)}
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        <span
+                          className={
+                            ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"
+                          }
+                        >
+                          {ACTIVITY_TYPE_LABELS[activity.type] ||
+                            activity.type}
                         </span>
-                      )}
+
+                        {activity.receivedInvestment !== 0 && (
+                          <span className="badge-purple">
+                            Invest. recus {formatCurrency(activity.receivedInvestment)}
+                          </span>
+                        )}
+
+                        {activity.sentInvestment !== 0 && (
+                          <span className="badge-warning">
+                            Invest. envoyes {formatCurrency(activity.sentInvestment)}
+                          </span>
+                        )}
+
+                        <span className="badge-income">
+                          Revenus {formatCurrency(activity.income)}
+                        </span>
+
+                        <span className="badge-expense">
+                          Depenses {formatCurrency(activity.expense)}
+                        </span>
+
+                        <span className={margin >= 0 ? "badge-income" : "badge-expense"}>
+                          Marge {formatCurrency(margin)}
+                        </span>
+
+                        {netInvest !== 0 && (
+                          <span className="badge-info">
+                            Net invest {formatCurrency(netInvest)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
                   {/* CENTER: progress (cash vs card) */}
                   <div className="w-[180px] hidden md:block">
