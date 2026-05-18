@@ -1498,58 +1498,6 @@ export default function Dashboard() {
                       Net disponible
                     </p>
                   </div>
-
-                  {/* RIGHT: courbes revenus/depenses */}
-                  <div className="w-full lg:w-[220px] lg:shrink-0">
-                    <div className="h-[90px] rounded-lg border border-border/60 bg-muted/10 p-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">
-                          Courbes (6 mois)
-                        </span>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <span className="h-2 w-2 rounded-sm bg-primary" />
-                            R
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <span className="h-2 w-2 rounded-sm bg-destructive" />
-                            D
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-1 h-[62px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={activity.monthlyData || []}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                            <Tooltip
-                              formatter={(value) =>
-                                formatCurrency(Number(value) || 0)
-                              }
-                              labelFormatter={(label) => String(label)}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="revenus"
-                              stroke="hsl(var(--primary))"
-                              fill="hsl(var(--primary))"
-                              fillOpacity={0.18}
-                              strokeWidth={2}
-                              dot={false}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="depenses"
-                              stroke="hsl(var(--destructive))"
-                              fill="hsl(var(--destructive))"
-                              fillOpacity={0.12}
-                              strokeWidth={2}
-                              dot={false}
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 </div>
               );
