@@ -1374,65 +1374,6 @@ export default function Dashboard() {
             <span className="badge-info">Vue liste</span>
           </div>
 
-          {/* Graphe: revenus vs depenses par activite */}
-          <div className="mb-4 h-[220px] rounded-xl border border-border/60 bg-muted/10 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-medium text-foreground">
-                Revenus vs depenses par activite
-              </p>
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-sm bg-primary" />
-                  Revenus
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-sm bg-destructive" />
-                  Depenses
-                </span>
-              </div>
-            </div>
-
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={(selectedActivityId
-                  ? dashboard.activities.filter(
-                      (activity) => activity.activityId === selectedActivityId
-                    )
-                  : dashboard.activities
-                ).map((a) => ({
-                  name: a.name,
-                  revenus: a.income,
-                  depenses: a.expense,
-                }))}
-                margin={{ top: 8, right: 8, left: 0, bottom: 28 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10 }}
-                  interval={0}
-                  angle={-25}
-                  textAnchor="end"
-                  height={48}
-                />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip
-                  formatter={(value) => formatCurrency(Number(value) || 0)}
-                />
-                <Bar
-                  dataKey="revenus"
-                  fill="hsl(var(--primary))"
-                  radius={[6, 6, 0, 0]}
-                />
-                <Bar
-                  dataKey="depenses"
-                  fill="hsl(var(--destructive))"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
           <div className="flex flex-col divide-y divide-border/50">
             {(selectedActivityId ? dashboard.activities.filter((activity) => activity.activityId === selectedActivityId) : dashboard.activities).map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
@@ -1556,6 +1497,58 @@ export default function Dashboard() {
                     <p className="text-[10px] text-muted-foreground">
                       Net disponible
                     </p>
+                  </div>
+
+                  {/* RIGHT: courbes revenus/depenses */}
+                  <div className="w-full lg:w-[220px] lg:shrink-0">
+                    <div className="h-[90px] rounded-lg border border-border/60 bg-muted/10 p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">
+                          Courbes (6 mois)
+                        </span>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-sm bg-primary" />
+                            R
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-sm bg-destructive" />
+                            D
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-1 h-[62px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={activity.monthlyData || []}>
+                            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                            <Tooltip
+                              formatter={(value) =>
+                                formatCurrency(Number(value) || 0)
+                              }
+                              labelFormatter={(label) => String(label)}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="revenus"
+                              stroke="hsl(var(--primary))"
+                              fill="hsl(var(--primary))"
+                              fillOpacity={0.18}
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="depenses"
+                              stroke="hsl(var(--destructive))"
+                              fill="hsl(var(--destructive))"
+                              fillOpacity={0.12}
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 </div>

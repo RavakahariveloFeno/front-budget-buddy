@@ -66,6 +66,11 @@ export interface DashboardStats {
     cardBalance: number;
     cashBalance: number;
     mobileBalance: number;
+    monthlyData: Array<{
+      month: string;
+      revenus: number;
+      depenses: number;
+    }>;
   }>;
 }
 
@@ -168,6 +173,22 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
         .map((entry) => {
           if (!entry || typeof entry !== "object") return null;
           const row = entry as Record<string, unknown>;
+          const activityMonthly = Array.isArray(row.monthlyData)
+            ? row.monthlyData
+                .map((point) => {
+                  if (!point || typeof point !== "object") return null;
+                  const p = point as Record<string, unknown>;
+                  return {
+                    month: String(p.month ?? ""),
+                    revenus: Number(p.revenus ?? 0),
+                    depenses: Number(p.depenses ?? 0),
+                  };
+                })
+                .filter(
+                  (point): point is DashboardStats["monthlyData"][number] =>
+                    Boolean(point && point.month)
+                )
+            : [];
           return {
             activityId: String(row.activityId ?? ""),
             name: String(row.name ?? ""),
@@ -180,6 +201,7 @@ function mapDashboardStats(item: unknown): DashboardStats | null {
             cardBalance: Number(row.cardBalance ?? 0),
             cashBalance: Number(row.cashBalance ?? 0),
             mobileBalance: Number(row.mobileBalance ?? 0),
+            monthlyData: activityMonthly,
           };
         })
         .filter((entry): entry is DashboardStats["activities"][number] => Boolean(entry && entry.activityId && entry.name))
