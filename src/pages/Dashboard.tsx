@@ -1371,10 +1371,10 @@ export default function Dashboard() {
             <p className="font-display font-semibold text-foreground">
               Répartition des activités
             </p>
-            <span className="badge-info">Vue liste</span>
+            <span className="badge-info">Vue cartes</span>
           </div>
 
-          <div className="flex flex-col divide-y divide-border/50">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             {(selectedActivityId ? dashboard.activities.filter((activity) => activity.activityId === selectedActivityId) : dashboard.activities).map((activity, index) => {
               const isPositive = activity.netAvailable >= 0;
               const totalBalance =
@@ -1394,29 +1394,30 @@ export default function Dashboard() {
               return (
                 <div
                   key={activity.activityId}
-                  className="py-4 px-2 rounded-lg transition hover:bg-muted/30"
+                  className="rounded-xl border border-border/60 bg-card/40 p-4 transition hover:bg-muted/25 hover:shadow-lg"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-3">
-                  {/* LEFT: name + tags */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
                       <ActivityIcon
                         size={14}
-                        className="text-muted-foreground"
+                        className="text-muted-foreground shrink-0"
                       />
                       <p className="text-sm font-medium truncate">
                         {activity.name}
                       </p>
-                      <span
-                        className={
-                          ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"
-                        }
-                      >
-                        {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
-                      </span>
-                    </div>
+                      </div>
+                      <div className="mt-1">
+                        <span
+                          className={
+                            ACTIVITY_TYPE_COLORS[activity.type] || "badge-income"
+                          }
+                        >
+                          {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
+                        </span>
+                      </div>
 
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-[11px]">
                       <div className="flex items-center justify-between gap-2 rounded-md bg-muted/20 px-2 py-1">
                         <span className="text-muted-foreground">Revenus</span>
                         <span className="font-medium">
@@ -1447,7 +1448,7 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span
                         className={margin >= 0 ? "badge-income" : "badge-expense"}
                       >
@@ -1462,7 +1463,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* CENTER: progress (cash vs card) */}
-                  <div className="hidden">
+                  {false && (<div className="hidden">
                     <div className="h-2 flex rounded-full overflow-hidden bg-border">
                       <div
                         style={{ width: `${cashPct}%` }}
@@ -1483,7 +1484,7 @@ export default function Dashboard() {
                       <span>💳 {cardPct}%</span>
                       <span>📱 {mobilePct}%</span>
                     </div>
-                  </div>
+                  </div>)}
 
                   {/* RIGHT: values */}
                   <div className="text-right w-full lg:w-[110px] lg:shrink-0">
