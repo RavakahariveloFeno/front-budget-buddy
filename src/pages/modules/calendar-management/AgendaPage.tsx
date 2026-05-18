@@ -12,9 +12,6 @@ import Header from "@/components/layout/Header";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
-import { createIncome } from "@/api/incomeApi";
-import { createExpense } from "@/api/expenseApi";
-import { sendCalendarNotification } from "@/api/notificationApi";
 import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
@@ -48,8 +45,6 @@ export default function AgendaPage() {
   const addEvent = useCalendarStore((s) => s.addEvent);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
-  const markNotified = useCalendarStore((s) => s.markNotified);
-  const markTriggered = useCalendarStore((s) => s.markTriggered);
 
   const [view, setView] = useState<View>(Views.MONTH);
   const [date, setDate] = useState<Date>(new Date());
@@ -122,7 +117,7 @@ export default function AgendaPage() {
     [activityEvents],
   );
 
-  const dispatchNotification = useCallback(async (ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
+  const dispatchNotification = useCallback((ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
     const title = mode === "REMINDER" ? `Rappel: ${ev.title}` : ev.title;
     const description =
       ev.note ||
@@ -143,37 +138,12 @@ export default function AgendaPage() {
       new Notification(title, { body: description });
     }
 
-    if (mode === "EVENT" && "Notification" in window && Notification.permission === "default") {
-      void Notification.requestPermission();
-    }
 
-    if (ev.notificationTargets?.email || ev.notificationTargets?.discordWebhook) {
-      try {
-        const result = await sendCalendarNotification({
-          title: ev.title,
-          note: ev.note,
-          date: ev.start,
-          mode,
-          reminderMinutes: ev.reminderMinutes,
-          email: ev.notificationTargets?.email,
-          discordWebhook: ev.notificationTargets?.discordWebhook,
-        });
-        if (result.emailSent) {
-          toast.success("E-mail de notification envoyé", { description: ev.notificationTargets?.email });
-        }
-        if (result.webhookSent) {
-          toast.success("Webhook Discord envoyé", { description: ev.title });
-        }
-      } catch (error) {
-        console.error("Calendar notification API failed", error);
-        toast.error("Echec d'envoi de notification externe", { description: ev.title });
-      }
-    }
   }, []);
 
-  // Notification + automation polling
+  // Local-only notification while page is open (email/discord + automation run in backend)
   useEffect(() => {
-    const tick = async () => {
+    const tick = () => {
       const now = Date.now();
       for (const ev of activityEvents) {
         const eventTime = new Date(ev.start).getTime();
@@ -182,69 +152,20 @@ export default function AgendaPage() {
         const isEventDue = eventTime <= now;
 
         if (ev.notify && (ev.reminderMinutes ?? 0) > 0 && isReminderDue && !ev.reminderSentAt) {
-          await dispatchNotification(ev, "REMINDER");
+          dispatchNotification(ev, "REMINDER");
           updateEvent(ev.id, { reminderSentAt: new Date().toISOString() });
         }
 
-        // Important: automation must run only when event datetime is reached,
-        // never when only the reminder window is reached.
         if (isEventDue && !ev.notified) {
-          await dispatchNotification(ev, "EVENT");
-          markNotified(ev.id);
-
-          if (ev.automation.type !== "NONE" && !ev.triggered && ev.automation.amount) {
-            try {
-              if (ev.automation.type === "INCOME") {
-                await createIncome({
-                  amount: ev.automation.amount,
-                  date: new Date(ev.start).toISOString(),
-                  description: ev.automation.description || ev.title,
-                  activityId: ev.activityId,
-                });
-                toast.success("Revenu créé automatiquement", { description: ev.title });
-
-                if (ev.notificationTargets?.email) {
-                  await sendCalendarNotification({
-                    title: "Revenu ajoute automatiquement",
-                    note: `${ev.automation.description || ev.title} - ${ev.automation.amount} MGA`,
-                    date: new Date(ev.start).toISOString(),
-                    mode: "EVENT",
-                    email: ev.notificationTargets.email,
-                  });
-                }
-              } else if (ev.automation.type === "EXPENSE") {
-                await createExpense({
-                  amount: ev.automation.amount,
-                  date: new Date(ev.start).toISOString(),
-                  description: ev.automation.description || ev.title,
-                  activityId: ev.activityId,
-                  categoryId: ev.automation.categoryId,
-                });
-                toast.success("Dépense créée automatiquement", { description: ev.title });
-
-                if (ev.notificationTargets?.email) {
-                  await sendCalendarNotification({
-                    title: "Depense ajoutee automatiquement",
-                    note: `${ev.automation.description || ev.title} - ${ev.automation.amount} MGA`,
-                    date: new Date(ev.start).toISOString(),
-                    mode: "EVENT",
-                    email: ev.notificationTargets.email,
-                  });
-                }
-              }
-              markTriggered(ev.id);
-            } catch (err) {
-              console.error("Automation failed", err);
-              toast.error("Echec de l'action automatique", { description: ev.title });
-            }
-          }
+          dispatchNotification(ev, "EVENT");
+          updateEvent(ev.id, { notified: true });
         }
       }
     };
     tick();
     const i = setInterval(tick, 30_000);
     return () => clearInterval(i);
-  }, [activityEvents, markNotified, markTriggered, updateEvent]);
+  }, [activityEvents, updateEvent]);
 
   const resetForm = () => {
     setEditing(null);
