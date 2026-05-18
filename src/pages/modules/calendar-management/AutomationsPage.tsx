@@ -10,6 +10,11 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import { deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
+import { getActivities } from "@/api/activityApi";
+import { getActivityModules } from "@/api/moduleApi";
+import type { Activity } from "@/data/staticData";
+
+const CALENDAR_MODULE_ID = "mod-calendrier";
 
 const automationLabels: Record<string, string> = {
   NONE: "—",
@@ -37,12 +42,59 @@ export default function AutomationsPage() {
   const setEventsForActivity = useCalendarStore((s) => s.setEventsForActivity);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [calendarEnabledByActivityId, setCalendarEnabledByActivityId] = useState<Record<string, boolean>>({});
   const showAllActivities = selectedActivityId === null;
   const effectiveActivityId = selectedActivityId ?? activityId;
+
+  const eligibilityKnownForEffectiveActivity = useMemo(() => {
+    if (showAllActivities) return true;
+    if (!effectiveActivityId) return false;
+    return Object.prototype.hasOwnProperty.call(calendarEnabledByActivityId, effectiveActivityId);
+  }, [calendarEnabledByActivityId, effectiveActivityId, showAllActivities]);
+
+  const isEffectiveActivityCalendarEnabled = useMemo(() => {
+    if (showAllActivities) return true;
+    if (!effectiveActivityId) return false;
+    if (!eligibilityKnownForEffectiveActivity) return true;
+    return Boolean(calendarEnabledByActivityId[effectiveActivityId]);
+  }, [calendarEnabledByActivityId, effectiveActivityId, eligibilityKnownForEffectiveActivity, showAllActivities]);
+
   const events = useMemo(
-    () => (showAllActivities ? allEvents : allEvents.filter((e) => e.activityId === effectiveActivityId)),
-    [allEvents, showAllActivities, effectiveActivityId],
+    () => {
+      if (!isEffectiveActivityCalendarEnabled) {
+        return [];
+      }
+      return showAllActivities ? allEvents : allEvents.filter((e) => e.activityId === effectiveActivityId);
+    },
+    [allEvents, showAllActivities, effectiveActivityId, isEffectiveActivityCalendarEnabled],
   );
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const all = await getActivities();
+        setActivities(all);
+        const entries = await Promise.all(
+          all.map(async (act) => {
+            try {
+              const mods = await getActivityModules(act.id);
+              return [act.id, mods.includes(CALENDAR_MODULE_ID)] as const;
+            } catch {
+              return [act.id, false] as const;
+            }
+          }),
+        );
+        setCalendarEnabledByActivityId(Object.fromEntries(entries));
+      } catch (error) {
+        console.error("Failed to load activities for calendar module", error);
+        setActivities([]);
+        setCalendarEnabledByActivityId({});
+      }
+    };
+
+    void loadActivities();
+  }, []);
 
   useEffect(() => {
     if (showAllActivities) {
@@ -64,6 +116,11 @@ export default function AutomationsPage() {
       return;
     }
 
+    if (!isEffectiveActivityCalendarEnabled) {
+      setEventsForActivity(effectiveActivityId, []);
+      return;
+    }
+
     const load = async () => {
       try {
         const remote = await getCalendarEvents(effectiveActivityId);
@@ -75,7 +132,7 @@ export default function AutomationsPage() {
     };
 
     void load();
-  }, [effectiveActivityId, showAllActivities, setAllEvents, setEventsForActivity]);
+  }, [effectiveActivityId, isEffectiveActivityCalendarEnabled, showAllActivities, setAllEvents, setEventsForActivity]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [title, setTitle] = useState("");
@@ -201,6 +258,24 @@ export default function AutomationsPage() {
       toast.error("Suppression impossible pour le moment");
     }
   };
+
+  if (!isEffectiveActivityCalendarEnabled) {
+    return (
+      <div className="animate-fade-in">
+        <Header title="Automatisations" subtitle="Suivi des actions automatiques planifiees sur l'agenda" />
+        <div className="p-6">
+          <div
+            className="rounded-xl p-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+          >
+            <p style={{ color: "hsl(var(--muted-foreground))" }}>
+              Cette activité n'utilise pas le module calendrier.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">

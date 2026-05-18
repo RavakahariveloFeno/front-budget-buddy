@@ -14,6 +14,13 @@ import FormFieldInput from "@/components/dialogs/FormField";
 import SelectField from "@/components/dialogs/SelectField";
 import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from "@/api/calendarApi";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
+import { getActivities } from "@/api/activityApi";
+import { getActivityModules } from "@/api/moduleApi";
+import type { Activity } from "@/data/staticData";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const CALENDAR_MODULE_ID = "mod-calendrier";
 
 const locales = { fr };
 const localizer = dateFnsLocalizer({
@@ -63,13 +70,76 @@ export default function AgendaPage() {
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
   const [autoAmount, setAutoAmount] = useState("");
   const [autoDesc, setAutoDesc] = useState("");
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [calendarEnabledByActivityId, setCalendarEnabledByActivityId] = useState<Record<string, boolean>>({});
+  const [createActivityId, setCreateActivityId] = useState("");
 
   const showAllActivities = selectedActivityId === null;
   const effectiveActivityId = selectedActivityId ?? activityId;
 
+  const eligibilityKnownForEffectiveActivity = useMemo(() => {
+    if (showAllActivities) return true;
+    if (!effectiveActivityId) return false;
+    return Object.prototype.hasOwnProperty.call(calendarEnabledByActivityId, effectiveActivityId);
+  }, [calendarEnabledByActivityId, effectiveActivityId, showAllActivities]);
+
+  const isEffectiveActivityCalendarEnabled = useMemo(() => {
+    if (showAllActivities) return true;
+    if (!effectiveActivityId) return false;
+    if (!eligibilityKnownForEffectiveActivity) return true;
+    return Boolean(calendarEnabledByActivityId[effectiveActivityId]);
+  }, [calendarEnabledByActivityId, effectiveActivityId, eligibilityKnownForEffectiveActivity, showAllActivities]);
+
+  const calendarActivities = useMemo(() => {
+    return activities.filter((a) => calendarEnabledByActivityId[a.id]);
+  }, [activities, calendarEnabledByActivityId]);
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const all = await getActivities();
+        setActivities(all);
+        const entries = await Promise.all(
+          all.map(async (act) => {
+            try {
+              const mods = await getActivityModules(act.id);
+              return [act.id, mods.includes(CALENDAR_MODULE_ID)] as const;
+            } catch {
+              return [act.id, false] as const;
+            }
+          }),
+        );
+        setCalendarEnabledByActivityId(Object.fromEntries(entries));
+      } catch (error) {
+        console.error("Failed to load activities for calendar module", error);
+        setActivities([]);
+        setCalendarEnabledByActivityId({});
+      }
+    };
+
+    void loadActivities();
+  }, []);
+
+  useEffect(() => {
+    if (!showAllActivities || editing) {
+      return;
+    }
+    if (createActivityId) {
+      return;
+    }
+    if (calendarActivities.length > 0) {
+      setCreateActivityId(calendarActivities[0].id);
+    }
+  }, [calendarActivities, createActivityId, editing, showAllActivities]);
+
   const activityEvents = useMemo(
-    () => (showAllActivities ? events : events.filter((e) => e.activityId === effectiveActivityId)),
-    [events, showAllActivities, effectiveActivityId],
+    () => {
+      if (!isEffectiveActivityCalendarEnabled) {
+        return [];
+      }
+      return showAllActivities ? events : events.filter((e) => e.activityId === effectiveActivityId);
+    },
+    [events, showAllActivities, effectiveActivityId, isEffectiveActivityCalendarEnabled],
   );
 
   useEffect(() => {
@@ -92,6 +162,11 @@ export default function AgendaPage() {
       return;
     }
 
+    if (!isEffectiveActivityCalendarEnabled) {
+      setEventsForActivity(effectiveActivityId, []);
+      return;
+    }
+
     const load = async () => {
       try {
         const remote = await getCalendarEvents(effectiveActivityId);
@@ -103,7 +178,7 @@ export default function AgendaPage() {
     };
 
     void load();
-  }, [effectiveActivityId, showAllActivities, setAllEvents, setEventsForActivity]);
+  }, [effectiveActivityId, isEffectiveActivityCalendarEnabled, showAllActivities, setAllEvents, setEventsForActivity]);
 
   const calendarEvents = useMemo(
     () =>
@@ -180,6 +255,7 @@ export default function AgendaPage() {
     setAutoType("NONE");
     setAutoAmount("");
     setAutoDesc("");
+    setCreateActivityId("");
   };
 
   const openCreate = (slotStart?: Date) => {
@@ -204,13 +280,31 @@ export default function AgendaPage() {
     setAutoType(ev.automation.type);
     setAutoAmount(ev.automation.amount ? String(ev.automation.amount) : "");
     setAutoDesc(ev.automation.description || "");
+    setCreateActivityId(ev.activityId);
     setOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !activityId) {
+    const resolvedActivityId = editing
+      ? editing.activityId
+      : showAllActivities
+        ? createActivityId
+        : effectiveActivityId;
+
+    if (!title.trim()) {
       toast.error("Titre requis");
+      return;
+    }
+    if (!resolvedActivityId) {
+      toast.error("Activité requise");
+      return;
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(calendarEnabledByActivityId, resolvedActivityId) &&
+      !calendarEnabledByActivityId[resolvedActivityId]
+    ) {
+      toast.error("Cette activite n'utilise pas le module calendrier");
       return;
     }
     if (notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail.trim())) {
@@ -234,7 +328,7 @@ export default function AgendaPage() {
         email: notifyEmail.trim() || undefined,
         discordWebhook: discordWebhook.trim() || undefined,
       },
-      activityId,
+      activityId: resolvedActivityId,
       notified: editing?.notified && editing.start === nextStart ? true : false,
       triggered: editing?.triggered && editing.start === nextStart ? true : false,
       automation: {
@@ -280,71 +374,74 @@ export default function AgendaPage() {
     <div className="animate-fade-in">
       <Header title="Agenda & automatisations" subtitle={`${activityEvents.length} evenement(s) planifie(s)`} />
       <div className="p-6 space-y-4">
-        <div className="flex items-center justify-end flex-wrap gap-3">
-          {false && (
-            <>
-          <h2 className="font-display font-semibold text-lg" style={{ color: "hsl(var(--foreground))" }}>
-            Agenda & automatisations
-          </h2>
-          <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-            {activityEvents.length} évènement(s) planifié(s)
-          </p>
-            </>
-          )}
-          <button
-            onClick={() => openCreate()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+        {!isEffectiveActivityCalendarEnabled ? (
+          <div
+            className="rounded-xl p-4"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
           >
-          <Plus size={16} /> Nouvel évènement
-          </button>
-        </div>
+            <p style={{ color: "hsl(var(--muted-foreground))" }}>
+              Cette activité n'utilise pas le module calendrier.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-end flex-wrap gap-3">
+              <button
+                onClick={() => openCreate()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+              >
+                <Plus size={16} /> Nouvel évènement
+              </button>
+            </div>
 
-        <div
-          className="rounded-xl p-4"
-          style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-        >
-        <div style={{ height: 600 }} className="pilgo-calendar">
-          <Calendar
-            localizer={localizer}
-            events={calendarEvents}
-            startAccessor="start"
-            endAccessor="end"
-            view={view}
-            onView={setView}
-            date={date}
-            onNavigate={setDate}
-            views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-            selectable
-            onSelectSlot={(slot) => openCreate(slot.start as Date)}
-            onSelectEvent={(ev) => openEdit(ev.resource as CalendarEvent)}
-            culture="fr"
-            messages={{
-              next: "Suivant",
-              previous: "Précédent",
-              today: "Aujourd'hui",
-              month: "Mois",
-              week: "Semaine",
-              day: "Jour",
-              agenda: "Agenda",
-              date: "Date",
-              time: "Heure",
-              event: "Évènement",
-              noEventsInRange: "Aucun évènement",
-            }}
-            eventPropGetter={(ev) => {
-              const r = ev.resource as CalendarEvent;
-              const color =
-                r.automation.type === "INCOME"
-                  ? "hsl(var(--chart-2))"
-                  : r.automation.type === "EXPENSE"
-                    ? "hsl(var(--destructive))"
-                    : "hsl(var(--primary))";
-              return { style: { background: color, border: "none", borderRadius: 6, fontSize: 12 } };
-            }}
-          />
-        </div>
-        </div>
+            <div
+              className="rounded-xl p-4"
+              style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+            >
+              <div style={{ height: 600 }} className="pilgo-calendar">
+                <Calendar
+                  localizer={localizer}
+                  events={calendarEvents}
+                  startAccessor="start"
+                  endAccessor="end"
+                  view={view}
+                  onView={setView}
+                  date={date}
+                  onNavigate={setDate}
+                  views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+                  selectable
+                  onSelectSlot={(slot) => openCreate(slot.start as Date)}
+                  onSelectEvent={(ev) => openEdit(ev.resource as CalendarEvent)}
+                  culture="fr"
+                  messages={{
+                    next: "Suivant",
+                    previous: "Précédent",
+                    today: "Aujourd'hui",
+                    month: "Mois",
+                    week: "Semaine",
+                    day: "Jour",
+                    agenda: "Agenda",
+                    date: "Date",
+                    time: "Heure",
+                    event: "Évènement",
+                    noEventsInRange: "Aucun évènement",
+                  }}
+                  eventPropGetter={(ev) => {
+                    const r = ev.resource as CalendarEvent;
+                    const color =
+                      r.automation.type === "INCOME"
+                        ? "hsl(var(--chart-2))"
+                        : r.automation.type === "EXPENSE"
+                          ? "hsl(var(--destructive))"
+                          : "hsl(var(--primary))";
+                    return { style: { background: color, border: "none", borderRadius: 6, fontSize: 12 } };
+                  }}
+                />
+              </div>
+            </div>
+          </>
+        )}
 
       <FormDialog
         open={open}
@@ -355,6 +452,33 @@ export default function AgendaPage() {
         title={editing ? "Modifier l'évènement" : "Nouvel évènement"}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {showAllActivities && (
+            <div className="space-y-1.5">
+              <Label className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Activité *
+              </Label>
+              <Select
+                value={createActivityId || (editing ? editing.activityId : "")}
+                onValueChange={setCreateActivityId}
+                disabled={Boolean(editing)}
+              >
+                <SelectTrigger
+                  disabled={Boolean(editing)}
+                  className="border-border"
+                  style={{ background: "hsl(var(--input))", color: "hsl(var(--foreground))" }}
+                >
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent style={{ background: "hsl(225, 27%, 12%)", borderColor: "hsl(var(--border))" }}>
+                  {activities.map((act) => (
+                    <SelectItem key={act.id} value={act.id} disabled={!calendarEnabledByActivityId[act.id]}>
+                      {act.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <FormFieldInput label="Titre" id="evt-title" value={title} onChange={setTitle} placeholder="Ex: Loyer mensuel" required />
           <FormFieldInput label="Note" id="evt-note" value={note} onChange={setNote} placeholder="Détail optionnel" />
           <div className="grid grid-cols-2 gap-3">
