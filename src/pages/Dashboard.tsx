@@ -1403,16 +1403,16 @@ export default function Dashboard() {
                   key={activity.activityId}
                   className="rounded-xl border border-border/60 bg-card/40 p-4 transition hover:bg-muted/25 hover:shadow-lg"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                      <ActivityIcon
-                        size={14}
-                        className="text-muted-foreground shrink-0"
-                      />
-                      <p className="text-sm font-medium truncate">
-                        {activity.name}
-                      </p>
+                      <div className="flex items-start gap-2 min-w-0">
+                        <ActivityIcon
+                          size={14}
+                          className="mt-0.5 text-muted-foreground shrink-0"
+                        />
+                        <p className="text-sm font-medium leading-snug line-clamp-2 sm:line-clamp-1 break-words">
+                          {activity.name}
+                        </p>
                       </div>
                       <div className="mt-1">
                         <span
@@ -1424,7 +1424,7 @@ export default function Dashboard() {
                         </span>
                       </div>
 
-                    <div className="mt-3 grid grid-cols-1 gap-2 text-[11px]">
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-1 gap-2 text-[11px]">
                       <div className="flex items-center justify-between gap-2 rounded-md bg-muted/20 px-2 py-1">
                         <span className="text-muted-foreground">Revenus</span>
                         <span className="font-medium">
@@ -1494,7 +1494,7 @@ export default function Dashboard() {
                   </div>)}
 
                   {/* RIGHT: values */}
-                  <div className="text-right w-full lg:w-[110px] lg:shrink-0">
+                  <div className="sm:text-right sm:w-[120px] sm:shrink-0">
                     <p
                       className={`text-sm font-semibold ${isPositive ? "text-primary" : "text-destructive"
                         }`}
