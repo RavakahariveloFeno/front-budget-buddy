@@ -5,4 +5,5 @@ import "./index.css";
 
 initFetchTracking();
 
+
 createRoot(document.getElementById("root")!).render(<App />);
