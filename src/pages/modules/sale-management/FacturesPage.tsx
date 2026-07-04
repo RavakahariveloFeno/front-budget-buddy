@@ -32,6 +32,17 @@ const statutColor: Record<FactureStatut, string> = {
 const emptyLigne = (): LigneFacture => ({ produitId: "", quantite: 1, prixUnitaire: 0 });
 
 type ViewMode = "list" | "form";
+type EditableLigneFacture = LigneFacture & { _key: string };
+
+let ligneKeyCounter = 0;
+
+function createEditableLigne(source?: LigneFacture): EditableLigneFacture {
+  return {
+    ...emptyLigne(),
+    ...source,
+    _key: `ligne-${Date.now()}-${ligneKeyCounter++}`,
+  };
+}
 
 export default function FacturesPage() {
   const { toast } = useToast();
@@ -63,7 +74,7 @@ export default function FacturesPage() {
   const [date, setDate] = useState("");
   const [statut, setStatut] = useState<string>("EN_ATTENTE");
   const [paymentType, setPaymentType] = useState<"CASH" | "CARD">("CASH");
-  const [lignes, setLignes] = useState<LigneFacture[]>([emptyLigne()]);
+  const [lignes, setLignes] = useState<EditableLigneFacture[]>([createEditableLigne()]);
 
   useEffect(() => {
     if (!activityId) return;
@@ -97,7 +108,7 @@ export default function FacturesPage() {
     }));
   };
 
-  const addLigne = () => setLignes((prev) => [...prev, emptyLigne()]);
+  const addLigne = () => setLignes((prev) => [...prev, createEditableLigne()]);
   const removeLigne = (index: number) => setLignes((prev) => prev.length > 1 ? prev.filter((_, i) => i !== index) : prev);
 
   const openAdd = () => {
@@ -111,7 +122,7 @@ export default function FacturesPage() {
   const openEdit = (f: Facture) => {
     setEditing(f); setNumero(f.numero); setClientId(f.clientId); setDate(f.date ? f.date.split("T")[0] : ""); setStatut(f.statut);
     setPaymentType(f.paymentType || "CASH");
-    setLignes(f.lignes.length > 0 ? [...f.lignes] : [emptyLigne()]);
+    setLignes(f.lignes.length > 0 ? f.lignes.map((ligne) => createEditableLigne(ligne)) : [createEditableLigne()]);
     setViewMode("form");
   };
 
@@ -264,7 +275,7 @@ export default function FacturesPage() {
 
               <div className="space-y-3">
                 {lignes.map((ligne, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_90px_120px_32px] gap-3 items-end rounded-lg p-3 border border-border bg-muted/30">
+                  <div key={ligne._key} className="grid grid-cols-[1fr_90px_120px_32px] gap-3 items-end rounded-lg p-3 border border-border bg-muted/30">
                     <SelectField label={i === 0 ? "Produit" : ""} value={ligne.produitId} onValueChange={(v) => updateLigne(i, "produitId", v)} options={produits.map((p) => ({ value: p.id, label: `${p.nom} (${formatCurrency(p.prixVente)})` }))} placeholder="Choisir un produit" onAddClick={() => { setProduitFormOpen(true); setNewProdNom(""); setNewProdRef(""); setNewProdPrixAchat(""); setNewProdPrixVente(""); }} />
                     <FormFieldInput label={i === 0 ? "Quantité" : ""} id={`qty-${i}`} type="number" value={String(ligne.quantite)} onChange={(v) => updateLigne(i, "quantite", v)} min="1" required />
                     <FormFieldInput label={i === 0 ? "Prix unitaire" : ""} id={`pu-${i}`} type="number" value={String(ligne.prixUnitaire)} onChange={(v) => updateLigne(i, "prixUnitaire", v)} min="0" required />
