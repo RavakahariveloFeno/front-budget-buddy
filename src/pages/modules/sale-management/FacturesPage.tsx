@@ -116,7 +116,7 @@ export default function FacturesPage() {
     setNumero(`FAC-${new Date().getFullYear()}-${String(factures.length + 1).padStart(3, "0")}`);
     setClientId(""); setDate(new Date().toISOString().slice(0, 10)); setStatut("EN_ATTENTE");
     setPaymentType("CASH");
-    setLignes([emptyLigne()]);
+    setLignes([createEditableLigne()]);
     setViewMode("form");
   };
   const openEdit = (f: Facture) => {
