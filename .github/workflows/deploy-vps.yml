@@ -3,7 +3,7 @@ name: Deploy Frontend VPS
 on:
   push:
     branches:
-      - vps
+      - staging
 
 jobs:
   deploy:
@@ -21,8 +21,8 @@ jobs:
           script: |
             cd ~/apps/front-budget-buddy
 
-            git checkout vps
-            git pull origin vps
+            git checkout staging
+            git pull origin staging
 
             npm install
             npm run build
