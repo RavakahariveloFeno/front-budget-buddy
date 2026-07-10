@@ -1,0 +1,33 @@
+name: Deploy Frontend VPS
+
+on:
+  push:
+    branches:
+      - vps
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.2
+
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+
+          script: |
+            cd ~/apps/front-budget-buddy
+
+            git checkout vps
+            git pull origin vps
+
+            npm install
+            npm run build
+
+            sudo rm -rf /var/www/front-budget-buddy/*
+            sudo cp -r dist/* /var/www/front-budget-buddy/
+
+            sudo systemctl restart nginx
