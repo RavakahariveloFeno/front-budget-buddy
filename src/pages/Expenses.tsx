@@ -483,72 +483,6 @@ export default function Expenses() {
             </div>
           </div>
         </div>
-
-        <div className="stat-card">
-          <div className="flex items-center justify-between mb-4">
-            <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-              Depenses automatiques{" "}
-              <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({visibleRecurringList.length})
-              </span>
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full data-table">
-              <thead>
-                <tr>
-                  <th className="text-left">Debut</th>
-                  <th className="text-left">Frequence</th>
-                  <th className="text-left">Description</th>
-                  <th className="text-left">Activite</th>
-                  <th className="text-left">Paiement</th>
-                  <th className="text-left">Statut</th>
-                  <th className="text-right">Montant</th>
-                  <th className="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...visibleRecurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
-                  const activity = item.activityId ? activityById.get(item.activityId) : undefined;
-                  const paymentBadge = item.paymentType ? getPaymentBadge(item.paymentType) : null;
-                  return (
-                    <tr key={item.id}>
-                      <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(item.startDate)}</td>
-                      <td style={{ color: "hsl(var(--foreground))" }}>{item.frequency === "DAY" ? "Jour" : item.frequency === "WEEK" ? "Semaine" : "Mois"}</td>
-                      <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
-                      <td>{activity ? <span className="badge-info text-xs">{activity.name}</span> : "-"}</td>
-                      <td>
-                        {paymentBadge ? <span className={paymentBadge.className}>{paymentBadge.label}</span> : "-"}
-                      </td>
-                      <td>
-                        <span className={item.isActive ? "badge-income" : "badge-warning"}>{item.isActive ? "Active" : "Pause"}</span>
-                      </td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
-                        -{formatCurrency(item.amount)}
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleEditRecurring(item)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
-                            <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setRecurringDeleteTarget(item);
-                              setRecurringDeleteOpen(true);
-                            }}
-                            className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors"
-                          >
-                            <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       <ExpenseForm
@@ -560,7 +494,6 @@ export default function Expenses() {
         activityNetById={activityNetById}
         categories={categoryList}
         onCreate={handleCreate}
-        onCreateRecurring={handleCreateRecurring}
         onUpdate={handleUpdate}
         onCreateCategory={handleCreateCategory}
       />
@@ -634,3 +567,4 @@ export default function Expenses() {
     </div>
   );
 }
+

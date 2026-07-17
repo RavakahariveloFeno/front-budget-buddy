@@ -561,79 +561,6 @@ export default function Incomes() {
         <div className="stat-card">
           <div className="flex items-center justify-between mb-4">
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-              Revenus automatiques{" "}
-              <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({visibleRecurringList.length})
-              </span>
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full data-table">
-              <thead>
-                <tr>
-                  <th className="text-left">Debut</th>
-                  <th className="text-left">Frequence</th>
-                  <th className="text-left">Description</th>
-                  <th className="text-right">Carte</th>
-                  <th className="text-right">Mobile</th>
-                  <th className="text-right">Especes</th>
-                  <th className="text-left">Activite</th>
-                  <th className="text-left">Statut</th>
-                  <th className="text-right">Montant</th>
-                  <th className="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...visibleRecurringList].sort(compareByMostRecent(["createdAt", "startDate", "date"])).map((item) => {
-                  const activity = item.activityId ? activityList.find((a) => a.id === item.activityId) : undefined;
-                  return (
-                    <tr key={item.id}>
-                      <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(item.startDate)}</td>
-                      <td style={{ color: "hsl(var(--foreground))" }}>{item.frequency === "DAY" ? "Jour" : item.frequency === "WEEK" ? "Semaine" : "Mois"}</td>
-                      <td style={{ color: "hsl(var(--foreground))" }}>{item.description || "-"}</td>
-                      <td className="text-right" style={{ color: "hsl(var(--info))" }}>
-                        {item.paymentType === "CARD" ? formatCurrency(item.amount) : "-"}
-                      </td>
-                      <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
-                        {item.paymentType === "MOBILE" ? formatCurrency(item.amount) : "-"}
-                      </td>
-                      <td className="text-right" style={{ color: "hsl(var(--warning))" }}>
-                        {item.paymentType === "CASH" ? formatCurrency(item.amount) : "-"}
-                      </td>
-                      <td>{activity ? <span className="badge-income">{activity.name}</span> : "-"}</td>
-                      <td>
-                        <span className={item.isActive ? "badge-income" : "badge-warning"}>{item.isActive ? "Active" : "Pause"}</span>
-                      </td>
-                      <td className="text-right font-semibold" style={{ color: "hsl(var(--primary))" }}>
-                        +{formatCurrency(item.amount)}
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleEditRecurring(item)} className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
-                            <Pencil size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setRecurringDeleteTarget(item);
-                              setRecurringDeleteOpen(true);
-                            }}
-                            className="w-7 h-7 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors"
-                          >
-                            <Trash2 size={12} style={{ color: "hsl(var(--destructive))" }} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center justify-between mb-4">
-            <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Retraits{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                 ({visibleWithdrawalList.length})
@@ -731,7 +658,6 @@ export default function Incomes() {
         activities={activityList}
         lockedActivityId={selectedActivityId}
         onCreate={handleCreate}
-        onCreateRecurring={handleCreateRecurring}
         onUpdate={handleUpdate}
       />
 

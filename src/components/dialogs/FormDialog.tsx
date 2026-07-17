@@ -18,7 +18,7 @@ export default function FormDialog({ open, onOpenChange, title, children, classN
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn("border-border max-h-[85vh] overflow-y-auto sm:max-w-3xl xl:max-w-5xl", className)}
+        className={cn("border-border max-h-[85vh] overflow-y-auto", className)}
         style={{ background: "hsl(225, 27%, 10%)" }}
       >
         <DialogHeader>
