@@ -26,7 +26,7 @@ function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèc
 const statutColor: Record<FactureStatut, string> = {
   "PAYÉE": "default",
   "EN_ATTENTE": "secondary",
-  "ANNULÃ‰E": "destructive",
+  "ANNULÉE": "destructive",
 };
 
 const emptyLigne = (): LigneFacture => ({ produitId: "", quantite: 1, prixUnitaire: 0 });
@@ -248,7 +248,7 @@ export default function FacturesPage() {
           options={[
             { value: "EN_ATTENTE", label: "En attente" },
             { value: "PAYÉE", label: "Payée" },
-            { value: "ANNULÃ‰E", label: "Annulée" },
+            { value: "ANNULÉE", label: "Annulée" },
           ]}
         />
         <SelectField
