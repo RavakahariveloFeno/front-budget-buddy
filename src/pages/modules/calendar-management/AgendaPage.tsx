@@ -4,7 +4,6 @@ import { Calendar, dateFnsLocalizer, View, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Bell, Plus, Zap, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
 import { useCalendarStore, type CalendarEvent, type AutomationType, type RecurrenceFrequency } from "@/stores/calendarStore";
@@ -206,7 +205,6 @@ export default function AgendaPage() {
         await refreshEvents();
       } catch (error) {
         console.error("Failed to load calendar events", error);
-        toast.error("Impossible de charger les evenements");
       }
     };
 
@@ -226,27 +224,6 @@ export default function AgendaPage() {
   );
 
   const dispatchNotification = useCallback((ev: CalendarEvent, mode: "REMINDER" | "EVENT") => {
-    const title = mode === "REMINDER" ? `Rappel: ${ev.title}` : ev.title;
-    const description =
-      ev.note ||
-      (mode === "REMINDER"
-        ? `Échéance dans ${ev.reminderDays ?? 0} jour(s)`
-        : ev.automation.type !== "NONE"
-          ? "Action automatique en coursâ€¦"
-          : undefined);
-
-    if (ev.notify) {
-      toast(title, {
-        description,
-        icon: <Bell size={16} />,
-      });
-    }
-
-    if (mode === "EVENT" && "Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body: description });
-    }
-
-
   }, []);
 
   // Local-only notification while page is open (email/discord + automation run in backend)
@@ -346,33 +323,27 @@ export default function AgendaPage() {
         : effectiveActivityId;
 
     if (!title.trim()) {
-      toast.error("Titre requis");
       return;
     }
     if (!resolvedActivityId) {
-      toast.error("Activité requise");
       return;
     }
     if (
       Object.prototype.hasOwnProperty.call(calendarEnabledByActivityId, resolvedActivityId) &&
       !calendarEnabledByActivityId[resolvedActivityId]
     ) {
-      toast.error("Cette activite n'utilise pas le module calendrier");
       return;
     }
     if (notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail.trim())) {
-      toast.error("Adresse e-mail invalide");
       return;
     }
     if (discordWebhook && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/.+/.test(discordWebhook.trim())) {
-      toast.error("Lien webhook Discord invalide");
       return;
     }
     const nextStart = allDay ? startOfDayIso(start.slice(0, 10)) : new Date(start).toISOString();
     const nextEnd = allDay ? endOfDay(end.slice(0, 10)) : new Date(end).toISOString();
 
     if (new Date(nextEnd).getTime() < new Date(nextStart).getTime()) {
-      toast.error("La date de fin doit être après le début");
       return;
     }
 
@@ -413,25 +384,20 @@ export default function AgendaPage() {
     } as Omit<CalendarEvent, "id"> & { recurrence?: typeof recurrence };
     try {
       if (editing) {
-        const saved = await updateCalendarEvent(editing.id, payload);
-        if (Array.isArray(saved)) {
-          await refreshEvents();
-        } else {
-          updateEvent(editing.id, saved);
-        }
-      toast.success("Évènement mis à jour");
+      const saved = await updateCalendarEvent(editing.id, payload);
+      if (Array.isArray(saved)) {
+        await refreshEvents();
+      } else {
+        updateEvent(editing.id, saved);
+      }
     } else {
         const saved = await createCalendarEvent(payload);
         addEvents(saved);
-        toast.success(
-          saved.length > 1 ? `${saved.length} évènements créés` : "Évènement créé",
-        );
     }
     setOpen(false);
     resetForm();
     } catch (error) {
       console.error("Calendar event save failed", error);
-      toast.error("Sauvegarde impossible pour le moment");
     }
   };
 
@@ -444,12 +410,10 @@ export default function AgendaPage() {
         } else {
           deleteEvent(editing.id);
         }
-      toast.success("Évènement supprimé");
         setOpen(false);
         resetForm();
       } catch (error) {
         console.error("Calendar event delete failed", error);
-        toast.error("Suppression impossible pour le moment");
       }
     }
   };

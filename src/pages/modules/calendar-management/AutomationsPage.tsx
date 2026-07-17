@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Bell, Zap, Calendar as CalendarIcon, CheckCircle2, Clock, Mail, Webhook, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { useCalendarStore, type AutomationType, type CalendarEvent } from "@/stores/calendarStore";
 import { formatCurrency } from "@/data/staticData";
 import Header from "@/components/layout/Header";
@@ -104,7 +103,6 @@ export default function AutomationsPage() {
           setAllEvents(remote);
         } catch (error) {
           console.error("Failed to load calendar events", error);
-          toast.error("Impossible de charger les evenements");
         }
       };
 
@@ -127,7 +125,6 @@ export default function AutomationsPage() {
         setEventsForActivity(effectiveActivityId, remote);
       } catch (error) {
         console.error("Failed to load calendar events", error);
-        toast.error("Impossible de charger les evenements");
       }
     };
 
@@ -197,15 +194,12 @@ export default function AutomationsPage() {
       return;
     }
     if (!title.trim()) {
-      toast.error("Titre requis");
       return;
     }
     if (notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail.trim())) {
-      toast.error("Adresse e-mail invalide");
       return;
     }
     if (discordWebhook && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/.+/.test(discordWebhook.trim())) {
-      toast.error("Lien webhook Discord invalide");
       return;
     }
     const nextStart = new Date(start).toISOString();
@@ -234,12 +228,10 @@ export default function AutomationsPage() {
     try {
       const saved = await updateCalendarEvent(editing.id, payload);
       updateEvent(editing.id, saved);
-    toast.success("Évènement mis à jour");
-    setOpen(false);
-    resetForm();
+      setOpen(false);
+      resetForm();
     } catch (error) {
       console.error("Calendar event save failed", error);
-      toast.error("Sauvegarde impossible pour le moment");
     }
   };
 
@@ -250,12 +242,10 @@ export default function AutomationsPage() {
     try {
       await deleteCalendarEvent(editing.id);
       deleteEvent(editing.id);
-    toast.success("Évènement supprimé");
-    setOpen(false);
-    resetForm();
+      setOpen(false);
+      resetForm();
     } catch (error) {
       console.error("Calendar event delete failed", error);
-      toast.error("Suppression impossible pour le moment");
     }
   };
 
