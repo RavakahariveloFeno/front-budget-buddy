@@ -644,7 +644,7 @@ export default function AgendaPage() {
                       id="evt-recurrence-count"
                       type="number"
                       min="2"
-                      max={recurrenceFrequency === "DAILY" ? "365" : recurrenceFrequency === "WEEKLY" ? "104" : "60"}
+                      
                       value={recurrenceCount}
                       onChange={setRecurrenceCount}
                       required
