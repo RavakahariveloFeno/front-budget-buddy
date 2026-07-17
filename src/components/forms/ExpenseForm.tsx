@@ -5,11 +5,9 @@ import SelectField from "@/components/dialogs/SelectField";
 import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
 import CategoryForm from "@/components/forms/CategoryForm";
 import { formatCurrency, type Activity, type Category, type Expense } from "@/data/staticData";
-import type { ExpensePayload, RecurringExpensePayload } from "@/api/expenseApi";
+import type { ExpensePayload } from "@/api/expenseApi";
 import type { CategoryPayload } from "@/api/categoryApi";
 import { toast } from "@/hooks/use-toast";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 
 interface Props {
   open: boolean;
@@ -20,7 +18,6 @@ interface Props {
   activityNetById?: Record<string, number>;
   categories: Category[];
   onCreate: (payload: ExpensePayload) => Promise<void>;
-  onCreateRecurring: (payload: RecurringExpensePayload) => Promise<void>;
   onUpdate: (id: string, payload: ExpensePayload) => Promise<void>;
   onCreateCategory?: (payload: CategoryPayload) => Promise<Category>;
 }
@@ -41,7 +38,6 @@ export default function ExpenseForm({
   activityNetById = {},
   categories,
   onCreate,
-  onCreateRecurring,
   onUpdate,
   onCreateCategory,
 }: Props) {
@@ -52,9 +48,6 @@ export default function ExpenseForm({
   const [paymentType, setPaymentType] = useState<"CARD" | "CASH" | "MOBILE">("CARD");
   const [categoryId, setCategoryId] = useState("none");
   const [activityId, setActivityId] = useState("none");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceFrequency, setRecurrenceFrequency] = useState<"DAY" | "WEEK" | "MONTH">("MONTH");
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [overBudgetConfirm, setOverBudgetConfirm] = useState<OverBudgetConfirmState | null>(null);
   const [categoryFormOpen, setCategoryFormOpen] = useState(false);
@@ -66,14 +59,6 @@ export default function ExpenseForm({
   const actOptions = useMemo(
     () => [{ value: "none", label: "Aucune" }, ...activities.map((activity) => ({ value: activity.id, label: activity.name }))],
     [activities],
-  );
-  const recurrenceOptions = useMemo(
-    () => [
-      { value: "DAY", label: "Chaque jour" },
-      { value: "WEEK", label: "Chaque semaine" },
-      { value: "MONTH", label: "Chaque mois" },
-    ],
-    [],
   );
   const paymentOptions = useMemo(
     () => [
@@ -95,9 +80,6 @@ export default function ExpenseForm({
     setPaymentType(expense?.paymentType || "CARD");
     setCategoryId(expense?.categoryId || "none");
     setActivityId(lockedActivityId || expense?.activityId || "none");
-    setIsRecurring(false);
-    setRecurrenceFrequency("MONTH");
-    setRecurrenceEndDate("");
     setOverBudgetConfirm(null);
   }, [expense, lockedActivityId, open]);
 
@@ -149,18 +131,6 @@ export default function ExpenseForm({
       setIsSubmitting(true);
       if (isEdit && expense) {
         await onUpdate(expense.id, payload);
-      } else if (isRecurring) {
-        if (recurrenceEndDate && recurrenceEndDate < date) {
-          toast({ title: "Date invalide", description: "La date de fin doit etre apres la date de debut." });
-          return;
-        }
-
-        await onCreateRecurring({
-          ...payloadBase,
-          startDate: date,
-          endDate: recurrenceEndDate || undefined,
-          frequency: recurrenceFrequency,
-        });
       } else {
         if (activityId !== "none") {
           const activityName = activities.find((activity) => activity.id === activityId)?.name || "cette activite";
@@ -192,33 +162,17 @@ export default function ExpenseForm({
         <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (MGA)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />
-        <FormFieldInput label={isEdit ? "Date" : isRecurring ? "Date de debut" : "Date"} id="exp-date" type="date" value={date} onChange={setDate} required />
+        <FormFieldInput label="Date" id="exp-date" type="date" value={date} onChange={setDate} required />
         <SelectField label="Paiement" value={paymentType} onValueChange={(value) => setPaymentType(value as "CARD" | "CASH" | "MOBILE")} options={paymentOptions} />
         <SelectField label="Categorie" value={categoryId} onValueChange={setCategoryId} options={catOptions} onAddClick={onCreateCategory ? () => setCategoryFormOpen(true) : undefined} />
         <SelectField label="Activite" value={activityId} onValueChange={setActivityId} options={actOptions} required disabled={Boolean(lockedActivityId)} />
-        {!isEdit ? (
-          <div className="space-y-2 rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm" style={{ color: "hsl(var(--foreground))" }}>
-                Depense automatique
-              </Label>
-              <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
-            </div>
-            {isRecurring ? (
-              <div className="space-y-3">
-                <SelectField label="Frequence" value={recurrenceFrequency} onValueChange={(value) => setRecurrenceFrequency(value as "DAY" | "WEEK" | "MONTH")} options={recurrenceOptions} />
-                <FormFieldInput label="Date de fin (optionnel)" id="exp-recurring-end-date" type="date" value={recurrenceEndDate} onChange={setRecurrenceEndDate} />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         <button
           type="submit"
           disabled={isSubmitting}
           className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ background: "var(--gradient-danger)", color: "hsl(var(--destructive-foreground))" }}
         >
-          {isSubmitting ? "En cours..." : isEdit ? "Enregistrer" : isRecurring ? "Programmer" : "Ajouter"}
+          {isSubmitting ? "En cours..." : isEdit ? "Enregistrer" : "Ajouter"}
         </button>
         </form>
       </FormDialog>
