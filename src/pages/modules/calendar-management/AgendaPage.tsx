@@ -315,7 +315,17 @@ export default function AgendaPage() {
     setStart(toLocalInput(new Date(ev.start)));
     setEnd(toLocalInput(new Date(ev.end)));
     setAllDay(Boolean(ev.allDay));
-    setRecurrenceFrequency("NONE");
+    setRecurrenceFrequency(ev.recurrence?.frequency ?? "NONE");
+    setRecurrenceInterval(String(ev.recurrence?.interval ?? 1));
+    if (ev.recurrence?.until) {
+      setRecurrenceEndType("until");
+      setRecurrenceUntil(toLocalDateInput(new Date(ev.recurrence.until)));
+    } else if (ev.recurrence?.count) {
+      setRecurrenceEndType("count");
+      setRecurrenceCount(String(ev.recurrence.count));
+    } else {
+      setRecurrenceEndType("until");
+    }
     setNotify(ev.notify);
     setReminderDays(ev.reminderDays !== undefined ? String(ev.reminderDays) : "1");
     setNotifyEmail(ev.notificationTargets?.email || "");

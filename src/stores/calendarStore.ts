@@ -29,6 +29,7 @@ export interface CalendarEvent {
   triggered?: boolean;
   seriesId?: string;
   activityId: string;
+  recurrence?: EventRecurrence;
   automation: {
     type: AutomationType;
     amount?: number;
