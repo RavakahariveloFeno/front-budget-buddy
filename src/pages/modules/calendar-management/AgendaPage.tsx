@@ -315,7 +315,17 @@ export default function AgendaPage() {
     setStart(toLocalInput(new Date(ev.start)));
     setEnd(toLocalInput(new Date(ev.end)));
     setAllDay(Boolean(ev.allDay));
-    setRecurrenceFrequency("NONE");
+    setRecurrenceFrequency(ev.recurrence?.frequency ?? "NONE");
+    setRecurrenceInterval(String(ev.recurrence?.interval ?? 1));
+    if (ev.recurrence?.until) {
+      setRecurrenceEndType("until");
+      setRecurrenceUntil(toLocalDateInput(new Date(ev.recurrence.until)));
+    } else if (ev.recurrence?.count) {
+      setRecurrenceEndType("count");
+      setRecurrenceCount(String(ev.recurrence.count));
+    } else {
+      setRecurrenceEndType("until");
+    }
     setNotify(ev.notify);
     setReminderDays(ev.reminderDays !== undefined ? String(ev.reminderDays) : "1");
     setNotifyEmail(ev.notificationTargets?.email || "");
@@ -682,7 +692,7 @@ export default function AgendaPage() {
 
           {editing?.seriesId && (
             <p className="text-xs rounded-md px-2 py-1.5" style={{ color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))" }}>
-              Cet Ã©vÃ¨nement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
+              Cet évènement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
             </p>
           )}
 
