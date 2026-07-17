@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Activity as ActivityIcon,
   ArrowLeftRight,
@@ -34,7 +34,7 @@ import type { Investment, Loan } from "@/data/staticData";
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
-/* ─────────────────────────────── helpers ─────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function CircularProgress({
   value,
@@ -81,7 +81,7 @@ function CircularProgress({
   );
 }
 
-/* ─────────────────────────────── StatCard ─────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ StatCard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function StatCard({
   label,
@@ -164,7 +164,7 @@ function StatCard({
   );
 }
 
-/* ─────────────────────────────── constants ─────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const CHART_COLORS = [
   "#10b981",
@@ -225,7 +225,7 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   OTHER: "Autre",
 };
 
-/* ─────────────────────────────── Dashboard ─────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export default function Dashboard() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
@@ -464,7 +464,7 @@ export default function Dashboard() {
 
       <div className="space-y-6 p-6">
 
-        {/* ── Hero + Stat Cards ── */}
+        {/* â”€â”€ Hero + Stat Cards â”€â”€ */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
 
           {/* Hero balance */}
@@ -843,7 +843,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Transactions + Loans ── */}
+          {/* ── Transactions + Loans ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
 
           {/* Recent transactions */}
@@ -909,13 +909,13 @@ export default function Dashboard() {
                   let title = "";
                   let subtitle = "";
                   if (tx.kind === "loanPayment") {
-                    title = `Paiement pret Â· ${tx.lenderName}`;
-                    subtitle = `${formatDate(tx.date)} Â· ${tx.activityName || "-"}${tx.note ? ` Â· ${tx.note}` : ""}`;
+                    title = `Paiement prêt · ${tx.lenderName}`;
+                    subtitle = `${formatDate(tx.date)} · ${tx.activityName || "-"}${tx.note ? ` · ${tx.note}` : ""}`;
                   } else if (tx.kind === "income") {
                     title = tx.description || "Revenu";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "expense") {
-                    title = tx.description || "Depense";
+                    title = tx.description || "Dépense";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "loan") {
                     title = `${tx.direction === "LENT" ? "Prêt accordé" : "Emprunt"} · ${tx.lenderName}`;
@@ -997,11 +997,11 @@ export default function Dashboard() {
                           }}
                         >
                           {tx.kind === "income"
-                            ? "Entrée"
+                            ? "EntrÃ©e"
                             : tx.kind === "expense"
                               ? "Sortie"
                               : tx.kind === "loan"
-                                ? "Prêt"
+                                ? "PrÃªt"
                                 : tx.kind === "loanPayment"
                                   ? "Paiement"
                                 : "Invest."}
@@ -1189,7 +1189,7 @@ export default function Dashboard() {
                 >
                   Analyse du solde
                 </p>
-                <span className="badge-income">Synthèse</span>
+                  <span className="badge-income">Synthèse</span>
               </div>
 
               <div className="space-y-4">
@@ -1487,9 +1487,9 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                      <span>💵 {cashPct}%</span>
-                      <span>💳 {cardPct}%</span>
-                      <span>📱 {mobilePct}%</span>
+                      <span>ðŸ’µ {cashPct}%</span>
+                      <span>ðŸ’³ {cardPct}%</span>
+                      <span>ðŸ“± {mobilePct}%</span>
                     </div>
                   </div>)}
 
@@ -1517,3 +1517,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

@@ -12,7 +12,7 @@ export interface CalendarNotificationPayload {
   note?: string;
   date?: string;
   mode?: "REMINDER" | "EVENT";
-  reminderMinutes?: number;
+  reminderDays?: number;
   email?: string;
   discordWebhook?: string;
 }

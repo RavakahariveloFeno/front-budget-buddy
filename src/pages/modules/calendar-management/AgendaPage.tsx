@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Calendar, dateFnsLocalizer, View, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -102,7 +102,7 @@ export default function AgendaPage() {
   });
   const [recurrenceCount, setRecurrenceCount] = useState("12");
   const [notify, setNotify] = useState(true);
-  const [reminderMinutes, setReminderMinutes] = useState("15");
+  const [reminderDays, setReminderDays] = useState("1");
   const [notifyEmail, setNotifyEmail] = useState("");
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
@@ -131,6 +131,26 @@ export default function AgendaPage() {
   const calendarActivities = useMemo(() => {
     return activities.filter((a) => calendarEnabledByActivityId[a.id]);
   }, [activities, calendarEnabledByActivityId]);
+
+  const refreshEvents = useCallback(async () => {
+    if (showAllActivities) {
+      const remote = await getCalendarEvents();
+      setAllEvents(remote);
+      return;
+    }
+
+    if (!effectiveActivityId) {
+      return;
+    }
+
+    if (!isEffectiveActivityCalendarEnabled) {
+      setEventsForActivity(effectiveActivityId, []);
+      return;
+    }
+
+    const remote = await getCalendarEvents(effectiveActivityId);
+    setEventsForActivity(effectiveActivityId, remote);
+  }, [effectiveActivityId, isEffectiveActivityCalendarEnabled, setAllEvents, setEventsForActivity, showAllActivities]);
 
   useEffect(() => {
     const loadActivities = async () => {
@@ -181,34 +201,9 @@ export default function AgendaPage() {
   );
 
   useEffect(() => {
-    if (showAllActivities) {
-      const loadAll = async () => {
-        try {
-          const remote = await getCalendarEvents();
-          setAllEvents(remote);
-        } catch (error) {
-          console.error("Failed to load calendar events", error);
-          toast.error("Impossible de charger les evenements");
-        }
-      };
-
-      void loadAll();
-      return;
-    }
-
-    if (!effectiveActivityId) {
-      return;
-    }
-
-    if (!isEffectiveActivityCalendarEnabled) {
-      setEventsForActivity(effectiveActivityId, []);
-      return;
-    }
-
     const load = async () => {
       try {
-        const remote = await getCalendarEvents(effectiveActivityId);
-        setEventsForActivity(effectiveActivityId, remote);
+        await refreshEvents();
       } catch (error) {
         console.error("Failed to load calendar events", error);
         toast.error("Impossible de charger les evenements");
@@ -216,7 +211,7 @@ export default function AgendaPage() {
     };
 
     void load();
-  }, [effectiveActivityId, isEffectiveActivityCalendarEnabled, showAllActivities, setAllEvents, setEventsForActivity]);
+  }, [refreshEvents]);
 
   const calendarEvents = useMemo(
     () =>
@@ -235,9 +230,9 @@ export default function AgendaPage() {
     const description =
       ev.note ||
       (mode === "REMINDER"
-        ? `Échéance dans ${ev.reminderMinutes ?? 0} min`
+        ? `Échéance dans ${ev.reminderDays ?? 0} jour(s)`
         : ev.automation.type !== "NONE"
-          ? "Action automatique en cours…"
+          ? "Action automatique en coursâ€¦"
           : undefined);
 
     if (ev.notify) {
@@ -260,11 +255,11 @@ export default function AgendaPage() {
       const now = Date.now();
       for (const ev of activityEvents) {
         const eventTime = new Date(ev.start).getTime();
-        const reminderAt = eventTime - (ev.reminderMinutes ?? 0) * 60_000;
+        const reminderAt = eventTime - (ev.reminderDays ?? 0) * 24 * 60 * 60 * 1000;
         const isReminderDue = reminderAt <= now && now < eventTime;
         const isEventDue = eventTime <= now;
 
-        if (ev.notify && (ev.reminderMinutes ?? 0) > 0 && isReminderDue && !ev.reminderSentAt) {
+        if (ev.notify && (ev.reminderDays ?? 0) > 0 && isReminderDue && !ev.reminderSentAt) {
           dispatchNotification(ev, "REMINDER");
           updateEvent(ev.id, { reminderSentAt: new Date().toISOString() });
         }
@@ -295,7 +290,7 @@ export default function AgendaPage() {
     setRecurrenceUntil(toLocalDateInput(defaultUntil));
     setRecurrenceCount("12");
     setNotify(true);
-    setReminderMinutes("15");
+    setReminderDays("1");
     setNotifyEmail("");
     setDiscordWebhook("");
     setAutoType("NONE");
@@ -322,7 +317,7 @@ export default function AgendaPage() {
     setAllDay(Boolean(ev.allDay));
     setRecurrenceFrequency("NONE");
     setNotify(ev.notify);
-    setReminderMinutes(ev.reminderMinutes !== undefined ? String(ev.reminderMinutes) : "15");
+    setReminderDays(ev.reminderDays !== undefined ? String(ev.reminderDays) : "1");
     setNotifyEmail(ev.notificationTargets?.email || "");
     setDiscordWebhook(ev.notificationTargets?.discordWebhook || "");
     setAutoType(ev.automation.type);
@@ -373,7 +368,7 @@ export default function AgendaPage() {
 
     const interval = Math.max(1, Number(recurrenceInterval) || 1);
     const recurrence =
-      !editing && recurrenceFrequency !== "NONE"
+      recurrenceFrequency !== "NONE"
         ? {
             frequency: recurrenceFrequency,
             interval,
@@ -390,7 +385,7 @@ export default function AgendaPage() {
       end: nextEnd,
       allDay,
       notify,
-      reminderMinutes: reminderMinutes ? Math.max(0, Number(reminderMinutes)) : 0,
+      reminderDays: reminderDays ? Math.max(0, Number(reminderDays)) : 0,
       reminderSentAt: editing?.reminderSentAt && editing.start === nextStart ? editing.reminderSentAt : undefined,
       notificationTargets: {
         email: notifyEmail.trim() || undefined,
@@ -409,7 +404,11 @@ export default function AgendaPage() {
     try {
       if (editing) {
         const saved = await updateCalendarEvent(editing.id, payload);
-        updateEvent(editing.id, saved);
+        if (Array.isArray(saved)) {
+          await refreshEvents();
+        } else {
+          updateEvent(editing.id, saved);
+        }
       toast.success("Évènement mis à jour");
     } else {
         const saved = await createCalendarEvent(payload);
@@ -430,7 +429,11 @@ export default function AgendaPage() {
     if (editing) {
       try {
         await deleteCalendarEvent(editing.id);
-        deleteEvent(editing.id);
+        if (editing.seriesId) {
+          await refreshEvents();
+        } else {
+          deleteEvent(editing.id);
+        }
       toast.success("Évènement supprimé");
         setOpen(false);
         resetForm();
@@ -591,8 +594,35 @@ export default function AgendaPage() {
             />
           </div>
 
-          {!editing && (
-            <div className="rounded-lg p-3 space-y-3" style={{ background: "hsl(var(--secondary))" }}>
+          {showAllActivities && (
+            <div className="space-y-1.5">
+              <Label className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Activité *
+              </Label>
+              <Select
+                value={createActivityId || (editing ? editing.activityId : "")}
+                onValueChange={setCreateActivityId}
+                disabled={Boolean(editing)}
+              >
+                <SelectTrigger
+                  disabled={Boolean(editing)}
+                  className="border-border"
+                  style={{ background: "hsl(var(--input))", color: "hsl(var(--foreground))" }}
+                >
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent style={{ background: "hsl(225, 27%, 12%)", borderColor: "hsl(var(--border))" }}>
+                  {activities.map((act) => (
+                    <SelectItem key={act.id} value={act.id} disabled={!calendarEnabledByActivityId[act.id]}>
+                      {act.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="rounded-lg p-3 space-y-3" style={{ background: "hsl(var(--secondary))" }}>
               <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
                 Récurrence
               </p>
@@ -649,11 +679,10 @@ export default function AgendaPage() {
                 </>
               )}
             </div>
-          )}
 
           {editing?.seriesId && (
             <p className="text-xs rounded-md px-2 py-1.5" style={{ color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))" }}>
-              Cet évènement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
+              Cet Ã©vÃ¨nement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
             </p>
           )}
 
@@ -663,13 +692,13 @@ export default function AgendaPage() {
           </label>
           <div className="space-y-3">
             <FormFieldInput
-              label="Rappel (minutes avant)"
+              label="Rappel (jours avant)"
               id="evt-reminder"
               type="number"
               min="0"
-              value={reminderMinutes}
-              onChange={setReminderMinutes}
-              placeholder="15"
+              value={reminderDays}
+              onChange={setReminderDays}
+              placeholder="1"
             />
             <FormFieldInput
               label="Email notification (optionnel)"
@@ -746,3 +775,6 @@ export default function AgendaPage() {
     </div>
   );
 }
+
+
+

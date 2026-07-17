@@ -10,6 +10,7 @@ import type { RecurringExpense } from "@/api/expenseApi";
 import { getBudgets, getBudgetStatistics } from "@/api/budgetApi";
 import { getLoans } from "@/api/loanApi";
 import { getNotificationState, updateNotificationState } from "@/api/notificationApi";
+import { getCalendarEvents } from "@/api/calendarApi";
 import type { Budget, Expense, Income, Loan } from "@/data/staticData";
 import { formatCurrency } from "@/data/staticData";
 import { useMobileMenu } from "./mobile-menu";
@@ -18,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getActivities } from "@/api/activityApi";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
-import { useCalendarStore, type CalendarEvent } from "@/stores/calendarStore";
+import type { CalendarEvent } from "@/stores/calendarStore";
 
 interface HeaderProps {
   title: string;
@@ -277,8 +278,8 @@ function buildCalendarAlerts(events: CalendarEvent[], now: Date, selectedActivit
       const to = `/activities/${event.activityId}/modules/mod-calendrier/agenda`;
       const items: AppNotification[] = [];
 
-      if (event.notify && (event.reminderMinutes ?? 0) > 0 && !event.reminderSentAt) {
-        const reminderAt = eventTime - (event.reminderMinutes ?? 0) * 60 * 1000;
+      if (event.notify && (event.reminderDays ?? 0) > 0 && !event.reminderSentAt) {
+        const reminderAt = eventTime - (event.reminderDays ?? 0) * 24 * 60 * 60 * 1000;
         if (reminderAt <= nowTime && eventTime + 60 * 60 * 1000 >= nowTime) {
           items.push({
             id: `cal-reminder-${event.id}-${event.start}`,
@@ -337,7 +338,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const readNotificationIdsRef = useRef<string[]>([]);
   const seenNotificationMapRef = useRef<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(0);
-  const calendarEvents = useCalendarStore((s) => s.events);
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.id ?? null;
   const isManagedProfile = Boolean(currentUser?.profileId);
@@ -582,7 +582,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
       setNotificationsLoading(true);
     }
 
-    const [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult] = await Promise.allSettled([
+    const [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult, calendarEventsResult] = await Promise.allSettled([
       getRecurringIncomes(),
       getRecurringExpenses(),
       getIncomes(),
@@ -590,6 +590,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
       getBudgets(),
       getBudgetStatistics(),
       getLoans(),
+      getCalendarEvents(selectedActivityId ?? undefined),
     ]);
 
     const now = new Date();
@@ -616,9 +617,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
       nextNotifications.push(...buildLoanAlerts(loansResult.value, today));
     }
 
-    nextNotifications.push(...buildCalendarAlerts(calendarEvents, now, selectedActivityId ?? null));
+    if (calendarEventsResult.status === "fulfilled") {
+      nextNotifications.push(...buildCalendarAlerts(calendarEventsResult.value, now, selectedActivityId ?? null));
+    }
 
-    const failedCount = [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult].filter(
+    const failedCount = [recIncomeResult, recExpenseResult, incomesResult, expensesResult, budgetsResult, budgetStatsResult, loansResult, calendarEventsResult].filter(
       (result) => result.status === "rejected",
     ).length;
     if (failedCount > 0) {
@@ -644,7 +647,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
     });
     setNotifications(nextNotifications.slice(0, 8));
     setNotificationsLoading(false);
-  }, [calendarEvents, selectedActivityId, trackSeenNotifications]);
+  }, [selectedActivityId, trackSeenNotifications]);
 
   useEffect(() => {
     let cancelled = false;

@@ -17,7 +17,9 @@ export type CalendarEventCreatePayload = Omit<
 
 export type CalendarEventUpdatePayload = Partial<
   Omit<CalendarEvent, "id" | "activityId">
->;
+> & {
+  recurrence?: EventRecurrence;
+};
 
 export async function getCalendarEvents(activityId?: string): Promise<CalendarEvent[]> {
   const userId = getRequiredUserId();
@@ -49,7 +51,7 @@ export async function createCalendarEvent(payload: CalendarEventCreatePayload): 
   return Array.isArray(data) ? data : [data];
 }
 
-export async function updateCalendarEvent(id: string, patch: CalendarEventUpdatePayload): Promise<CalendarEvent> {
+export async function updateCalendarEvent(id: string, patch: CalendarEventUpdatePayload): Promise<CalendarEvent | CalendarEvent[]> {
   const userId = getRequiredUserId();
   const response = await fetch(`${CALENDAR_API_URL}/events/${id}`, {
     method: "PATCH",
