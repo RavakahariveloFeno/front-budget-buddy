@@ -1,16 +1,18 @@
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
-import type { CalendarEvent } from "@/stores/calendarStore";
+import type { CalendarEvent, EventRecurrence } from "@/stores/calendarStore";
 
 const CALENDAR_API_URL = `${import.meta.env.VITE_API_URL}/calendar`;
 
 export type CalendarEventCreatePayload = Omit<
   CalendarEvent,
-  "id" | "notified" | "triggered" | "reminderSentAt"
+  "id" | "notified" | "triggered" | "reminderSentAt" | "seriesId"
 > & {
   id?: never;
   notified?: boolean;
   triggered?: boolean;
   reminderSentAt?: string;
+  seriesId?: never;
+  recurrence?: EventRecurrence;
 };
 
 export type CalendarEventUpdatePayload = Partial<
@@ -33,7 +35,7 @@ export async function getCalendarEvents(activityId?: string): Promise<CalendarEv
   return Array.isArray(data) ? (data as CalendarEvent[]) : [];
 }
 
-export async function createCalendarEvent(payload: CalendarEventCreatePayload): Promise<CalendarEvent> {
+export async function createCalendarEvent(payload: CalendarEventCreatePayload): Promise<CalendarEvent[]> {
   const userId = getRequiredUserId();
   const response = await fetch(`${CALENDAR_API_URL}/events`, {
     method: "POST",
@@ -43,7 +45,8 @@ export async function createCalendarEvent(payload: CalendarEventCreatePayload): 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
-  return (await response.json()) as CalendarEvent;
+  const data = (await response.json()) as CalendarEvent | CalendarEvent[];
+  return Array.isArray(data) ? data : [data];
 }
 
 export async function updateCalendarEvent(id: string, patch: CalendarEventUpdatePayload): Promise<CalendarEvent> {

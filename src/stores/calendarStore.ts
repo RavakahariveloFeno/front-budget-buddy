@@ -2,12 +2,22 @@ import { create } from "zustand";
 
 export type AutomationType = "NONE" | "INCOME" | "EXPENSE";
 
+export type RecurrenceFrequency = "NONE" | "DAILY" | "WEEKLY" | "MONTHLY";
+
+export interface EventRecurrence {
+  frequency: RecurrenceFrequency;
+  interval?: number;
+  until?: string;
+  count?: number;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
   note?: string;
   start: string; // ISO
   end: string; // ISO
+  allDay?: boolean;
   notify: boolean;
   reminderMinutes?: number;
   reminderSentAt?: string;
@@ -17,6 +27,7 @@ export interface CalendarEvent {
   };
   notified?: boolean;
   triggered?: boolean;
+  seriesId?: string;
   activityId: string;
   automation: {
     type: AutomationType;
@@ -31,6 +42,7 @@ interface CalendarStore {
   setAllEvents: (events: CalendarEvent[]) => void;
   setEventsForActivity: (activityId: string, events: CalendarEvent[]) => void;
   addEvent: (event: CalendarEvent) => void;
+  addEvents: (events: CalendarEvent[]) => void;
   updateEvent: (id: string, patch: Partial<CalendarEvent>) => void;
   deleteEvent: (id: string) => void;
   markNotified: (id: string) => void;
@@ -47,6 +59,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
       return { events: [...other, ...events] };
     }),
   addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
+  addEvents: (events) => set((s) => ({ events: [...s.events, ...events] })),
   updateEvent: (id, patch) =>
     set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
   deleteEvent: (id) => set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
