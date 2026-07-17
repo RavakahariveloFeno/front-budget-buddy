@@ -909,20 +909,20 @@ export default function Dashboard() {
                   let title = "";
                   let subtitle = "";
                   if (tx.kind === "loanPayment") {
-                    title = `Paiement prêt Ã‚· ${tx.lenderName}`;
-                    subtitle = `${formatDate(tx.date)} Ã‚· ${tx.activityName || "-"}${tx.note ? ` Ã‚· ${tx.note}` : ""}`;
+                    title = `Paiement prêt · ${tx.lenderName}`;
+                    subtitle = `${formatDate(tx.date)} · ${tx.activityName || "-"}${tx.note ? ` · ${tx.note}` : ""}`;
                   } else if (tx.kind === "income") {
                     title = tx.description || "Revenu";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "expense") {
-                    title = tx.description || "Depense";
+                    title = tx.description || "Dépense";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "loan") {
-                    title = `${tx.direction === "LENT" ? "PrÃªt accordÃ©" : "Emprunt"} · ${tx.lenderName}`;
+                    title = `${tx.direction === "LENT" ? "Prêt accordé" : "Emprunt"} · ${tx.lenderName}`;
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || "-"}`;
                   } else {
-                    title = `Transfert · ${tx.fromActivityName || "-"} â†’ ${tx.toActivityName || "-"}`;
-                    subtitle = `${formatDate(tx.date)} · ${tx.fromActivityName || "-"} â†’ ${tx.toActivityName || "-"}`;
+                    title = `Transfert · ${tx.fromActivityName || "-"} → ${tx.toActivityName || "-"}`;
+                    subtitle = `${formatDate(tx.date)} · ${tx.fromActivityName || "-"} → ${tx.toActivityName || "-"}`;
                   }
 
                   return (
