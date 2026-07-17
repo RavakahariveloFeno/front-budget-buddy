@@ -369,7 +369,12 @@ export default function FacturesPage() {
         </div>
       </div>
 
-      <FormDialog open={viewMode === "form"} onOpenChange={(open) => setViewMode(open ? "form" : "list")} title={editing ? "Modifier la facture" : "Nouvelle facture"}>
+      <FormDialog
+        open={viewMode === "form"}
+        onOpenChange={(open) => setViewMode(open ? "form" : "list")}
+        title={editing ? "Modifier la facture" : "Nouvelle facture"}
+        className="sm:max-w-4xl xl:max-w-6xl"
+      >
         {factureForm}
       </FormDialog>
 
