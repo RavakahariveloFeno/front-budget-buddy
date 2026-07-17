@@ -24,7 +24,7 @@ const NO_CLIENT_VALUE = "__NO_CLIENT__";
 function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
 
 const statutColor: Record<FactureStatut, string> = {
-  "PAYÃ‰E": "default",
+  "PAYÉE": "default",
   "EN_ATTENTE": "secondary",
   "ANNULÃ‰E": "destructive",
 };
@@ -171,7 +171,7 @@ export default function FacturesPage() {
   const handleLinkOne = async (facture: Facture) => {
     if (!activityId) return;
     const nextLinked = !Boolean(facture.linkedToGlobalIncome);
-    if (nextLinked && facture.statut !== "PAYÃ‰E") {
+    if (nextLinked && facture.statut !== "PAYÉE") {
       toast({ title: "Seules les factures payées peuvent être liées", variant: "destructive" });
       return;
     }
@@ -198,7 +198,7 @@ export default function FacturesPage() {
     if (!activityId) return;
     try {
       const linkedCount = await linkAllInvoicesIncome({ activityId });
-      setFactures((prev) => prev.map((row) => (row.statut === "PAYÃ‰E" ? { ...row, linkedToGlobalIncome: true } : row)));
+      setFactures((prev) => prev.map((row) => (row.statut === "PAYÉE" ? { ...row, linkedToGlobalIncome: true } : row)));
       toast({ title: `${linkedCount} facture(s) liée(s) au revenu global` });
     } catch (error) {
       toast({ title: "Impossible de lier toutes les factures", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
@@ -219,7 +219,7 @@ export default function FacturesPage() {
     }
   };
 
-  const totalPayee = factures.filter((f) => f.statut === "PAYÃ‰E").reduce((s, f) => s + f.total, 0);
+  const totalPayee = factures.filter((f) => f.statut === "PAYÉE").reduce((s, f) => s + f.total, 0);
   const totalEnAttente = factures.filter((f) => f.statut === "EN_ATTENTE").reduce((s, f) => s + f.total, 0);
 
   const factureForm = (
@@ -247,7 +247,7 @@ export default function FacturesPage() {
           onValueChange={setStatut}
           options={[
             { value: "EN_ATTENTE", label: "En attente" },
-            { value: "PAYÃ‰E", label: "Payée" },
+            { value: "PAYÉE", label: "Payée" },
             { value: "ANNULÃ‰E", label: "Annulée" },
           ]}
         />
@@ -354,7 +354,7 @@ export default function FacturesPage() {
                   <TableCell><Badge variant={statutColor[f.statut] as any}>{f.statut.replace("_", " ")}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <button onClick={() => handleLinkOne(f)} disabled={f.statut !== "PAYÃ‰E" && !f.linkedToGlobalIncome} className="p-1.5 rounded hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed">
+                      <button onClick={() => handleLinkOne(f)} disabled={f.statut !== "PAYÉE" && !f.linkedToGlobalIncome} className="p-1.5 rounded hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed">
                         {f.linkedToGlobalIncome ? <Link2Off size={14} className="text-destructive" /> : <Link size={14} className="text-primary" />}
                       </button>
                       <button onClick={() => { setViewing(f); setDetailOpen(true); }} className="p-1.5 rounded hover:bg-accent"><Eye size={14} className="text-primary" /></button>
