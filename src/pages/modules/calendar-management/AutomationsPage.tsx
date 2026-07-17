@@ -227,7 +227,7 @@ export default function AutomationsPage() {
     };
     try {
       const saved = await updateCalendarEvent(editing.id, payload);
-      updateEvent(editing.id, saved);
+      updateEvent(editing.id, saved as any);
       setOpen(false);
       resetForm();
     } catch (error) {

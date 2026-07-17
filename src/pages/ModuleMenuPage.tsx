@@ -164,14 +164,6 @@ export default function ModuleMenuPage() {
     <div className="animate-fade-in">
       {/* Top bar: back + module name */}
       <div className="px-6 pt-4 pb-2 flex items-center gap-3">
-        <button
-          onClick={() => navigate(`/activities/${activityId}`)}
-          className="flex items-center gap-1.5 text-sm hover:underline"
-          style={{ color: "hsl(var(--muted-foreground))" }}
-        >
-          <ArrowLeft size={14} /> Retour
-        </button>
-        <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>|</span>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <DynamicIcon name={module.icon} size={16} style={{ color: `hsl(var(--${module.color}))` }} />
           <span className="text-sm font-semibold truncate" style={{ color: "hsl(var(--foreground))" }}>{module.name}</span>

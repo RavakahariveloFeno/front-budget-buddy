@@ -381,7 +381,7 @@ export default function AgendaPage() {
         description: autoDesc.trim() || undefined,
       },
       recurrence,
-    } as Omit<CalendarEvent, "id"> & { recurrence?: typeof recurrence };
+    } as any;
     try {
       if (editing) {
       const saved = await updateCalendarEvent(editing.id, payload);
@@ -644,7 +644,7 @@ export default function AgendaPage() {
                       id="evt-recurrence-count"
                       type="number"
                       min="2"
-                      max={recurrenceFrequency === "DAILY" ? "365" : recurrenceFrequency === "WEEKLY" ? "104" : "60"}
+                      
                       value={recurrenceCount}
                       onChange={setRecurrenceCount}
                       required
