@@ -7,7 +7,7 @@ import { Bell, Plus, Zap, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
-import { useCalendarStore, type CalendarEvent, type AutomationType } from "@/stores/calendarStore";
+import { useCalendarStore, type CalendarEvent, type AutomationType, type RecurrenceFrequency } from "@/stores/calendarStore";
 import Header from "@/components/layout/Header";
 import FormDialog from "@/components/dialogs/FormDialog";
 import FormFieldInput from "@/components/dialogs/FormField";
@@ -37,10 +37,38 @@ const automationOptions = [
   { value: "EXPENSE", label: "Créer une dépense" },
 ];
 
+const recurrenceOptions = [
+  { value: "NONE", label: "Une seule fois" },
+  { value: "DAILY", label: "Chaque jour" },
+  { value: "WEEKLY", label: "Chaque semaine" },
+  { value: "MONTHLY", label: "Chaque mois" },
+];
+
+const recurrenceEndOptions = [
+  { value: "until", label: "Jusqu'à une date" },
+  { value: "count", label: "Nombre d'occurrences" },
+];
+
 function toLocalInput(date: Date) {
   const offset = date.getTimezoneOffset();
   const local = new Date(date.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+function toLocalDateInput(date: Date) {
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function endOfDay(dateStr: string) {
+  const d = new Date(`${dateStr}T23:59:59`);
+  return d.toISOString();
+}
+
+function startOfDayIso(dateStr: string) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toISOString();
 }
 
 export default function AgendaPage() {
@@ -49,7 +77,7 @@ export default function AgendaPage() {
   const events = useCalendarStore((s) => s.events);
   const setAllEvents = useCalendarStore((s) => s.setAllEvents);
   const setEventsForActivity = useCalendarStore((s) => s.setEventsForActivity);
-  const addEvent = useCalendarStore((s) => s.addEvent);
+  const addEvents = useCalendarStore((s) => s.addEvents);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
 
@@ -63,6 +91,16 @@ export default function AgendaPage() {
   const [note, setNote] = useState("");
   const [start, setStart] = useState(toLocalInput(new Date()));
   const [end, setEnd] = useState(toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
+  const [allDay, setAllDay] = useState(false);
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>("NONE");
+  const [recurrenceInterval, setRecurrenceInterval] = useState("1");
+  const [recurrenceEndType, setRecurrenceEndType] = useState<"until" | "count">("until");
+  const [recurrenceUntil, setRecurrenceUntil] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 3);
+    return toLocalDateInput(d);
+  });
+  const [recurrenceCount, setRecurrenceCount] = useState("12");
   const [notify, setNotify] = useState(true);
   const [reminderMinutes, setReminderMinutes] = useState("15");
   const [notifyEmail, setNotifyEmail] = useState("");
@@ -248,6 +286,14 @@ export default function AgendaPage() {
     setNote("");
     setStart(toLocalInput(new Date()));
     setEnd(toLocalInput(new Date(Date.now() + 60 * 60 * 1000)));
+    setAllDay(false);
+    setRecurrenceFrequency("NONE");
+    setRecurrenceInterval("1");
+    setRecurrenceEndType("until");
+    const defaultUntil = new Date();
+    defaultUntil.setMonth(defaultUntil.getMonth() + 3);
+    setRecurrenceUntil(toLocalDateInput(defaultUntil));
+    setRecurrenceCount("12");
     setNotify(true);
     setReminderMinutes("15");
     setNotifyEmail("");
@@ -273,6 +319,8 @@ export default function AgendaPage() {
     setNote(ev.note || "");
     setStart(toLocalInput(new Date(ev.start)));
     setEnd(toLocalInput(new Date(ev.end)));
+    setAllDay(Boolean(ev.allDay));
+    setRecurrenceFrequency("NONE");
     setNotify(ev.notify);
     setReminderMinutes(ev.reminderMinutes !== undefined ? String(ev.reminderMinutes) : "15");
     setNotifyEmail(ev.notificationTargets?.email || "");
@@ -315,12 +363,32 @@ export default function AgendaPage() {
       toast.error("Lien webhook Discord invalide");
       return;
     }
-    const nextStart = new Date(start).toISOString();
+    const nextStart = allDay ? startOfDayIso(start.slice(0, 10)) : new Date(start).toISOString();
+    const nextEnd = allDay ? endOfDay(end.slice(0, 10)) : new Date(end).toISOString();
+
+    if (new Date(nextEnd).getTime() < new Date(nextStart).getTime()) {
+      toast.error("La date de fin doit être après le début");
+      return;
+    }
+
+    const interval = Math.max(1, Number(recurrenceInterval) || 1);
+    const recurrence =
+      !editing && recurrenceFrequency !== "NONE"
+        ? {
+            frequency: recurrenceFrequency,
+            interval,
+            ...(recurrenceEndType === "until"
+              ? { until: endOfDay(recurrenceUntil) }
+              : { count: Math.max(2, Number(recurrenceCount) || 2) }),
+          }
+        : { frequency: "NONE" as const };
+
     const payload = {
       title: title.trim(),
       note: note.trim() || undefined,
       start: nextStart,
-      end: new Date(end).toISOString(),
+      end: nextEnd,
+      allDay,
       notify,
       reminderMinutes: reminderMinutes ? Math.max(0, Number(reminderMinutes)) : 0,
       reminderSentAt: editing?.reminderSentAt && editing.start === nextStart ? editing.reminderSentAt : undefined,
@@ -336,7 +404,8 @@ export default function AgendaPage() {
         amount: autoAmount ? Number(autoAmount) : undefined,
         description: autoDesc.trim() || undefined,
       },
-    } as Omit<CalendarEvent, "id">;
+      recurrence,
+    } as Omit<CalendarEvent, "id"> & { recurrence?: typeof recurrence };
     try {
       if (editing) {
         const saved = await updateCalendarEvent(editing.id, payload);
@@ -344,8 +413,10 @@ export default function AgendaPage() {
       toast.success("Évènement mis à jour");
     } else {
         const saved = await createCalendarEvent(payload);
-        addEvent(saved);
-      toast.success("Évènement créé");
+        addEvents(saved);
+        toast.success(
+          saved.length > 1 ? `${saved.length} évènements créés` : "Évènement créé",
+        );
     }
     setOpen(false);
     resetForm();
@@ -481,10 +552,110 @@ export default function AgendaPage() {
           )}
           <FormFieldInput label="Titre" id="evt-title" value={title} onChange={setTitle} placeholder="Ex: Loyer mensuel" required />
           <FormFieldInput label="Note" id="evt-note" value={note} onChange={setNote} placeholder="Détail optionnel" />
+
+          <label className="flex items-center gap-2 text-sm" style={{ color: "hsl(var(--foreground))" }}>
+            <input
+              type="checkbox"
+              checked={allDay}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setAllDay(checked);
+                if (checked) {
+                  setStart(toLocalDateInput(new Date(start)));
+                  setEnd(toLocalDateInput(new Date(end)));
+                } else {
+                  setStart(toLocalInput(new Date(`${start.slice(0, 10)}T09:00:00`)));
+                  setEnd(toLocalInput(new Date(`${end.slice(0, 10)}T10:00:00`)));
+                }
+              }}
+            />
+            Journée entière
+          </label>
+
           <div className="grid grid-cols-2 gap-3">
-            <FormFieldInput label="Début" id="evt-start" type="datetime-local" value={start} onChange={setStart} required />
-            <FormFieldInput label="Fin" id="evt-end" type="datetime-local" value={end} onChange={setEnd} required />
+            <FormFieldInput
+              label="Début"
+              id="evt-start"
+              type={allDay ? "date" : "datetime-local"}
+              value={allDay ? start.slice(0, 10) : start}
+              onChange={(v) => setStart(allDay ? v : v)}
+              required
+            />
+            <FormFieldInput
+              label="Fin"
+              id="evt-end"
+              type={allDay ? "date" : "datetime-local"}
+              value={allDay ? end.slice(0, 10) : end}
+              onChange={(v) => setEnd(allDay ? v : v)}
+              required
+            />
           </div>
+
+          {!editing && (
+            <div className="rounded-lg p-3 space-y-3" style={{ background: "hsl(var(--secondary))" }}>
+              <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                Récurrence
+              </p>
+              <SelectField
+                label="Fréquence"
+                value={recurrenceFrequency}
+                onValueChange={(v) => setRecurrenceFrequency(v as RecurrenceFrequency)}
+                options={recurrenceOptions}
+              />
+              {recurrenceFrequency !== "NONE" && (
+                <>
+                  <FormFieldInput
+                    label={
+                      recurrenceFrequency === "DAILY"
+                        ? "Tous les (jours)"
+                        : recurrenceFrequency === "WEEKLY"
+                          ? "Toutes les (semaines)"
+                          : "Tous les (mois)"
+                    }
+                    id="evt-recurrence-interval"
+                    type="number"
+                    min="1"
+                    value={recurrenceInterval}
+                    onChange={setRecurrenceInterval}
+                    required
+                  />
+                  <SelectField
+                    label="Fin de la série"
+                    value={recurrenceEndType}
+                    onValueChange={(v) => setRecurrenceEndType(v as "until" | "count")}
+                    options={recurrenceEndOptions}
+                  />
+                  {recurrenceEndType === "until" ? (
+                    <FormFieldInput
+                      label="Date de fin"
+                      id="evt-recurrence-until"
+                      type="date"
+                      value={recurrenceUntil}
+                      onChange={setRecurrenceUntil}
+                      required
+                    />
+                  ) : (
+                    <FormFieldInput
+                      label="Nombre d'occurrences"
+                      id="evt-recurrence-count"
+                      type="number"
+                      min="2"
+                      max={recurrenceFrequency === "DAILY" ? "365" : recurrenceFrequency === "WEEKLY" ? "104" : "60"}
+                      value={recurrenceCount}
+                      onChange={setRecurrenceCount}
+                      required
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {editing?.seriesId && (
+            <p className="text-xs rounded-md px-2 py-1.5" style={{ color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))" }}>
+              Cet évènement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
+            </p>
+          )}
 
           <label className="flex items-center gap-2 text-sm" style={{ color: "hsl(var(--foreground))" }}>
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
