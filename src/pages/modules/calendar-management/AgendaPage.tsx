@@ -381,7 +381,7 @@ export default function AgendaPage() {
         description: autoDesc.trim() || undefined,
       },
       recurrence,
-    } as Omit<CalendarEvent, "id"> & { recurrence?: typeof recurrence };
+    } as any;
     try {
       if (editing) {
       const saved = await updateCalendarEvent(editing.id, payload);
