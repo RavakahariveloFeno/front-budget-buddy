@@ -692,7 +692,7 @@ export default function AgendaPage() {
 
           {editing?.seriesId && (
             <p className="text-xs rounded-md px-2 py-1.5" style={{ color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))" }}>
-              Cet Ã©vÃ¨nement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
+              Cet évènement fait partie d'une série récurrente. La modification ne s'applique qu'à cette occurrence.
             </p>
           )}
 
