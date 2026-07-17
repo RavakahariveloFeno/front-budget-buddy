@@ -102,7 +102,7 @@ export default function AgendaPage() {
   });
   const [recurrenceCount, setRecurrenceCount] = useState("12");
   const [notify, setNotify] = useState(true);
-  const [reminderMinutes, setReminderMinutes] = useState("15");
+  const [reminderDays, setReminderDays] = useState("1");
   const [notifyEmail, setNotifyEmail] = useState("");
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
@@ -235,7 +235,7 @@ export default function AgendaPage() {
     const description =
       ev.note ||
       (mode === "REMINDER"
-        ? `Échéance dans ${ev.reminderMinutes ?? 0} min`
+        ? `Échéance dans ${ev.reminderDays ?? 0} jour(s)`
         : ev.automation.type !== "NONE"
           ? "Action automatique en cours…"
           : undefined);
@@ -260,11 +260,11 @@ export default function AgendaPage() {
       const now = Date.now();
       for (const ev of activityEvents) {
         const eventTime = new Date(ev.start).getTime();
-        const reminderAt = eventTime - (ev.reminderMinutes ?? 0) * 60_000;
+        const reminderAt = eventTime - (ev.reminderDays ?? 0) * 24 * 60 * 60 * 1000;
         const isReminderDue = reminderAt <= now && now < eventTime;
         const isEventDue = eventTime <= now;
 
-        if (ev.notify && (ev.reminderMinutes ?? 0) > 0 && isReminderDue && !ev.reminderSentAt) {
+        if (ev.notify && (ev.reminderDays ?? 0) > 0 && isReminderDue && !ev.reminderSentAt) {
           dispatchNotification(ev, "REMINDER");
           updateEvent(ev.id, { reminderSentAt: new Date().toISOString() });
         }
@@ -295,7 +295,7 @@ export default function AgendaPage() {
     setRecurrenceUntil(toLocalDateInput(defaultUntil));
     setRecurrenceCount("12");
     setNotify(true);
-    setReminderMinutes("15");
+    setReminderDays("1");
     setNotifyEmail("");
     setDiscordWebhook("");
     setAutoType("NONE");
@@ -322,7 +322,7 @@ export default function AgendaPage() {
     setAllDay(Boolean(ev.allDay));
     setRecurrenceFrequency("NONE");
     setNotify(ev.notify);
-    setReminderMinutes(ev.reminderMinutes !== undefined ? String(ev.reminderMinutes) : "15");
+    setReminderDays(ev.reminderDays !== undefined ? String(ev.reminderDays) : "1");
     setNotifyEmail(ev.notificationTargets?.email || "");
     setDiscordWebhook(ev.notificationTargets?.discordWebhook || "");
     setAutoType(ev.automation.type);
@@ -390,7 +390,7 @@ export default function AgendaPage() {
       end: nextEnd,
       allDay,
       notify,
-      reminderMinutes: reminderMinutes ? Math.max(0, Number(reminderMinutes)) : 0,
+      reminderDays: reminderDays ? Math.max(0, Number(reminderDays)) : 0,
       reminderSentAt: editing?.reminderSentAt && editing.start === nextStart ? editing.reminderSentAt : undefined,
       notificationTargets: {
         email: notifyEmail.trim() || undefined,
@@ -663,13 +663,13 @@ export default function AgendaPage() {
           </label>
           <div className="space-y-3">
             <FormFieldInput
-              label="Rappel (minutes avant)"
+              label="Rappel (jours avant)"
               id="evt-reminder"
               type="number"
               min="0"
-              value={reminderMinutes}
-              onChange={setReminderMinutes}
-              placeholder="15"
+              value={reminderDays}
+              onChange={setReminderDays}
+              placeholder="1"
             />
             <FormFieldInput
               label="Email notification (optionnel)"

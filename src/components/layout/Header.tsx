@@ -277,8 +277,8 @@ function buildCalendarAlerts(events: CalendarEvent[], now: Date, selectedActivit
       const to = `/activities/${event.activityId}/modules/mod-calendrier/agenda`;
       const items: AppNotification[] = [];
 
-      if (event.notify && (event.reminderMinutes ?? 0) > 0 && !event.reminderSentAt) {
-        const reminderAt = eventTime - (event.reminderMinutes ?? 0) * 60 * 1000;
+      if (event.notify && (event.reminderDays ?? 0) > 0 && !event.reminderSentAt) {
+        const reminderAt = eventTime - (event.reminderDays ?? 0) * 24 * 60 * 60 * 1000;
         if (reminderAt <= nowTime && eventTime + 60 * 60 * 1000 >= nowTime) {
           items.push({
             id: `cal-reminder-${event.id}-${event.start}`,

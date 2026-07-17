@@ -140,7 +140,7 @@ export default function AutomationsPage() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [notify, setNotify] = useState(true);
-  const [reminderMinutes, setReminderMinutes] = useState("15");
+  const [reminderDays, setReminderDays] = useState("1");
   const [notifyEmail, setNotifyEmail] = useState("");
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
@@ -151,7 +151,7 @@ export default function AutomationsPage() {
   const triggered = automations.filter((e) => e.triggered).length;
   const pending = automations.length - triggered;
   const notifyCount = events.filter((e) => e.notify).length;
-  const reminderCount = events.filter((e) => (e.reminderMinutes ?? 0) > 0).length;
+  const reminderCount = events.filter((e) => (e.reminderDays ?? 0) > 0).length;
   const now = Date.now();
   const nextRuns = automations
     .filter((e) => !e.triggered && new Date(e.start).getTime() >= now)
@@ -167,7 +167,7 @@ export default function AutomationsPage() {
     setStart("");
     setEnd("");
     setNotify(true);
-    setReminderMinutes("15");
+    setReminderDays("1");
     setNotifyEmail("");
     setDiscordWebhook("");
     setAutoType("NONE");
@@ -182,7 +182,7 @@ export default function AutomationsPage() {
     setStart(toLocalInput(new Date(event.start)));
     setEnd(toLocalInput(new Date(event.end)));
     setNotify(event.notify);
-    setReminderMinutes(event.reminderMinutes !== undefined ? String(event.reminderMinutes) : "15");
+    setReminderDays(event.reminderDays !== undefined ? String(event.reminderDays) : "1");
     setNotifyEmail(event.notificationTargets?.email || "");
     setDiscordWebhook(event.notificationTargets?.discordWebhook || "");
     setAutoType(event.automation.type);
@@ -216,7 +216,7 @@ export default function AutomationsPage() {
       start: nextStart,
       end: new Date(end).toISOString(),
       notify,
-      reminderMinutes: reminderMinutes ? Math.max(0, Number(reminderMinutes)) : 0,
+      reminderDays: reminderDays ? Math.max(0, Number(reminderDays)) : 0,
       reminderSentAt: editing.reminderSentAt && editing.start === nextStart ? editing.reminderSentAt : undefined,
       notificationTargets: {
         email: notifyEmail.trim() || undefined,
@@ -414,7 +414,7 @@ export default function AutomationsPage() {
                 </td>
                 <td className="p-3" style={{ color: "hsl(var(--foreground))" }}>{automationLabels[e.automation.type]}</td>
                 <td className="p-3" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {(e.reminderMinutes ?? 0) > 0 ? `${e.reminderMinutes} min avant` : "Aucun"}
+                  {(e.reminderDays ?? 0) > 0 ? `${e.reminderDays} ${e.reminderDays === 1 ? 'jour' : 'jours'} avant` : "Aucun"}
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2 text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>
@@ -473,12 +473,12 @@ export default function AutomationsPage() {
           </label>
           <div className="space-y-3">
             <FormFieldInput
-              label="Rappel (minutes avant)"
+              label="Rappel (jours avant)"
               id="auto-evt-reminder"
               type="number"
               min="0"
-              value={reminderMinutes}
-              onChange={setReminderMinutes}
+              value={reminderDays}
+              onChange={setReminderDays}
             />
             <FormFieldInput
               label="Email notification (optionnel)"

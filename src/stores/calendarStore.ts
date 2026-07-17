@@ -19,7 +19,7 @@ export interface CalendarEvent {
   end: string; // ISO
   allDay?: boolean;
   notify: boolean;
-  reminderMinutes?: number;
+  reminderDays?: number;
   reminderSentAt?: string;
   notificationTargets?: {
     email?: string;
