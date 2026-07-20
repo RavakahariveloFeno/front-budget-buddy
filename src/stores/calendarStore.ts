@@ -35,6 +35,7 @@ export interface CalendarEvent {
     amount?: number;
     description?: string;
     categoryId?: string;
+    paymentType?: "CASH" | "CARD" | "MOBILE";
   };
 }
 
