@@ -114,6 +114,9 @@ export default function AgendaPage() {
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
   const [autoAmount, setAutoAmount] = useState("");
   const [autoDesc, setAutoDesc] = useState("");
+  const [autoPaymentType, setAutoPaymentType] = useState<PaymentType>("CARD");
+  const [autoCategoryId, setAutoCategoryId] = useState<string>("none");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [calendarEnabledByActivityId, setCalendarEnabledByActivityId] = useState<Record<string, boolean>>({});
   const [createActivityId, setCreateActivityId] = useState("");
