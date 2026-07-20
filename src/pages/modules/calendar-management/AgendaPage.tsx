@@ -15,7 +15,8 @@ import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCale
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { getActivities } from "@/api/activityApi";
 import { getActivityModules } from "@/api/moduleApi";
-import type { Activity } from "@/data/staticData";
+import { getCategories } from "@/api/categoryApi";
+import type { Activity, Category, PaymentType } from "@/data/staticData";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
