@@ -743,6 +743,23 @@ export default function AgendaPage() {
                   onChange={setAutoDesc}
                   placeholder="Reprend le titre si vide"
                 />
+                <SelectField
+                  label="Mode de paiement"
+                  value={autoPaymentType}
+                  onValueChange={(v) => setAutoPaymentType(v as PaymentType)}
+                  options={paymentTypeOptions}
+                />
+                {autoType === "EXPENSE" && (
+                  <SelectField
+                    label="Catégorie"
+                    value={autoCategoryId}
+                    onValueChange={setAutoCategoryId}
+                    options={[
+                      { value: "none", label: "Aucune" },
+                      ...categories.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                )}
               </>
             )}
           </div>
