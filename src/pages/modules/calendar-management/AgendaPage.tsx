@@ -37,6 +37,12 @@ const automationOptions = [
   { value: "EXPENSE", label: "Créer une dépense" },
 ];
 
+const paymentTypeOptions = [
+  { value: "CARD", label: "Carte" },
+  { value: "CASH", label: "Espèces" },
+  { value: "MOBILE", label: "Compte mobile" },
+];
+
 const recurrenceOptions = [
   { value: "NONE", label: "Une seule fois" },
   { value: "DAILY", label: "Chaque jour" },
