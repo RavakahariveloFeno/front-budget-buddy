@@ -15,7 +15,8 @@ import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCale
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 import { getActivities } from "@/api/activityApi";
 import { getActivityModules } from "@/api/moduleApi";
-import type { Activity } from "@/data/staticData";
+import { getCategories } from "@/api/categoryApi";
+import type { Activity, Category, PaymentType } from "@/data/staticData";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -34,6 +35,12 @@ const automationOptions = [
   { value: "NONE", label: "Aucune" },
   { value: "INCOME", label: "Créer un revenu" },
   { value: "EXPENSE", label: "Créer une dépense" },
+];
+
+const paymentTypeOptions = [
+  { value: "CARD", label: "Carte" },
+  { value: "CASH", label: "Espèces" },
+  { value: "MOBILE", label: "Compte mobile" },
 ];
 
 const recurrenceOptions = [
@@ -107,6 +114,9 @@ export default function AgendaPage() {
   const [autoType, setAutoType] = useState<AutomationType>("NONE");
   const [autoAmount, setAutoAmount] = useState("");
   const [autoDesc, setAutoDesc] = useState("");
+  const [autoPaymentType, setAutoPaymentType] = useState<PaymentType>("CARD");
+  const [autoCategoryId, setAutoCategoryId] = useState<string>("none");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [calendarEnabledByActivityId, setCalendarEnabledByActivityId] = useState<Record<string, boolean>>({});
   const [createActivityId, setCreateActivityId] = useState("");
@@ -175,6 +185,13 @@ export default function AgendaPage() {
     };
 
     void loadActivities();
+    void (async () => {
+      try {
+        setCategories(await getCategories());
+      } catch (error) {
+        console.error("Failed to load categories for calendar automation", error);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -273,6 +290,8 @@ export default function AgendaPage() {
     setAutoType("NONE");
     setAutoAmount("");
     setAutoDesc("");
+    setAutoPaymentType("CARD");
+    setAutoCategoryId("none");
     setCreateActivityId("");
   };
 
@@ -310,6 +329,8 @@ export default function AgendaPage() {
     setAutoType(ev.automation.type);
     setAutoAmount(ev.automation.amount ? String(ev.automation.amount) : "");
     setAutoDesc(ev.automation.description || "");
+    setAutoPaymentType((ev.automation.paymentType as PaymentType) || "CARD");
+    setAutoCategoryId(ev.automation.categoryId || "none");
     setCreateActivityId(ev.activityId);
     setOpen(true);
   };
@@ -379,6 +400,8 @@ export default function AgendaPage() {
         type: autoType,
         amount: autoAmount ? Number(autoAmount) : undefined,
         description: autoDesc.trim() || undefined,
+        paymentType: autoType !== "NONE" ? autoPaymentType : undefined,
+        categoryId: autoType === "EXPENSE" && autoCategoryId !== "none" ? autoCategoryId : undefined,
       },
       recurrence,
     } as any;
@@ -720,6 +743,23 @@ export default function AgendaPage() {
                   onChange={setAutoDesc}
                   placeholder="Reprend le titre si vide"
                 />
+                <SelectField
+                  label="Mode de paiement"
+                  value={autoPaymentType}
+                  onValueChange={(v) => setAutoPaymentType(v as PaymentType)}
+                  options={paymentTypeOptions}
+                />
+                {autoType === "EXPENSE" && (
+                  <SelectField
+                    label="Catégorie"
+                    value={autoCategoryId}
+                    onValueChange={setAutoCategoryId}
+                    options={[
+                      { value: "none", label: "Aucune" },
+                      ...categories.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                )}
               </>
             )}
           </div>
