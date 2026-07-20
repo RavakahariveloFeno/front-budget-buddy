@@ -290,6 +290,8 @@ export default function AgendaPage() {
     setAutoType("NONE");
     setAutoAmount("");
     setAutoDesc("");
+    setAutoPaymentType("CARD");
+    setAutoCategoryId("none");
     setCreateActivityId("");
   };
 
