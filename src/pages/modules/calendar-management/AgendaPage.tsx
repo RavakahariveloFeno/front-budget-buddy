@@ -185,6 +185,13 @@ export default function AgendaPage() {
     };
 
     void loadActivities();
+    void (async () => {
+      try {
+        setCategories(await getCategories());
+      } catch (error) {
+        console.error("Failed to load categories for calendar automation", error);
+      }
+    })();
   }, []);
 
   useEffect(() => {
