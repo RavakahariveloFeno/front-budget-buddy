@@ -400,6 +400,8 @@ export default function AgendaPage() {
         type: autoType,
         amount: autoAmount ? Number(autoAmount) : undefined,
         description: autoDesc.trim() || undefined,
+        paymentType: autoType !== "NONE" ? autoPaymentType : undefined,
+        categoryId: autoType === "EXPENSE" && autoCategoryId !== "none" ? autoCategoryId : undefined,
       },
       recurrence,
     } as any;
