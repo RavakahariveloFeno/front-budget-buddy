@@ -329,6 +329,8 @@ export default function AgendaPage() {
     setAutoType(ev.automation.type);
     setAutoAmount(ev.automation.amount ? String(ev.automation.amount) : "");
     setAutoDesc(ev.automation.description || "");
+    setAutoPaymentType((ev.automation.paymentType as PaymentType) || "CARD");
+    setAutoCategoryId(ev.automation.categoryId || "none");
     setCreateActivityId(ev.activityId);
     setOpen(true);
   };
