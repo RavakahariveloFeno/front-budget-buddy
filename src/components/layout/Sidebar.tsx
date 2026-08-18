@@ -175,9 +175,9 @@ export default function Sidebar({
           <img src="/pilgo-logo.png" alt="Pilgo logo" className="w-full h-full object-cover rounded-lg" />
         </div>
         {!effectiveCollapsed && (
-          <div className="animate-fade-in overflow-hidden">
+          <div className="animate-fade-in overflow-hidden min-w-0">
             <p className="font-display font-bold text-sm" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>Pilgo</p>
-            <p className="text-xs" style={{ color: "hsl(var(--sidebar-foreground))" }}>Gestion d'entreprise modulaire</p>
+            <p className="text-[10px] whitespace-nowrap leading-tight" style={{ color: "hsl(var(--sidebar-foreground))" }}>Gestion d'entreprise modulaire</p>
           </div>
         )}
       </div>
