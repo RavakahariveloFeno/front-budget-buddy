@@ -460,7 +460,7 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in">
-      <Header title="Tableau de bord" subtitle="Vue d'ensemble de vos finances" />
+      <Header title="Tableau de bord" subtitle="Vue d'ensemble de votre activité" />
 
       <div className="space-y-6 p-6">
 

@@ -693,7 +693,7 @@ export default function Settings() {
         </CardHeader>
           <CardContent className="flex items-center justify-between gap-4 flex-wrap">
           <div className="text-sm text-muted-foreground">
-            Supprime toutes vos donnees (vente, revenus, depenses, retraits, investissements, prets, remboursements, budgets, recurrents, categories). Conserve uniquement l'utilisateur, les profils et les activites.
+            Supprime toutes vos données (ventes, revenus, dépenses, retraits, investissements, prêts, remboursements, budgets, récurrents, catégories). Conserve uniquement l'utilisateur, les profils et les activités.
           </div>
           <Button variant="destructive" onClick={() => setResetOpen(true)} disabled={isResetting}>
             {isResetting ? "Reset..." : "Reset historique"}
@@ -720,7 +720,7 @@ export default function Settings() {
         open={resetOpen}
         onOpenChange={setResetOpen}
         title="Reset historique"
-        description="Cette action va supprimer tout votre historique financier (irreversible). Continuer ?"
+        description="Cette action va supprimer tout votre historique de données (irréversible). Continuer ?"
         onConfirm={async () => {
           try {
             setIsResetting(true);
