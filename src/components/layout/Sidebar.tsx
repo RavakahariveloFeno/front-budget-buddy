@@ -177,7 +177,7 @@ export default function Sidebar({
         {!effectiveCollapsed && (
           <div className="animate-fade-in overflow-hidden">
             <p className="font-display font-bold text-sm" style={{ color: "hsl(var(--sidebar-accent-foreground))" }}>Pilgo</p>
-            <p className="text-xs" style={{ color: "hsl(var(--sidebar-foreground))" }}>Pilotage budgetaire</p>
+            <p className="text-xs" style={{ color: "hsl(var(--sidebar-foreground))" }}>Gestion d'entreprise modulaire</p>
           </div>
         )}
       </div>
