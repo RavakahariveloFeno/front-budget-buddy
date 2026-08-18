@@ -13,17 +13,17 @@ const slides = [
   {
     icon: BarChart3,
     title: "Tableau de bord intelligent",
-    description: "Visualisez vos finances en temps réel avec des graphiques interactifs et des indicateurs clés.",
+    description: "Visualisez l'activité de votre entreprise en temps réel avec des graphiques interactifs et des indicateurs clés.",
   },
   {
     icon: Shield,
     title: "Gestion multi-modules",
-    description: "Comptabilité, paie, trésorerie, ventes — tous vos outils financiers réunis en un seul endroit.",
+    description: "Ventes, paie, trésorerie, calendrier, comptabilité — tous vos outils métiers réunis en un seul endroit.",
   },
   {
     icon: Zap,
-    title: "Pilotage budgétaire",
-    description: "Suivez vos revenus, dépenses, prêts et investissements pour prendre les meilleures décisions.",
+    title: "Pilotage opérationnel",
+    description: "Suivez vos revenus, dépenses, prêts et investissements pour prendre les meilleures décisions au quotidien.",
   },
 ];
 
@@ -126,7 +126,7 @@ export default function SignUp() {
             </div>
           </div>
 
-          <p className="text-white/40 text-sm">© 2026 Pilgo — Pilotage budgétaire</p>
+          <p className="text-white/40 text-sm">© 2026 Pilgo — Gestion d'entreprise modulaire</p>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export default function SignUp() {
             <>
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Créer votre compte</h1>
-                <p className="text-muted-foreground mt-2">Rejoignez Pilgo et prenez le contrôle de vos finances.</p>
+                <p className="text-muted-foreground mt-2">Rejoignez Pilgo et prenez le contrôle de votre entreprise.</p>
               </div>
 
               <form onSubmit={onSubmit} className="space-y-5">

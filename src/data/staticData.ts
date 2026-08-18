@@ -262,7 +262,7 @@ export const PREDEFINED_MODULES: AppModule[] = [
   {
     id: "mod-tresorerie",
     name: "Suivi de trésorerie",
-    description: "Encaissements, décaissements et prévisions financières",
+    description: "Encaissements, décaissements et prévisions de trésorerie",
     icon: "TrendingUp",
     color: "chart-4",
     menus: [
