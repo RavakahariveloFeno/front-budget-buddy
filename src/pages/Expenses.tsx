@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, TrendingDown, Pencil, Trash2 } from "lucide-react";
+import { Plus, TrendingDown, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
@@ -32,6 +32,8 @@ import SelectField from "@/components/dialogs/SelectField";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
+const TABLE_PAGE_SIZE = 10;
+
 const CustomTooltipStyle = {
   contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
 };
@@ -46,6 +48,8 @@ const EMPTY_EXPENSE_STATS: ExpenseStatistics = {
 export default function Expenses() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [expenseList, setExpenseList] = useState<Expense[]>([]);
+  const [expensePage, setExpensePage] = useState(1);
+  const [expenseTotal, setExpenseTotal] = useState(0);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [categoryList, setCategoryList] = useState<Category[]>([]);
   const [expenseStats, setExpenseStats] = useState<ExpenseStatistics>(EMPTY_EXPENSE_STATS);
@@ -78,11 +82,17 @@ export default function Expenses() {
 
   const loadExpenses = async () => {
     try {
-      const remoteExpenses = await getExpenses({ activityId: selectedActivityId ?? undefined });
-      setExpenseList(remoteExpenses);
+      const remoteExpenses = await getExpenses({
+        activityId: selectedActivityId ?? undefined,
+        page: expensePage,
+        limit: TABLE_PAGE_SIZE,
+      });
+      setExpenseList(remoteExpenses.items);
+      setExpenseTotal(remoteExpenses.total);
     } catch (error) {
       console.error("Impossible de charger les depenses depuis l'API.", error);
       setExpenseList([]);
+      setExpenseTotal(0);
     }
   };
 
@@ -147,10 +157,17 @@ export default function Expenses() {
   }, []);
 
   useEffect(() => {
-    loadExpenses();
     loadRecurringExpenses();
     refreshExpenseStats();
   }, [selectedActivityId]);
+
+  useEffect(() => {
+    setExpensePage(1);
+  }, [selectedActivityId]);
+
+  useEffect(() => {
+    loadExpenses();
+  }, [selectedActivityId, expensePage]);
 
   const maxCatLabel = expenseStats.topCategory
     ? `${expenseStats.topCategory.icon ? `${expenseStats.topCategory.icon} ` : ""}${expenseStats.topCategory.name}`
@@ -190,7 +207,11 @@ export default function Expenses() {
 
   const handleCreate = async (payload: ExpensePayload) => {
     const created = await createExpense(payload);
-    setExpenseList((prev) => [created, ...prev]);
+    if (expensePage === 1) {
+      await loadExpenses();
+    } else {
+      setExpensePage(1);
+    }
     await refreshExpenseStats();
     await refreshActivityStats();
     toast({ title: "Depense ajoutee", description: `-${formatCurrency(created.amount)}` });
@@ -210,7 +231,7 @@ export default function Expenses() {
 
   const handleUpdate = async (id: string, payload: ExpensePayload) => {
     const updated = await updateExpense(id, payload);
-    setExpenseList((prev) => prev.map((expense) => (expense.id === id ? updated : expense)));
+    await loadExpenses();
     await refreshExpenseStats();
     await refreshActivityStats();
     toast({ title: "Depense modifiee", description: `-${formatCurrency(updated.amount)}` });
@@ -223,7 +244,11 @@ export default function Expenses() {
 
     try {
       await deleteExpense(deleteTarget.id);
-      setExpenseList((prev) => prev.filter((expense) => expense.id !== deleteTarget.id));
+      if (expenseList.length === 1 && expensePage > 1) {
+        setExpensePage((page) => page - 1);
+      } else {
+        await loadExpenses();
+      }
       await refreshExpenseStats();
       await refreshActivityStats();
       toast({ title: "Depense supprimee" });
@@ -261,6 +286,43 @@ export default function Expenses() {
       return { className: "badge-income text-xs", label: "Compte mobile" };
     }
     return { className: "badge-warning text-xs", label: "Cash" };
+  };
+
+  const renderPagination = () => {
+    const totalPages = Math.max(1, Math.ceil(expenseTotal / TABLE_PAGE_SIZE));
+    const start = expenseTotal === 0 ? 0 : (expensePage - 1) * TABLE_PAGE_SIZE + 1;
+    const end = Math.min(expenseTotal, expensePage * TABLE_PAGE_SIZE);
+
+    return (
+      <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {start}-{end} sur {expenseTotal}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExpensePage((page) => Math.max(1, page - 1))}
+            disabled={expensePage <= 1}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft size={14} />
+            Precedent
+          </button>
+          <span className="min-w-16 text-center text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+            {expensePage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpensePage((page) => Math.min(totalPages, page + 1))}
+            disabled={expensePage >= totalPages}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Suivant
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const handleEditRecurring = (item: RecurringExpense) => {
@@ -397,7 +459,7 @@ export default function Expenses() {
                 <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
                   Toutes les depenses{" "}
                   <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    ({expenseList.length})
+                    ({expenseTotal})
                   </span>
                 </p>
                 <button
@@ -480,6 +542,7 @@ export default function Expenses() {
                   </tbody>
                 </table>
               </div>
+              {renderPagination()}
             </div>
           </div>
         </div>

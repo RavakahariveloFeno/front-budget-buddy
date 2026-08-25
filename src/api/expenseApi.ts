@@ -69,6 +69,20 @@ export interface ExpenseStatistics {
   expensesByCategory: ExpenseCategoryStat[];
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface ExpenseQueryParams {
+  userId?: string;
+  activityId?: string;
+  page?: number;
+  limit?: number;
+}
+
 function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
@@ -197,12 +211,21 @@ function mapExpenseStatistics(item: unknown): ExpenseStatistics | null {
   };
 }
 
-export async function getExpenses(params?: { userId?: string; activityId?: string }): Promise<Expense[]> {
+export function getExpenses(params: ExpenseQueryParams & { page: number; limit: number }): Promise<PaginatedResult<Expense>>;
+export function getExpenses(params?: ExpenseQueryParams): Promise<Expense[]>;
+export async function getExpenses(params?: ExpenseQueryParams): Promise<Expense[] | PaginatedResult<Expense>> {
   const userId = params?.userId ?? getRequiredUserId();
-  const activityId = params?.activityId;
-  const url = activityId
-    ? `${EXPENSE_API_URL}/activity/${encodeURIComponent(activityId)}?userId=${encodeURIComponent(userId)}`
-    : `${EXPENSE_API_URL}/user/${userId}`;
+  const query = new URLSearchParams();
+  if (params?.activityId) {
+    query.set("activityId", params.activityId);
+  }
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+  const url = `${EXPENSE_API_URL}/user/${encodeURIComponent(userId)}${query.toString() ? `?${query.toString()}` : ""}`;
 
   const response = await fetch(url, {
     headers: buildAuthHeaders(),
@@ -212,6 +235,7 @@ export async function getExpenses(params?: { userId?: string; activityId?: strin
   }
 
   const data: unknown = await response.json();
+  const isPaginated = Boolean(params?.page || params?.limit);
   const rawItems: unknown[] = Array.isArray(data)
     ? data
     : data && typeof data === "object" && Array.isArray((data as any).items)
@@ -222,7 +246,23 @@ export async function getExpenses(params?: { userId?: string; activityId?: strin
     .map((item): Expense | null => mapExpense(item))
     .filter((item): item is Expense => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.userId));
 
-  return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedItems = items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (isPaginated) {
+    const record = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+    const total = Number(record.total ?? sortedItems.length);
+    const page = Number(record.page ?? params?.page ?? 1);
+    const limit = Number(record.limit ?? params?.limit ?? sortedItems.length);
+
+    return {
+      items: sortedItems,
+      total: Number.isFinite(total) ? total : sortedItems.length,
+      page: Number.isFinite(page) ? page : 1,
+      limit: Number.isFinite(limit) ? limit : sortedItems.length,
+    };
+  }
+
+  return sortedItems;
 }
 
 export async function getExpenseStatistics(params?: { userId?: string; activityId?: string }): Promise<ExpenseStatistics> {
