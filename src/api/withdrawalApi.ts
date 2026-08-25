@@ -12,6 +12,20 @@ export interface WithdrawalPayload {
   cashFee?: number;
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface WithdrawalQueryParams {
+  userId?: string;
+  activityId?: string;
+  page?: number;
+  limit?: number;
+}
+
 function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
@@ -55,6 +69,7 @@ function mapWithdrawal(item: unknown): Withdrawal | null {
     date,
     activityId,
     userId,
+    ...(record.createdAt ? { createdAt: String(record.createdAt) } : {}),
     ...(
       record.paymentType && (["CASH", "CARD", "MOBILE"] as PaymentType[]).includes(String(record.paymentType) as PaymentType)
         ? { paymentType: String(record.paymentType) as PaymentType }
@@ -94,8 +109,23 @@ export async function createWithdrawal(payload: WithdrawalPayload): Promise<With
   return withdrawal;
 }
 
-export async function getWithdrawals(userId: string = getRequiredUserId()): Promise<Withdrawal[]> {
-  const response = await fetch(`${WITHDRAWAL_API_URL}/user/${userId}`, {
+export function getWithdrawals(params: WithdrawalQueryParams & { page: number; limit: number }): Promise<PaginatedResult<Withdrawal>>;
+export function getWithdrawals(userId?: string): Promise<Withdrawal[]>;
+export async function getWithdrawals(paramsOrUserId?: string | WithdrawalQueryParams): Promise<Withdrawal[] | PaginatedResult<Withdrawal>> {
+  const params = typeof paramsOrUserId === "object" ? paramsOrUserId : undefined;
+  const userId = params?.userId ?? (typeof paramsOrUserId === "string" ? paramsOrUserId : getRequiredUserId());
+  const query = new URLSearchParams();
+  if (params?.activityId) {
+    query.set("activityId", params.activityId);
+  }
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  const response = await fetch(`${WITHDRAWAL_API_URL}/user/${encodeURIComponent(userId)}${query.toString() ? `?${query.toString()}` : ""}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -103,11 +133,28 @@ export async function getWithdrawals(userId: string = getRequiredUserId()): Prom
   }
 
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
+  const rawItems: unknown[] = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as any).items)
+      ? ((data as any).items as unknown[])
+      : [];
+  const items = rawItems.map((item) => mapWithdrawal(item)).filter((item): item is Withdrawal => Boolean(item));
+
+  if (params?.page || params?.limit) {
+    const record = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+    const total = Number(record.total ?? items.length);
+    const page = Number(record.page ?? params.page ?? 1);
+    const limit = Number(record.limit ?? params.limit ?? items.length);
+
+    return {
+      items,
+      total: Number.isFinite(total) ? total : items.length,
+      page: Number.isFinite(page) ? page : 1,
+      limit: Number.isFinite(limit) ? limit : items.length,
+    };
   }
 
-  return data.map((item) => mapWithdrawal(item)).filter((item): item is Withdrawal => Boolean(item));
+  return items;
 }
 
 export async function updateWithdrawal(id: string, payload: WithdrawalPayload): Promise<Withdrawal> {

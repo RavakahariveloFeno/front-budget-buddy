@@ -66,6 +66,20 @@ export interface IncomeStatistics {
   monthlyData: IncomeMonthlyPoint[];
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface IncomeQueryParams {
+  userId?: string;
+  activityId?: string;
+  page?: number;
+  limit?: number;
+}
+
 function isValidPaymentType(type: unknown): type is PaymentType {
   return type === "CASH" || type === "CARD" || type === "MOBILE";
 }
@@ -175,12 +189,23 @@ function mapIncomeStatistics(item: unknown): IncomeStatistics | null {
   };
 }
 
-export async function getIncomes(params?: { userId?: string; activityId?: string }): Promise<Income[]> {
+export function getIncomes(params: IncomeQueryParams & { page: number; limit: number }): Promise<PaginatedResult<Income>>;
+export function getIncomes(params?: IncomeQueryParams): Promise<Income[]>;
+export async function getIncomes(params?: IncomeQueryParams): Promise<Income[] | PaginatedResult<Income>> {
   const userId = params?.userId ?? getRequiredUserId();
   const activityId = params?.activityId;
-  const url = activityId
-    ? `${INCOME_API_URL}/activity/${encodeURIComponent(activityId)}?userId=${encodeURIComponent(userId)}`
-    : `${INCOME_API_URL}/user/${userId}`;
+  const query = new URLSearchParams();
+  if (activityId) {
+    query.set("activityId", activityId);
+  }
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  const url = `${INCOME_API_URL}/user/${encodeURIComponent(userId)}${query.toString() ? `?${query.toString()}` : ""}`;
 
   const response = await fetch(url, {
     headers: buildAuthHeaders(),
@@ -190,6 +215,7 @@ export async function getIncomes(params?: { userId?: string; activityId?: string
   }
 
   const data: unknown = await response.json();
+  const isPaginated = Boolean(params?.page || params?.limit);
   const rawItems: unknown[] = Array.isArray(data)
     ? data
     : data && typeof data === "object" && Array.isArray((data as any).items)
@@ -210,7 +236,23 @@ export async function getIncomes(params?: { userId?: string; activityId?: string
     return Number.isFinite(dateTime) ? dateTime : 0;
   };
 
-  return items.sort((a, b) => sortKey(b) - sortKey(a));
+  const sortedItems = items.sort((a, b) => sortKey(b) - sortKey(a));
+
+  if (isPaginated) {
+    const record = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+    const total = Number(record.total ?? sortedItems.length);
+    const page = Number(record.page ?? params?.page ?? 1);
+    const limit = Number(record.limit ?? params?.limit ?? sortedItems.length);
+
+    return {
+      items: sortedItems,
+      total: Number.isFinite(total) ? total : sortedItems.length,
+      page: Number.isFinite(page) ? page : 1,
+      limit: Number.isFinite(limit) ? limit : sortedItems.length,
+    };
+  }
+
+  return sortedItems;
 }
 
 export async function getIncomeStatistics(params?: { userId?: string; year?: number; activityId?: string }): Promise<IncomeStatistics> {

@@ -67,6 +67,7 @@ export interface Withdrawal {
   // Montant prélevé sur le solde en espèces (frais payés en cash).
   cashFee?: number;
   date: string;
+  createdAt?: string;
   description?: string;
   activityId: string;
   userId: string;

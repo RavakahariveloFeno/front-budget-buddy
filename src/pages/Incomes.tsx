@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownUp, Plus, TrendingUp, Pencil, Trash2 } from "lucide-react";
+import { ArrowDownUp, Plus, TrendingUp, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
@@ -29,6 +29,8 @@ import { createWithdrawal, deleteWithdrawal, getWithdrawals, updateWithdrawal } 
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
 
+const TABLE_PAGE_SIZE = 10;
+
 const CustomTooltipStyle = {
   contentStyle: {
     background: "hsl(225, 27%, 12%)",
@@ -51,6 +53,8 @@ const EMPTY_INCOME_STATS: IncomeStatistics = {
 export default function Incomes() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [incomeList, setIncomeList] = useState<Income[]>([]);
+  const [incomePage, setIncomePage] = useState(1);
+  const [incomeTotal, setIncomeTotal] = useState(0);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [incomeStats, setIncomeStats] = useState<IncomeStatistics>(EMPTY_INCOME_STATS);
   const [formOpen, setFormOpen] = useState(false);
@@ -69,6 +73,8 @@ export default function Incomes() {
   const [withdrawalPaymentType, setWithdrawalPaymentType] = useState<PaymentType>("CARD");
   const [withdrawalCashFee, setWithdrawalCashFee] = useState("");
   const [withdrawalSubmitting, setWithdrawalSubmitting] = useState(false);
+  const [withdrawalPage, setWithdrawalPage] = useState(1);
+  const [withdrawalTotal, setWithdrawalTotal] = useState(0);
   const [recurringList, setRecurringList] = useState<RecurringIncome[]>([]);
   const [recurringEditOpen, setRecurringEditOpen] = useState(false);
   const [recurringEditItem, setRecurringEditItem] = useState<RecurringIncome | null>(null);
@@ -90,18 +96,19 @@ export default function Incomes() {
     [recurringList, selectedActivityId],
   );
 
-  const visibleWithdrawalList = useMemo(
-    () => (selectedActivityId ? withdrawalList.filter((item) => item.activityId === selectedActivityId) : withdrawalList),
-    [withdrawalList, selectedActivityId],
-  );
-
   const loadIncomes = async () => {
     try {
-      const remoteIncomes = await getIncomes({ activityId: selectedActivityId ?? undefined });
-      setIncomeList(remoteIncomes);
+      const remoteIncomes = await getIncomes({
+        activityId: selectedActivityId ?? undefined,
+        page: incomePage,
+        limit: TABLE_PAGE_SIZE,
+      });
+      setIncomeList(remoteIncomes.items);
+      setIncomeTotal(remoteIncomes.total);
     } catch (error) {
       console.error("Impossible de charger les revenus depuis l'API.", error);
       setIncomeList([]);
+      setIncomeTotal(0);
     }
   };
 
@@ -117,11 +124,17 @@ export default function Incomes() {
 
   const loadWithdrawals = async () => {
     try {
-      const data = await getWithdrawals();
-      setWithdrawalList(data);
+      const data = await getWithdrawals({
+        activityId: selectedActivityId ?? undefined,
+        page: withdrawalPage,
+        limit: TABLE_PAGE_SIZE,
+      });
+      setWithdrawalList(data.items);
+      setWithdrawalTotal(data.total);
     } catch (error) {
       console.error("Impossible de charger les retraits depuis l'API.", error);
       setWithdrawalList([]);
+      setWithdrawalTotal(0);
     }
   };
 
@@ -150,11 +163,22 @@ export default function Incomes() {
   }, []);
 
   useEffect(() => {
-    loadIncomes();
     loadRecurringIncomes();
-    loadWithdrawals();
     refreshIncomeStats();
   }, [selectedActivityId]);
+
+  useEffect(() => {
+    setIncomePage(1);
+    setWithdrawalPage(1);
+  }, [selectedActivityId]);
+
+  useEffect(() => {
+    loadIncomes();
+  }, [selectedActivityId, incomePage]);
+
+  useEffect(() => {
+    loadWithdrawals();
+  }, [selectedActivityId, withdrawalPage]);
 
   useEffect(() => {
     if (!withdrawalOpen) return;
@@ -182,9 +206,9 @@ export default function Incomes() {
   }, [selectedActivityId, withdrawalOpen, withdrawalEditItem]);
 
   const totalIncome = incomeStats.totalIncome;
-  const cardTotal = useMemo(() => incomeList.filter((i) => i.paymentType === "CARD").reduce((sum, i) => sum + i.amount, 0), [incomeList]);
-  const cashTotal = useMemo(() => incomeList.filter((i) => i.paymentType === "CASH").reduce((sum, i) => sum + i.amount, 0), [incomeList]);
-  const mobileTotal = useMemo(() => incomeList.filter((i) => i.paymentType === "MOBILE").reduce((sum, i) => sum + i.amount, 0), [incomeList]);
+  const cardTotal = incomeStats.cardTotal;
+  const cashTotal = incomeStats.cashTotal;
+  const mobileTotal = incomeStats.mobileTotal;
   const accountTotal = cardTotal + cashTotal + mobileTotal;
 
   const cardPercent = accountTotal > 0 ? Math.round((cardTotal / accountTotal) * 100) : 0;
@@ -203,7 +227,11 @@ export default function Incomes() {
 
   const handleCreate = async (payload: IncomePayload) => {
     const created = await createIncome(payload);
-    setIncomeList((prev) => [created, ...prev]);
+    if (incomePage === 1) {
+      await loadIncomes();
+    } else {
+      setIncomePage(1);
+    }
     await refreshIncomeStats();
     toast({ title: "Revenu ajoute", description: `+${formatCurrency(created.amount)}` });
   };
@@ -221,7 +249,7 @@ export default function Incomes() {
 
   const handleUpdate = async (id: string, payload: IncomePayload) => {
     const updated = await updateIncome(id, payload);
-    setIncomeList((prev) => prev.map((income) => (income.id === id ? updated : income)));
+    await loadIncomes();
     await refreshIncomeStats();
     toast({ title: "Revenu modifie", description: `+${formatCurrency(updated.amount)}` });
   };
@@ -258,12 +286,16 @@ export default function Incomes() {
 
       if (withdrawalEditItem) {
         const updated = await updateWithdrawal(withdrawalEditItem.id, payload);
-        setWithdrawalList((prev) => prev.map((w) => (w.id === withdrawalEditItem.id ? updated : w)));
+        await loadWithdrawals();
         toast({ title: "Retrait modifie", description: `-${formatCurrency(updated.amount)}` });
       } else {
         const created = await createWithdrawal(payload);
-        setWithdrawalList((prev) => [created, ...prev]);
-        toast({ title: "Retrait enregistre", description: `-${formatCurrency(parsedAmount)}` });
+        if (withdrawalPage === 1) {
+          await loadWithdrawals();
+        } else {
+          setWithdrawalPage(1);
+        }
+        toast({ title: "Retrait enregistre", description: `-${formatCurrency(created.amount)}` });
       }
 
       await refreshIncomeStats();
@@ -284,7 +316,11 @@ export default function Incomes() {
 
     try {
       await deleteIncome(deleteTarget.id);
-      setIncomeList((prev) => prev.filter((income) => income.id !== deleteTarget.id));
+      if (incomeList.length === 1 && incomePage > 1) {
+        setIncomePage((page) => page - 1);
+      } else {
+        await loadIncomes();
+      }
       await refreshIncomeStats();
       toast({ title: "Revenu supprime" });
       setDeleteOpen(false);
@@ -300,7 +336,11 @@ export default function Incomes() {
 
     try {
       await deleteWithdrawal(withdrawalDeleteTarget.id);
-      setWithdrawalList((prev) => prev.filter((w) => w.id !== withdrawalDeleteTarget.id));
+      if (withdrawalList.length === 1 && withdrawalPage > 1) {
+        setWithdrawalPage((page) => page - 1);
+      } else {
+        await loadWithdrawals();
+      }
       await refreshIncomeStats();
       toast({ title: "Retrait annule" });
       setWithdrawalDeleteOpen(false);
@@ -321,6 +361,43 @@ export default function Incomes() {
     { value: "CASH", label: "Especes" },
     { value: "MOBILE", label: "Compte mobile" },
   ];
+
+  const renderPagination = (page: number, total: number, onPageChange: (page: number) => void) => {
+    const totalPages = Math.max(1, Math.ceil(total / TABLE_PAGE_SIZE));
+    const start = total === 0 ? 0 : (page - 1) * TABLE_PAGE_SIZE + 1;
+    const end = Math.min(total, page * TABLE_PAGE_SIZE);
+
+    return (
+      <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {start}-{end} sur {total}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page <= 1}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft size={14} />
+            Precedent
+          </button>
+          <span className="min-w-16 text-center text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+            {page} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={page >= totalPages}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Suivant
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const handleEditRecurring = (item: RecurringIncome) => {
     setRecurringEditItem(item);
@@ -472,7 +549,7 @@ export default function Incomes() {
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Tous les revenus{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({incomeList.length})
+                ({incomeTotal})
               </span>
             </p>
             <div className="flex items-center gap-2">
@@ -556,6 +633,7 @@ export default function Incomes() {
               </tbody>
             </table>
           </div>
+          {renderPagination(incomePage, incomeTotal, setIncomePage)}
         </div>
 
         <div className="stat-card">
@@ -563,7 +641,7 @@ export default function Incomes() {
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
               Retraits{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                ({visibleWithdrawalList.length})
+                ({withdrawalTotal})
               </span>
             </p>
             <button
@@ -591,7 +669,7 @@ export default function Incomes() {
                 </tr>
               </thead>
               <tbody>
-                {[...visibleWithdrawalList]
+                {[...withdrawalList]
                   .sort(compareByMostRecent(["date", "createdAt"]))
                   .map((wd) => {
                     const act = activityList.find((a) => a.id === wd.activityId);
@@ -648,6 +726,7 @@ export default function Incomes() {
               </tbody>
             </table>
           </div>
+          {renderPagination(withdrawalPage, withdrawalTotal, setWithdrawalPage)}
         </div>
       </div>
 
