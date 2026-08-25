@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, ChevronDown, ChevronRight, CreditCard, CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { Plus, ChevronDown, ChevronLeft, ChevronRight, CreditCard, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
 import type { Activity, Loan, LoanStatus } from "@/data/staticData";
@@ -15,6 +15,8 @@ import ActionConfirmDialog from "@/components/dialogs/ActionConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
 import { useActivityFilterStore } from "@/stores/activityFilterStore";
+
+const PAID_LOANS_PAGE_SIZE = 10;
 
 const loanTypeLabels: Record<string, string> = { BANK: "Banque", FRIEND: "Ami", COMPANY: "Entreprise", OTHER: "Autre" };
 const loanTypeColors: Record<string, string> = { BANK: "badge-info", FRIEND: "badge-warning", COMPANY: "badge-purple", OTHER: "badge-income" };
@@ -37,6 +39,9 @@ const directionBadge = (direction?: string) => {
 export default function Loans() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const [loanList, setLoanList] = useState<Loan[]>([]);
+  const [paidLoanList, setPaidLoanList] = useState<Loan[]>([]);
+  const [paidLoanPage, setPaidLoanPage] = useState(1);
+  const [paidLoanTotal, setPaidLoanTotal] = useState(0);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -48,24 +53,46 @@ export default function Loans() {
   const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [paymentLoanId, setPaymentLoanId] = useState("");
 
+  const mergeLoansWithPayments = (loans: Loan[], paymentHistory: Awaited<ReturnType<typeof getLoanPaymentHistory>>) => {
+    const paymentsByLoanId = new Map(paymentHistory.map((item) => [item.loanId, item.payments]));
+
+    return loans.map((loan) => {
+      const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])].sort(compareByMostRecent(["createdAt", "date"]));
+      const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+      const computedRemaining = Math.max(loan.totalAmount - totalPaid, 0);
+      const status: LoanStatus = loan.status === "PAID" ? "PAID" : computedRemaining <= 0 ? "PAID" : "ACTIVE";
+      const remainingAmount = status === "PAID" ? loan.remainingAmount : computedRemaining;
+      return { ...loan, remainingAmount, status, payments };
+    });
+  };
+
   const loadLoans = async () => {
     try {
       const [remoteLoans, paymentHistory] = await Promise.all([getLoans(), getLoanPaymentHistory()]);
-      const paymentsByLoanId = new Map(paymentHistory.map((item) => [item.loanId, item.payments]));
-
-      const mergedLoans = remoteLoans.map((loan) => {
-        const payments = [...(paymentsByLoanId.get(loan.id) || loan.payments || [])].sort(compareByMostRecent(["createdAt", "date"]));
-        const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-        const computedRemaining = Math.max(loan.totalAmount - totalPaid, 0);
-        const status: LoanStatus = loan.status === "PAID" ? "PAID" : computedRemaining <= 0 ? "PAID" : "ACTIVE";
-        const remainingAmount = status === "PAID" ? loan.remainingAmount : computedRemaining;
-        return { ...loan, remainingAmount, status, payments };
-      });
-
-      setLoanList(mergedLoans);
+      setLoanList(mergeLoansWithPayments(remoteLoans, paymentHistory));
     } catch (error) {
       console.error("Impossible de charger les prets depuis l'API.", error);
       setLoanList([]);
+    }
+  };
+
+  const loadPaidLoans = async () => {
+    try {
+      const [remoteLoans, paymentHistory] = await Promise.all([
+        getLoans({
+          activityId: selectedActivityId ?? undefined,
+          status: "PAID",
+          page: paidLoanPage,
+          limit: PAID_LOANS_PAGE_SIZE,
+        }),
+        getLoanPaymentHistory(),
+      ]);
+      setPaidLoanList(mergeLoansWithPayments(remoteLoans.items, paymentHistory));
+      setPaidLoanTotal(remoteLoans.total);
+    } catch (error) {
+      console.error("Impossible de charger les prets rembourses depuis l'API.", error);
+      setPaidLoanList([]);
+      setPaidLoanTotal(0);
     }
   };
 
@@ -83,6 +110,14 @@ export default function Loans() {
     loadLoans();
     loadActivities();
   }, []);
+
+  useEffect(() => {
+    setPaidLoanPage(1);
+  }, [selectedActivityId]);
+
+  useEffect(() => {
+    loadPaidLoans();
+  }, [selectedActivityId, paidLoanPage]);
 
   const activityById = useMemo(() => {
     const map = new Map<string, Activity>();
@@ -109,16 +144,15 @@ export default function Loans() {
     [normalizedLoans],
   );
   const paidBorrowedLoans = useMemo(
-    () => [...normalizedLoans].filter((loan) => loan.status === "PAID" && loan.direction !== "LENT").sort(loanSort),
-    [normalizedLoans],
+    () => [...paidLoanList].map((loan) => ({ ...loan, direction: loan.direction || "BORROWED" })).filter((loan) => loan.status === "PAID" && loan.direction !== "LENT").sort(loanSort),
+    [paidLoanList],
   );
   const paidLentLoans = useMemo(
-    () => [...normalizedLoans].filter((loan) => loan.status === "PAID" && loan.direction === "LENT").sort(loanSort),
-    [normalizedLoans],
+    () => [...paidLoanList].map((loan) => ({ ...loan, direction: loan.direction || "BORROWED" })).filter((loan) => loan.status === "PAID" && loan.direction === "LENT").sort(loanSort),
+    [paidLoanList],
   );
   const totalBorrowedRemaining = activeBorrowedLoans.reduce((sum, loan) => sum + loan.remainingAmount, 0);
   const totalLentRemaining = activeLentLoans.reduce((sum, loan) => sum + loan.remainingAmount, 0);
-  const totalPaid = [...paidBorrowedLoans, ...paidLentLoans].reduce((sum, loan) => sum + loan.totalAmount, 0);
   const totalActiveCount = activeBorrowedLoans.length + activeLentLoans.length;
 
   const handleEdit = (loan: Loan) => {
@@ -140,13 +174,21 @@ export default function Loans() {
 
   const handleCreate = async (payload: LoanPayload) => {
     const created = await createLoan(payload);
-    setLoanList((prev) => [created, ...prev]);
+    await loadLoans();
+    if (created.status === "PAID") {
+      if (paidLoanPage === 1) {
+        await loadPaidLoans();
+      } else {
+        setPaidLoanPage(1);
+      }
+    }
     toast({ title: "Pret ajoute", description: created.lenderName });
   };
 
   const handleUpdate = async (id: string, payload: LoanPayload) => {
     const updated = await updateLoan(id, payload);
-    setLoanList((prev) => prev.map((loan) => (loan.id === id ? updated : loan)));
+    await loadLoans();
+    await loadPaidLoans();
     toast({ title: "Pret modifie", description: updated.lenderName });
   };
 
@@ -157,7 +199,12 @@ export default function Loans() {
 
     try {
       await deleteLoan(deleteTarget.id);
-      setLoanList((prev) => prev.filter((loan) => loan.id !== deleteTarget.id));
+      await loadLoans();
+      if (deleteTarget.status === "PAID" && paidLoanList.length === 1 && paidLoanPage > 1) {
+        setPaidLoanPage((page) => page - 1);
+      } else {
+        await loadPaidLoans();
+      }
       toast({ title: "Pret supprime" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -170,6 +217,7 @@ export default function Loans() {
   const handleCreatePayment = async (payload: LoanPaymentPayload) => {
     await createLoanPayment(payload);
     await loadLoans();
+    await loadPaidLoans();
     toast({ title: "Paiement ajoute", description: formatCurrency(payload.amount) });
   };
 
@@ -179,8 +227,13 @@ export default function Loans() {
     }
 
     try {
-      const updated = await closeLoan(markRepaidTarget.id);
-      setLoanList((prev) => prev.map((loan) => (loan.id === updated.id ? { ...loan, ...updated, payments: loan.payments } : loan)));
+      await closeLoan(markRepaidTarget.id);
+      await loadLoans();
+      if (paidLoanPage === 1) {
+        await loadPaidLoans();
+      } else {
+        setPaidLoanPage(1);
+      }
       toast({ title: "Pret regularise", description: "Pret marque comme rembourse (sans impact sur le solde)." });
     } catch (error) {
       console.error("Impossible de regulariser le pret.", error);
@@ -189,6 +242,43 @@ export default function Loans() {
       setMarkRepaidOpen(false);
       setMarkRepaidTarget(null);
     }
+  };
+
+  const renderPaidLoansPagination = () => {
+    const totalPages = Math.max(1, Math.ceil(paidLoanTotal / PAID_LOANS_PAGE_SIZE));
+    const start = paidLoanTotal === 0 ? 0 : (paidLoanPage - 1) * PAID_LOANS_PAGE_SIZE + 1;
+    const end = Math.min(paidLoanTotal, paidLoanPage * PAID_LOANS_PAGE_SIZE);
+
+    return (
+      <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {start}-{end} sur {paidLoanTotal}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPaidLoanPage((page) => Math.max(1, page - 1))}
+            disabled={paidLoanPage <= 1}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft size={14} />
+            Precedent
+          </button>
+          <span className="min-w-16 text-center text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+            {paidLoanPage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPaidLoanPage((page) => Math.min(totalPages, page + 1))}
+            disabled={paidLoanPage >= totalPages}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Suivant
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -463,7 +553,7 @@ export default function Loans() {
 
         <div>
           <h2 className="font-display font-semibold text-base mb-3" style={{ color: "hsl(var(--foreground))" }}>
-            Prets rembourses <span className="badge-income ml-2">{paidBorrowedLoans.length + paidLentLoans.length}</span>
+            Prets rembourses <span className="badge-income ml-2">{paidLoanTotal}</span>
           </h2>
           <div className="space-y-3">
             {[...paidBorrowedLoans, ...paidLentLoans].sort(loanSort).map((loan) => (
@@ -507,6 +597,7 @@ export default function Loans() {
               </div>
             ))}
           </div>
+          {renderPaidLoansPagination()}
         </div>
       </div>
 

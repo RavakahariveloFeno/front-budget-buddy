@@ -104,6 +104,7 @@ export interface Loan {
   interestRate?: number;
   startDate: string;
   endDate?: string;
+  createdAt?: string;
   status: LoanStatus;
   activityId?: string;
   userId: string;

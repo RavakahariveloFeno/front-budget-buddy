@@ -27,6 +27,21 @@ export interface LoanPaymentHistory {
   payments: LoanPayment[];
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface LoanQueryParams {
+  userId?: string;
+  activityId?: string;
+  status?: LoanStatus;
+  page?: number;
+  limit?: number;
+}
+
 function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
@@ -108,6 +123,7 @@ function mapLoan(item: unknown): Loan | null {
     status,
     userId: String(record.userId ?? ""),
     payments,
+    ...(record.createdAt ? { createdAt: String(record.createdAt) } : {}),
     ...(record.interestRate !== undefined && record.interestRate !== null ? { interestRate: Number(record.interestRate) } : {}),
     ...(record.endDate ? { endDate: String(record.endDate) } : {}),
     ...(record.activityId ? { activityId: String(record.activityId) } : {}),
@@ -138,9 +154,29 @@ function mapLoanPaymentHistory(item: unknown): LoanPaymentHistory | null {
   };
 }
 
-export async function getLoans(): Promise<Loan[]> {
-  const userId = getRequiredUserId();
-  const response = await fetch(LOAN_API_URL, {
+export function getLoans(params: LoanQueryParams & { page: number; limit: number }): Promise<PaginatedResult<Loan>>;
+export function getLoans(params?: LoanQueryParams): Promise<Loan[]>;
+export async function getLoans(params?: LoanQueryParams): Promise<Loan[] | PaginatedResult<Loan>> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const query = new URLSearchParams();
+  if (params?.activityId) {
+    query.set("activityId", params.activityId);
+  }
+  if (params?.status) {
+    query.set("status", params.status);
+  }
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+  const hasQuery = Boolean(query.toString());
+  const url = hasQuery
+    ? `${LOAN_API_URL}/user/${encodeURIComponent(userId)}?${query.toString()}`
+    : LOAN_API_URL;
+
+  const response = await fetch(url, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -148,14 +184,32 @@ export async function getLoans(): Promise<Loan[]> {
   }
 
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
-  }
+  const rawItems: unknown[] = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as any).items)
+      ? ((data as any).items as unknown[])
+      : [];
 
-  return data
+  const items = rawItems
     .map((item): Loan | null => mapLoan(item))
     .filter((item): item is Loan => Boolean(item && item.id && Number.isFinite(item.totalAmount) && Number.isFinite(item.remainingAmount) && item.lenderName && item.startDate && item.userId))
     .filter((item) => item.userId === userId);
+
+  if (params?.page || params?.limit) {
+    const record = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+    const total = Number(record.total ?? items.length);
+    const page = Number(record.page ?? params?.page ?? 1);
+    const limit = Number(record.limit ?? params?.limit ?? items.length);
+
+    return {
+      items,
+      total: Number.isFinite(total) ? total : items.length,
+      page: Number.isFinite(page) ? page : 1,
+      limit: Number.isFinite(limit) ? limit : items.length,
+    };
+  }
+
+  return items;
 }
 
 export async function getLoanPaymentHistory(userId: string = getRequiredUserId()): Promise<LoanPaymentHistory[]> {
