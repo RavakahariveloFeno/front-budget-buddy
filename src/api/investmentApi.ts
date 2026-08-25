@@ -13,6 +13,19 @@ export interface InvestmentPayload {
   toActivityId: string;
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+interface InvestmentQueryParams {
+  userId?: string;
+  page?: number;
+  limit?: number;
+}
+
 function toIsoDate(date: string): string {
   return new Date(date).toISOString();
 }
@@ -52,9 +65,19 @@ function mapInvestment(item: unknown): Investment | null {
   };
 }
 
-export async function getInvestments(): Promise<Investment[]> {
-  const userId = getRequiredUserId();
-  const response = await fetch(`${INVESTMENT_API_URL}/user/${userId}`, {
+export function getInvestments(params: InvestmentQueryParams & { page: number; limit: number }): Promise<PaginatedResult<Investment>>;
+export function getInvestments(params?: InvestmentQueryParams): Promise<Investment[]>;
+export async function getInvestments(params?: InvestmentQueryParams): Promise<Investment[] | PaginatedResult<Investment>> {
+  const userId = params?.userId ?? getRequiredUserId();
+  const query = new URLSearchParams();
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  const response = await fetch(`${INVESTMENT_API_URL}/user/${encodeURIComponent(userId)}${query.toString() ? `?${query.toString()}` : ""}`, {
     headers: buildAuthHeaders(),
   });
   if (!response.ok) {
@@ -62,13 +85,31 @@ export async function getInvestments(): Promise<Investment[]> {
   }
 
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
-  }
+  const rawItems: unknown[] = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as any).items)
+      ? ((data as any).items as unknown[])
+      : [];
 
-  return data
+  const items = rawItems
     .map((item): Investment | null => mapInvestment(item))
     .filter((item): item is Investment => Boolean(item && item.id && Number.isFinite(item.amount) && item.date && item.fromActivityId && item.toActivityId));
+
+  if (params?.page || params?.limit) {
+    const record = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+    const total = Number(record.total ?? items.length);
+    const page = Number(record.page ?? params?.page ?? 1);
+    const limit = Number(record.limit ?? params?.limit ?? items.length);
+
+    return {
+      items,
+      total: Number.isFinite(total) ? total : items.length,
+      page: Number.isFinite(page) ? page : 1,
+      limit: Number.isFinite(limit) ? limit : items.length,
+    };
+  }
+
+  return items;
 }
 
 export async function createInvestment(payload: InvestmentPayload): Promise<Investment> {

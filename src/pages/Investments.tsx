@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, ArrowRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, ArrowRight, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Header from "@/components/layout/Header";
 import { formatCurrency, formatDate } from "@/data/staticData";
@@ -11,6 +11,8 @@ import InvestmentForm from "@/components/forms/InvestmentForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { compareByMostRecent } from "@/lib/recent-sort";
+
+const TABLE_PAGE_SIZE = 10;
 
 const CustomTooltipStyle = {
   contentStyle: { background: "hsl(225, 27%, 12%)", border: "1px solid hsl(224, 22%, 18%)", borderRadius: "8px", fontSize: "12px", color: "hsl(213, 31%, 93%)" },
@@ -28,23 +30,41 @@ const paymentTypeBadge = (paymentType?: string) => {
 
 export default function Investments() {
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
+  const [tableInvestmentList, setTableInvestmentList] = useState<Investment[]>([]);
+  const [investmentPage, setInvestmentPage] = useState(1);
+  const [investmentTotal, setInvestmentTotal] = useState(0);
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Investment | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Investment | null>(null);
 
-  useEffect(() => {
-    const loadInvestments = async () => {
-      try {
-        const remoteInvestments = await getInvestments();
-        setInvestmentList(remoteInvestments);
-      } catch (error) {
-        console.error("Impossible de charger les investissements depuis l'API.", error);
-        setInvestmentList([]);
-      }
-    };
+  const loadInvestments = async () => {
+    try {
+      const remoteInvestments = await getInvestments();
+      setInvestmentList(remoteInvestments);
+    } catch (error) {
+      console.error("Impossible de charger les investissements depuis l'API.", error);
+      setInvestmentList([]);
+    }
+  };
 
+  const loadTableInvestments = async () => {
+    try {
+      const remoteInvestments = await getInvestments({
+        page: investmentPage,
+        limit: TABLE_PAGE_SIZE,
+      });
+      setTableInvestmentList(remoteInvestments.items);
+      setInvestmentTotal(remoteInvestments.total);
+    } catch (error) {
+      console.error("Impossible de charger les transferts pagines depuis l'API.", error);
+      setTableInvestmentList([]);
+      setInvestmentTotal(0);
+    }
+  };
+
+  useEffect(() => {
     const loadActivities = async () => {
       try {
         const remoteActivities = await getActivities();
@@ -59,6 +79,10 @@ export default function Investments() {
     loadActivities();
   }, []);
 
+  useEffect(() => {
+    loadTableInvestments();
+  }, [investmentPage]);
+
   const activityById = useMemo(() => {
     const map = new Map<string, Activity>();
     for (const activity of activityList) {
@@ -67,7 +91,7 @@ export default function Investments() {
     return map;
   }, [activityList]);
 
-  const sortedInvestments = useMemo(() => [...investmentList].sort(compareByMostRecent(["createdAt", "date"])), [investmentList]);
+  const sortedInvestments = useMemo(() => [...tableInvestmentList].sort(compareByMostRecent(["createdAt", "date"])), [tableInvestmentList]);
 
   const handleEdit = (investment: Investment) => {
     setEditItem(investment);
@@ -80,13 +104,19 @@ export default function Investments() {
 
   const handleCreate = async (payload: InvestmentPayload) => {
     const created = await createInvestment(payload);
-    setInvestmentList((prev) => [created, ...prev]);
+    await loadInvestments();
+    if (investmentPage === 1) {
+      await loadTableInvestments();
+    } else {
+      setInvestmentPage(1);
+    }
     toast({ title: "Transfert ajoute", description: formatCurrency(created.amount) });
   };
 
   const handleUpdate = async (id: string, payload: InvestmentPayload) => {
     const updated = await updateInvestment(id, payload);
-    setInvestmentList((prev) => prev.map((investment) => (investment.id === id ? updated : investment)));
+    await loadInvestments();
+    await loadTableInvestments();
     toast({ title: "Transfert modifie", description: formatCurrency(updated.amount) });
   };
 
@@ -97,7 +127,12 @@ export default function Investments() {
 
     try {
       await deleteInvestment(deleteTarget.id);
-      setInvestmentList((prev) => prev.filter((investment) => investment.id !== deleteTarget.id));
+      await loadInvestments();
+      if (tableInvestmentList.length === 1 && investmentPage > 1) {
+        setInvestmentPage((page) => page - 1);
+      } else {
+        await loadTableInvestments();
+      }
       toast({ title: "Transfert supprime" });
       setDeleteOpen(false);
       setDeleteTarget(null);
@@ -113,6 +148,43 @@ export default function Investments() {
     recu: investmentList.filter((investment) => investment.toActivityId === activity.id).reduce((sum, investment) => sum + investment.amount, 0),
   }));
   const totalInvestments = investmentList.reduce((sum, investment) => sum + investment.amount, 0);
+
+  const renderPagination = () => {
+    const totalPages = Math.max(1, Math.ceil(investmentTotal / TABLE_PAGE_SIZE));
+    const start = investmentTotal === 0 ? 0 : (investmentPage - 1) * TABLE_PAGE_SIZE + 1;
+    const end = Math.min(investmentTotal, investmentPage * TABLE_PAGE_SIZE);
+
+    return (
+      <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {start}-{end} sur {investmentTotal}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setInvestmentPage((page) => Math.max(1, page - 1))}
+            disabled={investmentPage <= 1}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft size={14} />
+            Precedent
+          </button>
+          <span className="min-w-16 text-center text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+            {investmentPage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setInvestmentPage((page) => Math.min(totalPages, page + 1))}
+            disabled={investmentPage >= totalPages}
+            className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Suivant
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="animate-fade-in">
@@ -202,7 +274,7 @@ export default function Investments() {
 
         <div className="stat-card">
           <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
-            Tous les transferts <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>({investmentList.length})</span>
+            Tous les transferts <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>({investmentTotal})</span>
           </p>
           <div className="overflow-x-auto">
             <table className="w-full data-table">
@@ -249,6 +321,7 @@ export default function Investments() {
               </tbody>
             </table>
           </div>
+          {renderPagination()}
         </div>
       </div>
 
