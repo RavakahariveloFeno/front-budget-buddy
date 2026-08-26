@@ -4,6 +4,8 @@ import {
   ArrowRight,
   Briefcase,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Eye,
   LayoutGrid,
@@ -79,6 +81,8 @@ const typeAccentDim: Record<string, string> = {
   OTHER: "hsl(var(--warning-dim))",
 };
 
+const TABLE_PAGE_SIZE = 10;
+
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 function buildStatsMap(stats: ActivityStats[]): Record<string, ActivityStats> {
@@ -129,6 +133,9 @@ export default function Activities() {
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const { getModuleIds, setLinks, reset } = useModuleStore();
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
+  const [tableInvestmentList, setTableInvestmentList] = useState<Investment[]>([]);
+  const [investmentPage, setInvestmentPage] = useState(1);
+  const [investmentTotal, setInvestmentTotal] = useState(0);
   const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
@@ -178,10 +185,26 @@ export default function Activities() {
       }
     };
 
+    const loadTableInvestments = async () => {
+      try {
+        const remoteInvestments = await getInvestments({
+          page: investmentPage,
+          limit: TABLE_PAGE_SIZE,
+        });
+        setTableInvestmentList(remoteInvestments.items);
+        setInvestmentTotal(remoteInvestments.total);
+      } catch (error) {
+        console.error("Impossible de charger les transferts pagines depuis l'API.", error);
+        setTableInvestmentList([]);
+        setInvestmentTotal(0);
+      }
+    };
+
     loadActivities();
     loadInvestments();
+    loadTableInvestments();
     refreshActivityStats();
-  }, []);
+  }, [investmentPage]);
 
   const handleEdit = (act: Activity) => { setEditItem(act); setFormOpen(true); };
   const handleDelete = (act: Activity) => { setDeleteTarget(act); setDeleteOpen(true); };
@@ -227,6 +250,10 @@ export default function Activities() {
     },
     { income: 0, expense: 0, net: 0 },
   );
+
+  const totalInvestmentPages = Math.max(1, Math.ceil(investmentTotal / TABLE_PAGE_SIZE));
+  const investmentStart = investmentTotal === 0 ? 0 : (investmentPage - 1) * TABLE_PAGE_SIZE + 1;
+  const investmentEnd = Math.min(investmentTotal, investmentPage * TABLE_PAGE_SIZE);
 
   return (
     <div className="animate-fade-in">
@@ -581,7 +608,7 @@ export default function Activities() {
         </div>
 
         {/* ── Transferts entre activités ── */}
-        {investmentList.length > 0 && (
+        {investmentTotal > 0 && (
           <div className="stat-card">
             <div className="mb-5 flex items-center justify-between">
               <p
@@ -590,11 +617,11 @@ export default function Activities() {
               >
                 Transferts entre activités
               </p>
-              <span className="badge-purple">{investmentList.length} transfert{investmentList.length > 1 ? "s" : ""}</span>
+              <span className="badge-purple">{investmentTotal} transfert{investmentTotal > 1 ? "s" : ""}</span>
             </div>
 
             <div className="space-y-2">
-              {investmentList.map((inv, index) => {
+              {tableInvestmentList.map((inv, index) => {
                 const from = activityList.find((a) => a.id === inv.fromActivityId);
                 const to = activityList.find((a) => a.id === inv.toActivityId);
                 return (
@@ -652,6 +679,35 @@ export default function Activities() {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                {investmentStart}-{investmentEnd} sur {investmentTotal}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInvestmentPage((page) => Math.max(1, page - 1))}
+                  disabled={investmentPage <= 1}
+                  className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ChevronLeft size={14} />
+                  Précédent
+                </button>
+                <span className="min-w-16 text-center text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                  {investmentPage} / {totalInvestmentPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setInvestmentPage((page) => Math.min(totalInvestmentPages, page + 1))}
+                  disabled={investmentPage >= totalInvestmentPages}
+                  className="flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Suivant
+                  <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
           </div>
         )}
