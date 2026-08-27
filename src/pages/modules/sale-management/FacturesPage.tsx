@@ -2,7 +2,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { FileText, Plus, Pencil, Trash2, Eye, PlusCircle, X, ArrowLeft, Link, Link2Off } from "lucide-react";
 import type { Facture, FactureStatut, LigneFacture, Client, Produit } from "@/data/venteData";
-import { formatCurrency, formatDate } from "@/data/staticData";
+import { formatCurrency, formatDate, type PaymentType } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ function clientNom(id: string, clients: Client[]) { return id ? (clients.find((c
 function produitNom(id: string, produits: Produit[]) { return produits.find((p) => p.id === id)?.nom ?? "—"; }
 
 const NO_CLIENT_VALUE = "__NO_CLIENT__";
-function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
+function paymentLabel(type?: PaymentType) { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : type === "MOBILE" ? "Compte mobile" : "—"; }
 
 const statutColor: Record<FactureStatut, string> = {
   "PAYÉE": "default",
@@ -73,7 +73,7 @@ export default function FacturesPage() {
   const [clientId, setClientId] = useState("");
   const [date, setDate] = useState("");
   const [statut, setStatut] = useState<string>("EN_ATTENTE");
-  const [paymentType, setPaymentType] = useState<"CASH" | "CARD">("CASH");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CASH");
   const [lignes, setLignes] = useState<EditableLigneFacture[]>([createEditableLigne()]);
 
   useEffect(() => {
@@ -254,10 +254,11 @@ export default function FacturesPage() {
         <SelectField
           label="Mode de paiement"
           value={paymentType}
-          onValueChange={(v) => setPaymentType(v as "CASH" | "CARD")}
+          onValueChange={(v) => setPaymentType(v as PaymentType)}
           options={[
             { value: "CASH", label: "Espèces" },
             { value: "CARD", label: "Carte" },
+            { value: "MOBILE", label: "Compte mobile" },
           ]}
         />
       </div>

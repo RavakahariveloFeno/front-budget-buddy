@@ -1,3 +1,5 @@
+import type { PaymentType } from "@/data/staticData";
+
 // ── Static data for "Gestion de vente" module ──
 
 export interface Produit {
@@ -18,7 +20,7 @@ export interface StockItem {
   seuilAlerte: number;
   emplacement: string;
   derniereMaj: string;
-  paymentType?: "CASH" | "CARD";
+  paymentType?: PaymentType;
   linkedToGlobalExpense?: boolean;
 }
 
@@ -47,7 +49,7 @@ export interface Facture {
   lignes: LigneFacture[];
   statut: FactureStatut;
   total: number;
-  paymentType?: "CASH" | "CARD";
+  paymentType?: PaymentType;
   linkedToGlobalIncome?: boolean;
 }
 

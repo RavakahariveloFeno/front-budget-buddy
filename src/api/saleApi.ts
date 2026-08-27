@@ -1,4 +1,5 @@
 import type { Client, Facture, LigneFacture, Produit, StockItem } from "@/data/venteData";
+import type { PaymentType } from "@/data/staticData";
 import { buildAuthHeaders, getRequiredUserId } from "./authApi";
 
 const SALE_API_URL = `${import.meta.env.VITE_API_URL}/sale`;
@@ -77,7 +78,7 @@ function mapFacture(data: any): Facture {
     : [];
 
   const rawPaymentType = String(data?.paymentType ?? "").toUpperCase();
-  const paymentType = rawPaymentType === "CASH" || rawPaymentType === "CARD" ? (rawPaymentType as "CASH" | "CARD") : undefined;
+  const paymentType = ["CASH", "CARD", "MOBILE"].includes(rawPaymentType) ? (rawPaymentType as PaymentType) : undefined;
 
   return {
     id: String(data.id ?? ""),
@@ -94,7 +95,7 @@ function mapFacture(data: any): Facture {
 
 function mapStockItem(data: any): StockItem {
   const rawPaymentType = String(data?.paymentType ?? "").toUpperCase();
-  const paymentType = rawPaymentType === "CASH" || rawPaymentType === "CARD" ? (rawPaymentType as "CASH" | "CARD") : undefined;
+  const paymentType = ["CASH", "CARD", "MOBILE"].includes(rawPaymentType) ? (rawPaymentType as PaymentType) : undefined;
 
   return {
     id: String(data.id ?? ""),
@@ -339,7 +340,7 @@ export interface FacturePayload {
   clientId?: string;
   date: string;
   statut: FactureStatutInput;
-  paymentType?: "CASH" | "CARD";
+  paymentType?: PaymentType;
   linkToGlobalIncome?: boolean;
   lignes: LigneFacture[];
 }
@@ -428,7 +429,7 @@ export interface StockPayload {
   unitSalePrice?: number;
   seuilAlerte: number;
   emplacement: string;
-  paymentType?: "CASH" | "CARD";
+  paymentType?: PaymentType;
   linkToGlobalExpense?: boolean;
 }
 

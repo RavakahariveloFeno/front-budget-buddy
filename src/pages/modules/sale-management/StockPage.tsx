@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Package, AlertTriangle, Plus, Pencil, Trash2, MapPin, Link, Link2Off } from "lucide-react";
 import type { StockItem, Produit } from "@/data/venteData";
-import { formatDate } from "@/data/staticData";
+import { formatDate, type PaymentType } from "@/data/staticData";
 import Header from "@/components/layout/Header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createProduit, createProductCategory, createStockItem, deleteStockItem, getProductCategories, getProduits, getStock, linkAllStockExpense, linkStockExpense, updateStockItem } from "@/api/saleApi";
 import type { ProductCategoryOption, StockPayload } from "@/api/saleApi";
 
-function paymentLabel(type?: "CASH" | "CARD") { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : "—"; }
+function paymentLabel(type?: PaymentType) { return type === "CASH" ? "Espèces" : type === "CARD" ? "Carte" : type === "MOBILE" ? "Compte mobile" : "—"; }
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -35,7 +35,7 @@ export default function StockPage() {
   const [unitSalePrice, setUnitSalePrice] = useState("");
   const [seuil, setSeuil] = useState("");
   const [emplacement, setEmplacement] = useState("");
-  const [paymentType, setPaymentType] = useState<"CASH" | "CARD">("CASH");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CASH");
   const [produitFormOpen, setProduitFormOpen] = useState(false);
   const [newProdNom, setNewProdNom] = useState("");
   const [newProdRef, setNewProdRef] = useState("");
@@ -282,10 +282,11 @@ export default function StockPage() {
           <SelectField
             label="Mode de paiement"
             value={paymentType}
-            onValueChange={(v) => setPaymentType(v as "CASH" | "CARD")}
+            onValueChange={(v) => setPaymentType(v as PaymentType)}
             options={[
               { value: "CASH", label: "Especes" },
               { value: "CARD", label: "Carte" },
+              { value: "MOBILE", label: "Compte mobile" },
             ]}
           />
           <Button type="submit" className="w-full">{editing ? "Enregistrer" : "Ajouter"}</Button>
