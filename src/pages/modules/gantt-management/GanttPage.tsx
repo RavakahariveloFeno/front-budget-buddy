@@ -475,7 +475,7 @@ export default function GanttPage() {
 
   return (
     <div className="animate-fade-in">
-      <Header title="Planning Gantt" subtitle="Crée des projets et des tâches indépendants du calendrier" />
+      <Header title="Planning Gantt" subtitle="Crée des projets et des tâches." />
       <div className="p-6 space-y-6">
         <div className="rounded-2xl border bg-card p-5 shadow-sm" style={{ borderColor: 'hsl(var(--border))' }}>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
