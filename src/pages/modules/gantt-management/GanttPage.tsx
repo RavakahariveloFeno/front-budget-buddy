@@ -155,15 +155,6 @@ function toPercentLeft(start: Date, rangeStart: Date, rangeEnd: Date) {
   return total <= 0 ? 0 : ((start.getTime() - rangeStart.getTime()) / total) * 100;
 }
 
-function toPercentWidth(start: Date, end: Date, rangeStart: Date, rangeEnd: Date) {
-  const total = rangeEnd.getTime() - rangeStart.getTime();
-  if (total <= 0) return 0;
-  const clippedStart = Math.max(start.getTime(), rangeStart.getTime());
-  const clippedEnd = Math.min(end.getTime(), rangeEnd.getTime());
-  if (clippedEnd <= clippedStart) return 0;
-  return ((clippedEnd - clippedStart) / total) * 100;
-}
-
 function parseColor(value?: string | null) {
   return value?.trim() || 'hsl(var(--primary))';
 }
@@ -276,11 +267,14 @@ export default function GanttPage() {
     const dates: Date[] = [];
     flatRows.forEach((row) => {
       if (row.kind === 'project') {
-        dates.push(new Date(row.project.startDate));
-        if (row.project.endDate) dates.push(new Date(row.project.endDate));
+        const projectRange = barRange(
+          new Date(row.project.startDate),
+          new Date(row.project.endDate || row.project.startDate),
+        );
+        dates.push(projectRange.start, projectRange.end);
       } else {
-        dates.push(new Date(row.task.startDate));
-        dates.push(new Date(row.task.endDate));
+        const taskRange = barRange(new Date(row.task.startDate), new Date(row.task.endDate));
+        dates.push(taskRange.start, taskRange.end);
       }
     });
     dates.push(new Date());
@@ -568,9 +562,11 @@ export default function GanttPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <div className="relative min-w-[720px]">
+              <div
+                className={`relative w-full ${mode === 'month' ? 'min-w-[600px] md:min-w-0' : 'min-w-[720px] lg:min-w-0'}`}
+              >
                 <div className="sticky top-0 z-10 border-b bg-card" style={{ borderColor: 'hsl(var(--border))' }}>
-                  <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${timeline.cells.length}, minmax(72px, 1fr))` }}>
+                  <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${timeline.cells.length}, minmax(0, 1fr))` }}>
                     {timeline.cells.map((cell) => (
                       <div key={`${cell.label}-${cell.start.toISOString()}`} className="border-r px-3 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
                         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{cell.label}</div>
@@ -596,7 +592,7 @@ export default function GanttPage() {
                     const span = barRange(currentStart, currentEnd);
                     const color = row.kind === 'project' ? parseColor(row.project.color) : parseColor(row.task.color || row.project?.color);
                     const barLeft = clamp(toPercentLeft(span.start, timeline.rangeStart, timeline.rangeEnd), 0, 100);
-                    const barWidth = clamp(toPercentWidth(span.start, span.end, timeline.rangeStart, timeline.rangeEnd), 0, 100 - barLeft);
+                    const barEnd = clamp(toPercentLeft(span.end, timeline.rangeStart, timeline.rangeEnd), 0, 100);
                     const visual = row.kind === 'project' ? barVisual('project', color) : barVisual(row.task.type, color);
                     const isMilestone = row.kind === 'task' && row.task.type === 'milestone';
 
@@ -621,7 +617,8 @@ export default function GanttPage() {
                               className="absolute top-1/2 flex items-center overflow-hidden px-3 text-xs font-medium text-white transition-transform hover:scale-[1.01]"
                               style={{
                                 left: `${barLeft}%`,
-                                width: `${Math.max(barWidth, 0.8)}%`,
+                                right: `${100 - barEnd}%`,
+                                minWidth: '0.8%',
                                 transform: 'translateY(-50%)',
                                 ...visual,
                               }}
