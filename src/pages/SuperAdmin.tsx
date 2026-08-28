@@ -19,10 +19,10 @@ import {
   useModuleCatalogStore,
 } from "@/stores/moduleCatalogStore";
 
-const ALLOWED_MODULE_IDS = new Set(["mod-vente", "mod-calendrier"]);
+const ALLOWED_MODULE_IDS = new Set(["mod-vente", "mod-calendrier", "mod-gantt"]);
 
 function getDefaultStatus(moduleId: string): ModuleCatalogStatus {
-  return moduleId === "mod-vente" || moduleId === "mod-calendrier" ? "FREE" : "COMING_SOON";
+  return moduleId === "mod-vente" || moduleId === "mod-calendrier" || moduleId === "mod-gantt" ? "FREE" : "COMING_SOON";
 }
 
 export default function SuperAdmin() {

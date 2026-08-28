@@ -42,6 +42,7 @@ import RapportsPage from "@/pages/modules/cash-management/RapportsPage";
 // ── Calendrier ──
 import AgendaPage from "@/pages/modules/calendar-management/AgendaPage";
 import AutomationsPage from "@/pages/modules/calendar-management/AutomationsPage";
+import GanttPage from "@/pages/modules/gantt-management/GanttPage";
 
 const PAGE_MAP: Record<string, React.ComponentType> = {
   // Vente
@@ -89,6 +90,8 @@ const PAGE_MAP: Record<string, React.ComponentType> = {
   // Calendrier
   agenda: AgendaPage,
   automatisations: AutomationsPage,
+  // Gantt
+  tableau: GanttPage,
 };
 
 function DynamicIcon({ name, ...props }: { name: string; size?: number; className?: string; style?: React.CSSProperties }) {

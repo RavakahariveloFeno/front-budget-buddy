@@ -262,6 +262,16 @@ export const PREDEFINED_MODULES: AppModule[] = [
     ],
   },
   {
+    id: "mod-gantt",
+    name: "Planning Gantt",
+    description: "Visualisez les activités sous forme de planning, avec tâches et jalons",
+    icon: "GitBranchPlus",
+    color: "chart-4",
+    menus: [
+      { id: "menu-gantt-board", label: "Tableau", icon: "GanttChartSquare", path: "tableau" },
+    ],
+  },
+  {
     id: "mod-tresorerie",
     name: "Suivi de trésorerie",
     description: "Encaissements, décaissements et prévisions de trésorerie",

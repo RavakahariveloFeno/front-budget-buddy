@@ -6,6 +6,7 @@ const ACTIVITY_API_URL = `${import.meta.env.VITE_API_URL}/activity`;
 export type BackendModuleType =
   | "SALE_MANAGEMENT"
   | "CALENDAR_AUTOMATION"
+  | "GANTT"
   | "PAYROLL"
   | "ACCOUNTING"
   | "CASH_MANAGEMENT";
@@ -14,6 +15,7 @@ export type BackendModuleType =
 const MODULE_ID_TO_TYPE: Record<string, BackendModuleType> = {
   "mod-vente": "SALE_MANAGEMENT",
   "mod-calendrier": "CALENDAR_AUTOMATION",
+  "mod-gantt": "GANTT",
   "mod-paie": "PAYROLL",
   "mod-comptabilite-generale": "ACCOUNTING",
   "mod-comptabilite-analytique": "ACCOUNTING",
@@ -27,6 +29,7 @@ const MODULE_ID_TO_TYPE: Record<string, BackendModuleType> = {
 const MODULE_TYPE_TO_IDS: Record<BackendModuleType, string[]> = {
   SALE_MANAGEMENT: ["mod-vente"],
   CALENDAR_AUTOMATION: ["mod-calendrier"],
+  GANTT: ["mod-gantt"],
   PAYROLL: ["mod-paie"],
   ACCOUNTING: [
     "mod-comptabilite-generale",
@@ -79,6 +82,7 @@ export async function getActivityModules(activityId: string): Promise<string[]> 
           .filter((v): v is BackendModuleType =>
             v === "SALE_MANAGEMENT" ||
             v === "CALENDAR_AUTOMATION" ||
+            v === "GANTT" ||
             v === "PAYROLL" ||
             v === "ACCOUNTING" ||
             v === "CASH_MANAGEMENT",

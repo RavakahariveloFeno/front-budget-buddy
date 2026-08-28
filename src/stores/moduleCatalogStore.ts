@@ -4,7 +4,7 @@ import { PREDEFINED_MODULES } from "@/data/staticData";
 
 export type ModuleCatalogStatus = "FREE" | "PAID" | "COMING_SOON" | "SOON";
 
-const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-vente", "mod-calendrier"]);
+const ALWAYS_AVAILABLE_MODULE_IDS = new Set(["mod-vente", "mod-calendrier", "mod-gantt"]);
 
 function getDefaultModuleStatus(moduleId: string): ModuleCatalogStatus {
   return ALWAYS_AVAILABLE_MODULE_IDS.has(moduleId) ? "FREE" : "COMING_SOON";
