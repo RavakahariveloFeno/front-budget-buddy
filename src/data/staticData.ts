@@ -263,12 +263,13 @@ export const PREDEFINED_MODULES: AppModule[] = [
   },
   {
     id: "mod-gantt",
-    name: "Planning Gantt",
-    description: "Visualisez les activités sous forme de planning, avec tâches et jalons",
+    name: "Planning & Kanban",
+    description: "Visualisez les activités sous forme de planning et de tableau Kanban, avec tâches et jalons",
     icon: "GitBranchPlus",
     color: "chart-4",
     menus: [
       { id: "menu-gantt-board", label: "Tableau", icon: "GanttChartSquare", path: "tableau" },
+      { id: "menu-kanban-board", label: "Kanban", icon: "Columns3", path: "kanban" },
     ],
   },
   {

@@ -293,6 +293,11 @@ export default function GanttPage() {
     };
   }, [flatRows, mode]);
 
+  const timelineGridMinWidth = useMemo(() => {
+    const cellWidth = mode === 'day' ? 44 : mode === 'week' ? 88 : 120;
+    return Math.max(timeline.cells.length * cellWidth + LEFT_COLUMN_WIDTH + 32, 900);
+  }, [mode, timeline.cells.length]);
+
   const todayPosition = useMemo(() => {
     const now = new Date();
     if (now < timeline.rangeStart || now > timeline.rangeEnd) return null;
@@ -563,10 +568,17 @@ export default function GanttPage() {
 
             <div className="overflow-x-auto">
               <div
-                className={`relative w-full ${mode === 'month' ? 'min-w-[600px] md:min-w-0' : 'min-w-[720px] lg:min-w-0'}`}
+                className="relative w-full"
+                style={{ minWidth: `${timelineGridMinWidth}px` }}
               >
                 <div className="sticky top-0 z-10 border-b bg-card" style={{ borderColor: 'hsl(var(--border))' }}>
-                  <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${timeline.cells.length}, minmax(0, 1fr))` }}>
+                  <div
+                    className="grid h-16"
+                    style={{
+                      gridTemplateColumns: `repeat(${timeline.cells.length}, minmax(${mode === 'day' ? '42px' : mode === 'week' ? '72px' : '110px'}, 1fr))`,
+                      minWidth: `${timelineGridMinWidth - LEFT_COLUMN_WIDTH - 32}px`,
+                    }}
+                  >
                     {timeline.cells.map((cell) => (
                       <div key={`${cell.label}-${cell.start.toISOString()}`} className="border-r px-3 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
                         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{cell.label}</div>
