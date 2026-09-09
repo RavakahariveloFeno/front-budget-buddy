@@ -693,7 +693,7 @@ export default function Settings() {
         </CardHeader>
           <CardContent className="flex items-center justify-between gap-4 flex-wrap">
           <div className="text-sm text-muted-foreground">
-            Supprime toutes vos données (ventes, revenus, dépenses, retraits, investissements, prêts, remboursements, budgets, récurrents, catégories). Conserve uniquement l'utilisateur, les profils et les activités.
+            Supprime toutes vos données (ventes, revenus, dépenses, transferts, investissements, prêts, remboursements, budgets, récurrents, catégories). Conserve uniquement l'utilisateur, les profils et les activités.
           </div>
           <Button variant="destructive" onClick={() => setResetOpen(true)} disabled={isResetting}>
             {isResetting ? "Reset..." : "Reset historique"}

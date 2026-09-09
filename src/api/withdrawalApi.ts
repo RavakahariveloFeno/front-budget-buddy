@@ -9,6 +9,7 @@ export interface WithdrawalPayload {
   description?: string;
   activityId: string;
   paymentType?: PaymentType;
+  destinationType?: PaymentType;
   cashFee?: number;
 }
 
@@ -75,6 +76,11 @@ function mapWithdrawal(item: unknown): Withdrawal | null {
         ? { paymentType: String(record.paymentType) as PaymentType }
         : { paymentType: "CARD" as PaymentType }
     ),
+    ...(
+      record.destinationType && (["CASH", "CARD", "MOBILE"] as PaymentType[]).includes(String(record.destinationType) as PaymentType)
+        ? { destinationType: String(record.destinationType) as PaymentType }
+        : { destinationType: "CASH" as PaymentType }
+    ),
     ...(Number.isFinite(Number(record.cashFee ?? NaN)) ? { cashFee: Number(record.cashFee) } : {}),
     ...(record.description ? { description: String(record.description) } : {}),
   };
@@ -91,6 +97,7 @@ export async function createWithdrawal(payload: WithdrawalPayload): Promise<With
       description: payload.description || undefined,
       activityId: payload.activityId,
       paymentType: payload.paymentType,
+      destinationType: payload.destinationType,
       cashFee: payload.cashFee ?? undefined,
       userId,
     }),
@@ -165,6 +172,7 @@ export async function updateWithdrawal(id: string, payload: WithdrawalPayload): 
     description: payload.description || undefined,
     activityId: payload.activityId,
     paymentType: payload.paymentType,
+    destinationType: payload.destinationType,
     cashFee: payload.cashFee ?? undefined,
     userId,
   });

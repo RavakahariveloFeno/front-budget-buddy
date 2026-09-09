@@ -62,8 +62,10 @@ export interface Expense {
 export interface Withdrawal {
   id: string;
   amount: number;
-  // Compte source d'où le retrait est fait (le montant est reçu en espèces).
+  // Compte source du transfert.
   paymentType?: PaymentType;
+  // Compte destination du transfert.
+  destinationType?: PaymentType;
   // Montant prélevé sur le solde en espèces (frais payés en cash).
   cashFee?: number;
   date: string;

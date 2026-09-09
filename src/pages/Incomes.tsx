@@ -71,6 +71,7 @@ export default function Incomes() {
   const [withdrawalDate, setWithdrawalDate] = useState(new Date().toISOString().split("T")[0]);
   const [withdrawalActivityId, setWithdrawalActivityId] = useState("none");
   const [withdrawalPaymentType, setWithdrawalPaymentType] = useState<PaymentType>("CARD");
+  const [withdrawalDestinationType, setWithdrawalDestinationType] = useState<PaymentType>("CASH");
   const [withdrawalCashFee, setWithdrawalCashFee] = useState("");
   const [withdrawalSubmitting, setWithdrawalSubmitting] = useState(false);
   const [withdrawalPage, setWithdrawalPage] = useState(1);
@@ -132,7 +133,7 @@ export default function Incomes() {
       setWithdrawalList(data.items);
       setWithdrawalTotal(data.total);
     } catch (error) {
-      console.error("Impossible de charger les retraits depuis l'API.", error);
+      console.error("Impossible de charger les transferts depuis l'API.", error);
       setWithdrawalList([]);
       setWithdrawalTotal(0);
     }
@@ -189,6 +190,7 @@ export default function Incomes() {
       setWithdrawalDate(withdrawalEditItem.date ? withdrawalEditItem.date.split("T")[0] : new Date().toISOString().split("T")[0]);
       setWithdrawalActivityId(withdrawalEditItem.activityId || "none");
       setWithdrawalPaymentType(withdrawalEditItem.paymentType || "CARD");
+      setWithdrawalDestinationType(withdrawalEditItem.destinationType || "CASH");
       setWithdrawalCashFee(
         withdrawalEditItem.cashFee !== undefined && Number.isFinite(withdrawalEditItem.cashFee)
           ? String(withdrawalEditItem.cashFee)
@@ -202,6 +204,7 @@ export default function Incomes() {
     setWithdrawalDate(new Date().toISOString().split("T")[0]);
     setWithdrawalActivityId(selectedActivityId ?? "none");
     setWithdrawalPaymentType("CARD");
+    setWithdrawalDestinationType("CASH");
     setWithdrawalCashFee("");
   }, [selectedActivityId, withdrawalOpen, withdrawalEditItem]);
 
@@ -269,7 +272,11 @@ export default function Incomes() {
 
     const effectiveWithdrawalActivityId = selectedActivityId ?? withdrawalActivityId;
     if (effectiveWithdrawalActivityId === "none") {
-      toast({ title: "Activite requise", description: "Selectionnez une activite pour faire un retrait." });
+      toast({ title: "Activite requise", description: "Selectionnez une activite pour faire un transfert." });
+      return;
+    }
+    if (withdrawalPaymentType === withdrawalDestinationType) {
+      toast({ title: "Comptes identiques", description: "Choisissez un compte destination different du compte source." });
       return;
     }
 
@@ -281,13 +288,14 @@ export default function Incomes() {
         description: withdrawalDescription.trim() || undefined,
         activityId: effectiveWithdrawalActivityId,
         paymentType: withdrawalPaymentType,
+        destinationType: withdrawalDestinationType,
         cashFee: parsedCashFee !== undefined && parsedCashFee > 0 ? parsedCashFee : undefined,
       };
 
       if (withdrawalEditItem) {
         const updated = await updateWithdrawal(withdrawalEditItem.id, payload);
         await loadWithdrawals();
-        toast({ title: "Retrait modifie", description: `-${formatCurrency(updated.amount)}` });
+        toast({ title: "Transfert modifie", description: formatCurrency(updated.amount) });
       } else {
         const created = await createWithdrawal(payload);
         if (withdrawalPage === 1) {
@@ -295,15 +303,15 @@ export default function Incomes() {
         } else {
           setWithdrawalPage(1);
         }
-        toast({ title: "Retrait enregistre", description: `-${formatCurrency(created.amount)}` });
+        toast({ title: "Transfert enregistre", description: formatCurrency(created.amount) });
       }
 
       await refreshIncomeStats();
       setWithdrawalOpen(false);
       setWithdrawalEditItem(null);
     } catch (error) {
-      console.error("Impossible d'enregistrer le retrait.", error);
-      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Retrait impossible pour le moment." });
+      console.error("Impossible d'enregistrer le transfert.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Transfert impossible pour le moment." });
     } finally {
       setWithdrawalSubmitting(false);
     }
@@ -342,11 +350,11 @@ export default function Incomes() {
         await loadWithdrawals();
       }
       await refreshIncomeStats();
-      toast({ title: "Retrait annule" });
+      toast({ title: "Transfert annule" });
       setWithdrawalDeleteOpen(false);
       setWithdrawalDeleteTarget(null);
     } catch (error) {
-      console.error("Impossible d'annuler le retrait.", error);
+      console.error("Impossible d'annuler le transfert.", error);
       toast({ title: "Erreur", description: "Annulation impossible pour le moment." });
     }
   };
@@ -361,6 +369,9 @@ export default function Incomes() {
     { value: "CASH", label: "Especes" },
     { value: "MOBILE", label: "Compte mobile" },
   ];
+  const paymentLabel = (type?: PaymentType) =>
+    type === "MOBILE" ? "Mobile" : type === "CASH" ? "Especes" : "Carte";
+  const destinationOptions = paymentOptions.filter((option) => option.value !== withdrawalPaymentType);
 
   const renderPagination = (page: number, total: number, onPageChange: (page: number) => void) => {
     const totalPages = Math.max(1, Math.ceil(total / TABLE_PAGE_SIZE));
@@ -561,7 +572,7 @@ export default function Incomes() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
                 style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
               >
-                <ArrowDownUp size={13} /> Retrait
+                <ArrowDownUp size={13} /> Transfert
               </button>
               <button
                 onClick={() => {
@@ -639,7 +650,7 @@ export default function Incomes() {
         <div className="stat-card">
           <div className="flex items-center justify-between mb-4">
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-              Retraits{" "}
+              Transferts{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                 ({withdrawalTotal})
               </span>
@@ -662,7 +673,8 @@ export default function Incomes() {
                   <th className="text-left">Date</th>
                   <th className="text-left">Description</th>
                   <th className="text-left">Activite</th>
-                  <th className="text-left">Compte</th>
+                  <th className="text-left">De</th>
+                  <th className="text-left">Vers</th>
                   <th className="text-right">Frais (especes)</th>
                   <th className="text-right">Montant</th>
                   <th className="text-right">Actions</th>
@@ -673,7 +685,8 @@ export default function Incomes() {
                   .sort(compareByMostRecent(["date", "createdAt"]))
                   .map((wd) => {
                     const act = activityList.find((a) => a.id === wd.activityId);
-                    const paymentLabel = wd.paymentType === "MOBILE" ? "Mobile" : wd.paymentType === "CASH" ? "Especes" : "Carte";
+                    const sourceLabel = paymentLabel(wd.paymentType);
+                    const destLabel = paymentLabel(wd.destinationType);
                     return (
                       <tr key={wd.id}>
                         <td style={{ color: "hsl(var(--muted-foreground))" }}>{formatDate(wd.date)}</td>
@@ -689,14 +702,27 @@ export default function Incomes() {
                                   : "badge-income text-xs"
                             }
                           >
-                            {paymentLabel}
+                            {sourceLabel}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={
+                              wd.destinationType === "CASH"
+                                ? "badge-warning text-xs"
+                                : wd.destinationType === "MOBILE"
+                                  ? "badge-info text-xs"
+                                  : "badge-income text-xs"
+                            }
+                          >
+                            {destLabel}
                           </span>
                         </td>
                         <td className="text-right" style={{ color: "hsl(var(--purple))" }}>
                           {wd.cashFee !== undefined && Number.isFinite(wd.cashFee) ? formatCurrency(wd.cashFee) : "-"}
                         </td>
-                        <td className="text-right font-semibold" style={{ color: "hsl(var(--destructive))" }}>
-                          -{formatCurrency(wd.amount)}
+                        <td className="text-right font-semibold" style={{ color: "hsl(var(--info))" }}>
+                          {formatCurrency(wd.amount)}
                         </td>
                         <td className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -746,15 +772,25 @@ export default function Incomes() {
           setWithdrawalOpen(open);
           if (!open) setWithdrawalEditItem(null);
         }}
-        title={withdrawalEditItem ? "Modifier le retrait" : "Nouveau retrait"}
+        title={withdrawalEditItem ? "Modifier le transfert" : "Nouveau transfert"}
       >
         <form onSubmit={submitWithdrawal} className="space-y-4">
           <FormFieldInput label="Montant (MGA)" id="wd-amount" type="number" value={withdrawalAmount} onChange={setWithdrawalAmount} required step="0.01" min="0" />
           <SelectField
             label="Compte source"
             value={withdrawalPaymentType}
-            onValueChange={(v) => setWithdrawalPaymentType(v as PaymentType)}
+            onValueChange={(v) => {
+              const next = v as PaymentType;
+              setWithdrawalPaymentType(next);
+              setWithdrawalDestinationType((current) => (current === next ? (next === "CASH" ? "CARD" : "CASH") : current));
+            }}
             options={paymentOptions}
+          />
+          <SelectField
+            label="Compte destination"
+            value={withdrawalDestinationType}
+            onValueChange={(v) => setWithdrawalDestinationType(v as PaymentType)}
+            options={destinationOptions}
           />
           <FormFieldInput
             label="Frais en especes (optionnel)"
@@ -774,14 +810,14 @@ export default function Incomes() {
             options={[{ value: "none", label: "Selectionner..." }, ...activityList.map((activity) => ({ value: activity.id, label: activity.name }))]}
             disabled={Boolean(selectedActivityId)}
           />
-          <FormFieldInput label="Description (optionnel)" id="wd-desc" value={withdrawalDescription} onChange={setWithdrawalDescription} placeholder="Ex: Retrait ATM" />
+          <FormFieldInput label="Description (optionnel)" id="wd-desc" value={withdrawalDescription} onChange={setWithdrawalDescription} placeholder="Ex: Transfert carte vers especes" />
           <button
             type="submit"
             disabled={withdrawalSubmitting}
             className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "var(--gradient-warning)", color: "hsl(var(--warning-foreground))" }}
           >
-            {withdrawalSubmitting ? "En cours..." : withdrawalEditItem ? "Enregistrer les modifications" : "Enregistrer le retrait"}
+            {withdrawalSubmitting ? "En cours..." : withdrawalEditItem ? "Enregistrer les modifications" : "Enregistrer le transfert"}
           </button>
         </form>
       </FormDialog>
@@ -802,8 +838,8 @@ export default function Incomes() {
       <DeleteConfirmDialog
         open={withdrawalDeleteOpen}
         onOpenChange={setWithdrawalDeleteOpen}
-        title="Annuler le retrait"
-        description={`Annuler "${withdrawalDeleteTarget?.description || "ce retrait"}" de ${withdrawalDeleteTarget ? formatCurrency(withdrawalDeleteTarget.amount) : ""
+        title="Annuler le transfert"
+        description={`Annuler "${withdrawalDeleteTarget?.description || "ce transfert"}" de ${withdrawalDeleteTarget ? formatCurrency(withdrawalDeleteTarget.amount) : ""
           } ?`}
         onConfirm={confirmCancelWithdrawal}
       />
