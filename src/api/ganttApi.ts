@@ -33,6 +33,7 @@ export interface GanttKanbanCard {
   id: string;
   title: string;
   description?: string | null;
+  dueDate?: string | null;
   status: string;
   color?: string | null;
   position: number;
@@ -182,7 +183,7 @@ export async function getKanbanCards(activityId?: string): Promise<GanttKanbanCa
   return (await response.json()) as GanttKanbanCard[];
 }
 
-export async function createKanbanCard(payload: Omit<GanttKanbanCard, 'id' | 'createdAt' | 'updatedAt'>): Promise<GanttKanbanCard> {
+export async function createKanbanCard(payload: Omit<GanttKanbanCard, 'id' | 'createdAt' | 'updatedAt' | 'userId'>): Promise<GanttKanbanCard> {
   const userId = getRequiredUserId();
   const response = await fetch(`${GANTT_API_URL}/kanban/cards`, {
     method: 'POST',

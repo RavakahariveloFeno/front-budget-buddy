@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Columns3, Palette, Plus, Settings2, Trash2 } from 'lucide-react';
+import DOMPurify from 'dompurify';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Color from '@tiptap/extension-color';
+import FontFamily from '@tiptap/extension-font-family';
+import Highlight from '@tiptap/extension-highlight';
+import Link from '@tiptap/extension-link';
+import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
+import Underline from '@tiptap/extension-underline';
+import { AlignCenter, AlignLeft, AlignRight, Bold, CalendarDays, Columns3, Highlighter, Italic, Palette, Plus, Settings2, Strikethrough, Trash2, Underline as UnderlineIcon } from 'lucide-react';
 
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -26,6 +36,60 @@ import { useActivityFilterStore } from '@/stores/activityFilterStore';
 import type { Activity } from '@/data/staticData';
 
 const GANTT_MODULE_ID = 'mod-gantt';
+
+const sanitizeKanbanDescription = (description: string) => DOMPurify.sanitize(description, {
+  ALLOWED_TAGS: ['p', 'span', 'strong', 'em', 'u', 's', 'mark', 'h3', 'ul', 'ol', 'li', 'a', 'br'],
+  ALLOWED_ATTR: ['style', 'href', 'target', 'rel'],
+  KEEP_CONTENT: true,
+});
+
+const formatKanbanDate = (value: string) => new Intl.DateTimeFormat('fr-FR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+}).format(new Date(`${value.slice(0, 10)}T00:00:00`));
+
+function RichTextToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+  const savedSelection = useRef<{ from: number; to: number } | null>(null);
+  if (!editor) return null;
+
+  const rememberSelection = () => {
+    savedSelection.current = {
+      from: editor.state.selection.from,
+      to: editor.state.selection.to,
+    };
+  };
+  const applyColor = (command: (chain: ReturnType<typeof editor.chain>) => void) => {
+    const selection = savedSelection.current;
+    const chain = editor.chain().focus();
+    if (selection) chain.setTextSelection(selection);
+    command(chain);
+    chain.run();
+    savedSelection.current = null;
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-secondary/50 p-2">
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().toggleBold().run()} aria-label="Gras"><Bold size={15} /></Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().toggleItalic().run()} aria-label="Italique"><Italic size={15} /></Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().toggleUnderline().run()} aria-label="Souligné"><UnderlineIcon size={15} /></Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().toggleStrike().run()} aria-label="Barré"><Strikethrough size={15} /></Button>
+      <select className="h-8 rounded-md border border-border bg-background px-2 text-xs" value={editor.getAttributes('textStyle').fontFamily ?? 'Inter'} onChange={(event) => editor.chain().focus().setFontFamily(event.target.value).run()} aria-label="Police">
+        <option value="Inter">Inter</option>
+        <option value="Space Grotesk">Space Grotesk</option>
+        <option value="Georgia">Georgia</option>
+        <option value="monospace">Monospace</option>
+      </select>
+      <input type="color" className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-1" onMouseDown={rememberSelection} onChange={(event) => applyColor((chain) => { chain.setColor(event.currentTarget.value); })} defaultValue="#f8fafc" aria-label="Couleur du texte" />
+      <input type="color" className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent p-1" onMouseDown={rememberSelection} onChange={(event) => applyColor((chain) => { chain.toggleHighlight({ color: event.currentTarget.value }); })} defaultValue="#facc15" aria-label="Couleur de surlignage" />
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().toggleBulletList().run()} aria-label="Liste à puces">•</Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().setTextAlign('left').run()} aria-label="Aligner à gauche"><AlignLeft size={15} /></Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().setTextAlign('center').run()} aria-label="Centrer"><AlignCenter size={15} /></Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().setTextAlign('right').run()} aria-label="Aligner à droite"><AlignRight size={15} /></Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} aria-label="Titre"><Highlighter size={15} /></Button>
+    </div>
+  );
+}
 
 const makeColumnId = (value: string, existing: string[] = []) => {
   const base = value
@@ -64,10 +128,18 @@ export default function KanbanPage() {
   const [cardId, setCardId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState<string>('todo');
   const [color, setColor] = useState('#8b5cf6');
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
+  const descriptionRef = useRef(description);
+  descriptionRef.current = description;
+  const editor = useEditor({
+    extensions: [StarterKit, TextStyle, Color, FontFamily, Highlight.configure({ multicolor: true }), Underline, Link.configure({ openOnClick: false }), TextAlign.configure({ types: ['heading', 'paragraph'] })],
+    content: '',
+    onUpdate: ({ editor: currentEditor }) => setDescription(currentEditor.getHTML()),
+  });
 
   const showAllActivities = selectedActivityId === null;
   const effectiveActivityId = selectedActivityId ?? activityId;
@@ -128,10 +200,15 @@ export default function KanbanPage() {
       .finally(() => setLoading(false));
   }, [effectiveActivityId, showAllActivities]);
 
+  useEffect(() => {
+    if (editor && openDialog) editor.commands.setContent(descriptionRef.current || '', false);
+  }, [editor, openDialog, cardId]);
+
   const resetForm = () => {
     setCardId(null);
     setTitle('');
     setDescription('');
+    setDueDate('');
     setStatus(activeColumns[0]?.id ?? 'todo');
     setColor('#8b5cf6');
   };
@@ -151,6 +228,7 @@ export default function KanbanPage() {
     setCardId(card.id);
     setTitle(card.title);
     setDescription(card.description ?? '');
+    setDueDate(card.dueDate ? card.dueDate.slice(0, 10) : '');
     setStatus(card.status);
     setColor(card.color ?? '#8b5cf6');
     setOpenDialog(true);
@@ -163,6 +241,7 @@ export default function KanbanPage() {
       const payload = {
         title: title.trim(),
         description: description.trim() || undefined,
+        dueDate: dueDate || null,
         status: activeColumns.some((column) => column.id === status) ? status : activeColumns[0]?.id ?? 'todo',
         color,
         position: 0,
@@ -170,9 +249,9 @@ export default function KanbanPage() {
       };
 
       if (cardId) {
-        await updateKanbanCard(cardId, { ...payload, userId: '' } as any);
+        await updateKanbanCard(cardId, payload);
       } else {
-        await createKanbanCard({ ...payload, userId: '' } as any);
+        await createKanbanCard(payload);
       }
 
       setOpenDialog(false);
@@ -347,6 +426,12 @@ export default function KanbanPage() {
                           }}
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
+                            {card.dueDate ? (
+                              <div className="flex items-center gap-1 text-xs" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                                <CalendarDays size={13} />
+                                {formatKanbanDate(card.dueDate)}
+                              </div>
+                            ) : <span />}
                             <div className="h-2.5 w-2.5 rounded-full" style={{ background: card.color ?? '#8b5cf6' }} />
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEditDialog(card)} aria-label="Modifier la carte">
@@ -358,7 +443,7 @@ export default function KanbanPage() {
                             </div>
                           </div>
                           <div className="font-medium" style={{ color: 'hsl(var(--foreground))' }}>{card.title}</div>
-                          {card.description && <p className="mt-2 text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>{card.description}</p>}
+                          {card.description && <div className="rich-text-content mt-2 text-sm" dangerouslySetInnerHTML={{ __html: sanitizeKanbanDescription(card.description) }} />}
                         </div>
                       ))
                     )}
@@ -375,14 +460,21 @@ export default function KanbanPage() {
           <DialogHeader>
             <DialogTitle>{cardId ? 'Modifier la carte' : 'Nouvelle carte Kanban'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void handleSubmit(); }}>
             <div>
               <Label>Titre</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
             <div>
+              <Label>Date</Label>
+              <Input className="kanban-date-input" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+            </div>
+            <div>
               <Label>Description</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+              <div className="overflow-hidden rounded-md border border-border bg-background">
+                <RichTextToolbar editor={editor} />
+                <EditorContent editor={editor} className="rich-text-editor min-h-32 p-3 text-sm" />
+              </div>
             </div>
             <div>
               <Label>Statut</Label>
@@ -405,11 +497,11 @@ export default function KanbanPage() {
                 </label>
               </div>
             </div>
-          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Annuler</Button>
-            <Button onClick={() => void handleSubmit()} disabled={saving || !title.trim()}>{cardId ? 'Enregistrer' : 'Créer'}</Button>
+            <Button type="submit" disabled={saving || !title.trim()}>{cardId ? 'Enregistrer' : 'Créer'}</Button>
           </div>
+          </form>
         </DialogContent>
       </Dialog>
 
