@@ -3,6 +3,7 @@ import { buildAuthHeaders } from "./authApi";
 const ACCOUNT_API_URL = `${import.meta.env.VITE_API_URL}/account`;
 
 async function readApiErrorMessage(response: Response): Promise<string> {
+  
   try {
     const data = (await response.json()) as any;
     const message = data?.message;
