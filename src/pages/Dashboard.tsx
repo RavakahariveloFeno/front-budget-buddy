@@ -401,13 +401,15 @@ export default function Dashboard() {
       dashboard.paymentBalances.cash +
       dashboard.paymentBalances.card +
       dashboard.paymentBalances.mobile;
-    const getShare = (amount: number) =>
-      paymentTotal > 0 ? Math.round((amount / paymentTotal) * 100) : 0;
+    const formatShare = (amount: number) =>
+      `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(
+        paymentTotal > 0 ? (amount / paymentTotal) * 100 : 0,
+      )}%`;
 
     return [
-      { label: "Part espèces", value: `${getShare(dashboard.paymentBalances.cash)}%`, icon: Banknote },
-      { label: "Part carte", value: `${getShare(dashboard.paymentBalances.card)}%`, icon: CreditCard },
-      { label: "Part mobile", value: `${getShare(dashboard.paymentBalances.mobile)}%`, icon: Smartphone },
+      { label: "Part espèces", value: formatShare(dashboard.paymentBalances.cash), icon: Banknote },
+      { label: "Part carte", value: formatShare(dashboard.paymentBalances.card), icon: CreditCard },
+      { label: "Part mobile", value: formatShare(dashboard.paymentBalances.mobile), icon: Smartphone },
     ];
   }, [dashboard]);
 
