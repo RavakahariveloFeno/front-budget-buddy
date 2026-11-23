@@ -5,8 +5,7 @@ import {
   Banknote,
   CreditCard,
   HandCoins,
-  Sparkles,
-  Target,
+  Smartphone,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -392,28 +391,23 @@ export default function Dashboard() {
     [dashboard.toRecoverLoans],
   );
 
+  const savingsRate =
+    dashboard.totals.income > 0
+      ? Math.round((dashboard.totals.balance / dashboard.totals.income) * 100)
+      : 0;
+
   const insights = useMemo(() => {
-    const savingsRate =
-      dashboard.totals.income > 0
-        ? Math.round((dashboard.totals.balance / dashboard.totals.income) * 100)
-        : 0;
-    const expenseRatio =
-      dashboard.totals.income > 0
-        ? Math.round((dashboard.totals.expense / dashboard.totals.income) * 100)
-        : 0;
-    const cashShare =
-      dashboard.paymentBalances.card + dashboard.paymentBalances.cash + dashboard.paymentBalances.mobile > 0
-        ? Math.round(
-          (dashboard.paymentBalances.cash /
-            (dashboard.paymentBalances.card + dashboard.paymentBalances.cash + dashboard.paymentBalances.mobile)) *
-          100,
-        )
-        : 0;
+    const paymentTotal =
+      dashboard.paymentBalances.cash +
+      dashboard.paymentBalances.card +
+      dashboard.paymentBalances.mobile;
+    const getShare = (amount: number) =>
+      paymentTotal > 0 ? Math.round((amount / paymentTotal) * 100) : 0;
 
     return [
-      { label: "Taux d'epargne", value: `${savingsRate}%`, rawValue: savingsRate, icon: Sparkles },
-      { label: "Poids des depenses", value: `${expenseRatio}%`, rawValue: expenseRatio, icon: Target },
-      { label: "Part en especes", value: `${cashShare}%`, rawValue: cashShare, icon: Banknote },
+      { label: "Part espèces", value: `${getShare(dashboard.paymentBalances.cash)}%`, icon: Banknote },
+      { label: "Part carte", value: `${getShare(dashboard.paymentBalances.card)}%`, icon: CreditCard },
+      { label: "Part mobile", value: `${getShare(dashboard.paymentBalances.mobile)}%`, icon: Smartphone },
     ];
   }, [dashboard]);
 
@@ -1333,9 +1327,9 @@ export default function Dashboard() {
                   {/* Savings rate circular gauge */}
                   <div className="relative">
                     <CircularProgress
-                      value={insights[0].rawValue}
+                      value={savingsRate}
                       color={
-                        insights[0].rawValue >= 0
+                        savingsRate >= 0
                           ? "hsl(var(--primary))"
                           : "hsl(var(--destructive))"
                       }
@@ -1350,7 +1344,7 @@ export default function Dashboard() {
                         className="text-[11px] font-bold leading-none"
                         style={{ color: "hsl(var(--foreground))" }}
                       >
-                        {insights[0].value}
+                        {savingsRate}%
                       </span>
                       <span
                         className="text-[9px] leading-none mt-0.5"
