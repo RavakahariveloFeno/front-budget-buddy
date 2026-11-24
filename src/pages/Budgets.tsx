@@ -170,7 +170,7 @@ export default function Budgets() {
 
   return (
     <div className="animate-fade-in">
-      <Header title="Budgets" subtitle="Definissez et suivez vos limites de depenses" />
+      <Header title="Budgets" subtitle="Définissez et suivez vos limites de sorties" />
       <div className="p-6 space-y-6">
         <div className="flex justify-end">
           <button
@@ -227,7 +227,7 @@ export default function Budgets() {
 
                 <div className="flex justify-between text-xs">
                   <span style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Depense: <strong style={{ color: isOver ? "hsl(var(--destructive))" : "hsl(var(--foreground))" }}>{formatCurrency(spent)}</strong>
+                    Sortie : <strong style={{ color: isOver ? "hsl(var(--destructive))" : "hsl(var(--foreground))" }}>{formatCurrency(spent)}</strong>
                   </span>
                   <span style={{ color: "hsl(var(--muted-foreground))" }}>{pct}%</span>
                 </div>

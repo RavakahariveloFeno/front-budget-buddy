@@ -94,8 +94,8 @@ export default function ExpenseForm({
       onOpenChange(false);
       setOverBudgetConfirm(null);
     } catch (error) {
-      console.error("Echec de l'enregistrement de depense.", error);
-      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer la depense." });
+      console.error("Echec de l'enregistrement de sortie.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer la sortie." });
     } finally {
       setIsSubmitting(false);
     }
@@ -110,7 +110,7 @@ export default function ExpenseForm({
       return;
     }
     if (activityId === "none") {
-      toast({ title: "Activite requise", description: "Selectionnez une activite avant d'enregistrer la depense." });
+      toast({ title: "Activite requise", description: "Selectionnez une activite avant d'enregistrer la sortie." });
       return;
     }
 
@@ -149,8 +149,8 @@ export default function ExpenseForm({
       }
       onOpenChange(false);
     } catch (error) {
-      console.error("Echec de l'enregistrement de depense.", error);
-      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer la depense." });
+      console.error("Echec de l'enregistrement de sortie.", error);
+      toast({ title: "Erreur", description: error instanceof Error ? error.message : "Impossible d'enregistrer la sortie." });
     } finally {
       setIsSubmitting(false);
     }
@@ -158,7 +158,7 @@ export default function ExpenseForm({
 
   return (
     <>
-      <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier la depense" : "Nouvelle depense"}>
+      <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier la sortie" : "Nouvelle sortie"}>
         <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (MGA)" id="exp-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Description" id="exp-desc" value={description} onChange={setDescription} placeholder="Ex: Courses semaine" />

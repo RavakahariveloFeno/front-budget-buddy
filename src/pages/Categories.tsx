@@ -108,7 +108,7 @@ export default function Categories() {
 
   return (
     <div className="animate-fade-in">
-      <Header title="Categories" subtitle="Gerez vos categories de depenses" />
+      <Header title="Catégories" subtitle="Gérez vos catégories de sorties" />
       <div className="p-6 space-y-6">
         <div className="flex justify-end">
           <button
@@ -173,8 +173,8 @@ export default function Categories() {
                   <th className="text-left">Categorie</th>
                   <th className="text-left">Icone</th>
                   <th className="text-left">Couleur</th>
-                  <th className="text-right">Nb depenses</th>
-                  <th className="text-right">Total depense</th>
+                  <th className="text-right">Nb sorties</th>
+                  <th className="text-right">Total des sorties</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -230,7 +230,7 @@ export default function Categories() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Supprimer la categorie"
-        description={`Supprimer la categorie "${deleteTarget?.name}" ? Les depenses associees ne seront pas supprimees.`}
+        description={`Supprimer la categorie "${deleteTarget?.name}" ? Les sorties associées ne seront pas supprimées.`}
         onConfirm={confirmDelete}
       />
     </div>

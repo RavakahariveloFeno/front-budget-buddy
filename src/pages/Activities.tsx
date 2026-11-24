@@ -257,7 +257,7 @@ export default function Activities() {
 
   return (
     <div className="animate-fade-in">
-      <Header title="Activités" subtitle="Sources de revenus et activités financières" />
+      <Header title="Activités" subtitle="Suivi des activités financières et des entrées" />
 
       <div className="p-6 space-y-6">
 
@@ -285,7 +285,7 @@ export default function Activities() {
               }}
             >
               <TrendingUp size={14} style={{ color: "hsl(var(--primary))" }} />
-              <span style={{ color: "hsl(var(--muted-foreground))" }}>Revenus</span>
+              <span style={{ color: "hsl(var(--muted-foreground))" }}>Entrées</span>
               <span className="font-bold font-display" style={{ color: "hsl(var(--primary))" }}>
                 {formatCurrency(globalTotals.income)}
               </span>
@@ -299,7 +299,7 @@ export default function Activities() {
               }}
             >
               <TrendingDown size={14} style={{ color: "hsl(var(--destructive))" }} />
-              <span style={{ color: "hsl(var(--muted-foreground))" }}>Dépenses</span>
+              <span style={{ color: "hsl(var(--muted-foreground))" }}>Sorties</span>
               <span className="font-bold font-display" style={{ color: "hsl(var(--destructive))" }}>
                 {formatCurrency(globalTotals.expense)}
               </span>
@@ -480,7 +480,7 @@ export default function Activities() {
                     <div className="flex-1 max-w-[120px] space-y-1.5">
                       <div className="flex justify-between text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
                         <span>Rev.</span>
-                        <span>{expenseRatio}% dép.</span>
+                        <span>Sorties : {expenseRatio}%</span>
                       </div>
                       <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--border))" }}>
                         <div
