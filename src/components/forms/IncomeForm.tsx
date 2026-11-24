@@ -63,7 +63,7 @@ export default function IncomeForm({ open, onOpenChange, income, activities, loc
       return;
     }
     if (activityId === "none") {
-      toast({ title: "Activite requise", description: "Selectionnez une activite avant d'enregistrer le revenu." });
+      toast({ title: "Activite requise", description: "Selectionnez une activite avant d'enregistrer une entrée." });
       return;
     }
 
@@ -85,15 +85,15 @@ export default function IncomeForm({ open, onOpenChange, income, activities, loc
       }
       onOpenChange(false);
     } catch (error) {
-      console.error("Echec de l'enregistrement du revenu.", error);
-      toast({ title: "Erreur", description: "Impossible d'enregistrer le revenu." });
+      console.error("Echec de l'enregistrement de cette entrée.", error);
+      toast({ title: "Erreur", description: "Impossible d'enregistrer une entrée." });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier le revenu" : "Nouveau revenu"}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={isEdit ? "Modifier une entrée" : "Nouvelle entrée"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormFieldInput label="Montant (MGA)" id="inc-amount" type="number" value={amount} onChange={setAmount} placeholder="0.00" required step="0.01" min="0" />
         <FormFieldInput label="Frais en especes (optionnel)" id="inc-cash-fee" type="number" value={cashFee} onChange={setCashFee} placeholder="0.00" step="0.01" min="0" />

@@ -118,8 +118,8 @@ function buildRecurringIncomeAlerts(items: RecurringIncome[], today: Date): AppN
 
       return {
         id: `rec-income-${item.id}`,
-        title: days === 0 ? "Revenu recurrent attendu aujourd'hui" : "Revenu recurrent imminent",
-        description: `${item.description || "Revenu automatique"} - ${formatCurrency(item.amount)}`,
+        title: days === 0 ? "Entrée récurrente attendue aujourd'hui" : "Entrée récurrente imminente",
+        description: `${item.description || "Entrée automatique"} - ${formatCurrency(item.amount)}`,
         level: days === 0 ? "high" : "medium",
         to: "/incomes",
         timestamp: next.getTime(),
@@ -144,8 +144,8 @@ function buildRecurringExpenseAlerts(items: RecurringExpense[], today: Date): Ap
 
       return {
         id: `rec-expense-${item.id}`,
-        title: days === 0 ? "Depense recurrente a traiter aujourd'hui" : "Depense recurrente imminente",
-        description: `${item.description || "Depense automatique"} - ${formatCurrency(item.amount)}`,
+        title: days === 0 ? "Sortie récurrente à traiter aujourd'hui" : "Sortie récurrente imminente",
+        description: `${item.description || "Sortie automatique"} - ${formatCurrency(item.amount)}`,
         level: days === 0 ? "high" : "medium",
         to: "/expenses",
         timestamp: next.getTime(),
@@ -168,8 +168,8 @@ function buildAutoRunAlerts(incomes: Income[], expenses: Expense[], today: Date)
     const total = autoIncomes.reduce((sum, item) => sum + item.amount, 0);
     alerts.push({
       id: `auto-income-run-${today.toISOString().slice(0, 10)}-${autoIncomes.length}-${Math.round(total)}`,
-      title: "Action automatique revenu lancee",
-      description: `${autoIncomes.length} revenu(x) automatique(s) execute(s) - ${formatCurrency(total)}`,
+      title: "Entrées automatiques lancées",
+      description: `${autoIncomes.length} entrées automatiques exécutées : ${formatCurrency(total)}`,
       level: "medium",
       to: "/incomes",
       timestamp: today.getTime() + 11,
@@ -180,8 +180,8 @@ function buildAutoRunAlerts(incomes: Income[], expenses: Expense[], today: Date)
     const total = autoExpenses.reduce((sum, item) => sum + item.amount, 0);
     alerts.push({
       id: `auto-expense-run-${today.toISOString().slice(0, 10)}-${autoExpenses.length}-${Math.round(total)}`,
-      title: "Action automatique depense lancee",
-      description: `${autoExpenses.length} depense(s) automatique(s) executee(s) - ${formatCurrency(total)}`,
+      title: "Sorties automatiques lancées",
+      description: `${autoExpenses.length} sorties automatiques exécutées : ${formatCurrency(total)}`,
       level: "medium",
       to: "/expenses",
       timestamp: today.getTime() + 12,
@@ -413,11 +413,11 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const searchItems = useMemo(
     () => [
       { to: "/", title: "Tableau de bord", subtitle: "Vue globale", keywords: ["dashboard", "accueil"] },
-      { to: "/activities", title: "Activites", subtitle: "Sources de revenus", keywords: ["activity", "business", "salaire"] },
+      { to: "/activities", title: "Activites", subtitle: "Activités financières", keywords: ["activity", "business", "salaire"] },
       { to: "/modules", title: "Modules", subtitle: "Affectation des modules", keywords: ["module", "assignation", "activite"] },
-      { to: "/incomes", title: "Revenus", subtitle: "Transactions entrantes", keywords: ["income", "salaire", "entree"] },
-      { to: "/expenses", title: "Depenses", subtitle: "Transactions sortantes", keywords: ["expense", "sortie", "achat"] },
-      { to: "/categories", title: "Categories", subtitle: "Classement des depenses", keywords: ["category", "tag"] },
+      { to: "/incomes", title: "Entrées", subtitle: "Transactions entrantes", keywords: ["income", "salaire", "entree"] },
+      { to: "/expenses", title: "Sorties", subtitle: "Transactions sortantes", keywords: ["expense", "sortie", "achat"] },
+      { to: "/categories", title: "Categories", subtitle: "Classement des sorties", keywords: ["category", "tag"] },
       { to: "/budgets", title: "Budgets", subtitle: "Objectifs et limites", keywords: ["budget", "plafond"] },
       { to: "/loans", title: "Prets", subtitle: "Emprunts et remboursements", keywords: ["loan", "credit"] },
       { to: "/investments", title: "Investissements", subtitle: "Transferts entre activites", keywords: ["investment", "transfert"] },

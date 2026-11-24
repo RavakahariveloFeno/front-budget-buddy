@@ -107,7 +107,7 @@ export default function Incomes() {
       setIncomeList(remoteIncomes.items);
       setIncomeTotal(remoteIncomes.total);
     } catch (error) {
-      console.error("Impossible de charger les revenus depuis l'API.", error);
+      console.error("Impossible de charger les entrées depuis l'API.", error);
       setIncomeList([]);
       setIncomeTotal(0);
     }
@@ -118,7 +118,7 @@ export default function Incomes() {
       const data = await getRecurringIncomes();
       setRecurringList(data);
     } catch (error) {
-      console.error("Impossible de charger les revenus automatiques.", error);
+      console.error("Impossible de charger les entrées automatiques.", error);
       setRecurringList([]);
     }
   };
@@ -144,7 +144,7 @@ export default function Incomes() {
       const stats = await getIncomeStatistics({ activityId: selectedActivityId ?? undefined });
       setIncomeStats(stats);
     } catch (error) {
-      console.error("Impossible de charger les statistiques revenus depuis l'API.", error);
+      console.error("Impossible de charger les statistiques des entrées depuis l'API.", error);
       setIncomeStats(EMPTY_INCOME_STATS);
     }
   };
@@ -236,7 +236,7 @@ export default function Incomes() {
       setIncomePage(1);
     }
     await refreshIncomeStats();
-    toast({ title: "Revenu ajoute", description: `+${formatCurrency(created.amount)}` });
+    toast({ title: "Entrée ajoutée", description: `+${formatCurrency(created.amount)}` });
   };
 
   const handleCreateRecurring = async (payload: RecurringIncomePayload) => {
@@ -245,7 +245,7 @@ export default function Incomes() {
     await loadRecurringIncomes();
     await refreshIncomeStats();
     toast({
-      title: "Revenu automatique ajoute",
+      title: "Entrée automatique ajoutée",
       description: `${result.createdOccurrences} occurrence(s) generee(s).`,
     });
   };
@@ -254,7 +254,7 @@ export default function Incomes() {
     const updated = await updateIncome(id, payload);
     await loadIncomes();
     await refreshIncomeStats();
-    toast({ title: "Revenu modifie", description: `+${formatCurrency(updated.amount)}` });
+    toast({ title: "Entrée modifiée", description: `+${formatCurrency(updated.amount)}` });
   };
 
   const submitWithdrawal = async (event: React.FormEvent) => {
@@ -330,11 +330,11 @@ export default function Incomes() {
         await loadIncomes();
       }
       await refreshIncomeStats();
-      toast({ title: "Revenu supprime" });
+      toast({ title: "Entrée supprimée" });
       setDeleteOpen(false);
       setDeleteTarget(null);
     } catch (error) {
-      console.error("Impossible de supprimer le revenu.", error);
+      console.error("Impossible de supprimer une entrée.", error);
       toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     }
   };
@@ -459,9 +459,9 @@ export default function Incomes() {
       await loadIncomes();
       await refreshIncomeStats();
       setRecurringEditOpen(false);
-      toast({ title: "Revenu automatique modifie" });
+      toast({ title: "Entrée automatique modifiée" });
     } catch (error) {
-      console.error("Impossible de modifier le revenu automatique.", error);
+      console.error("Impossible de modifier une entrée automatique.", error);
       toast({ title: "Erreur", description: "Modification impossible pour le moment." });
     } finally {
       setIsRecurringSubmitting(false);
@@ -473,22 +473,22 @@ export default function Incomes() {
     try {
       await deleteRecurringIncome(recurringDeleteTarget.id);
       await loadRecurringIncomes();
-      toast({ title: "Revenu automatique supprime" });
+      toast({ title: "Entrée automatique supprimée" });
       setRecurringDeleteOpen(false);
       setRecurringDeleteTarget(null);
     } catch (error) {
-      console.error("Impossible de supprimer le revenu automatique.", error);
+      console.error("Impossible de supprimer une entrée automatique.", error);
       toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     }
   };
 
   return (
     <div className="animate-fade-in">
-      <Header title="Revenus" subtitle="Suivi de tous vos revenus" />
+      <Header title="Entrées" subtitle="Suivi de toutes vos entrées" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "Total revenus", value: formatCurrency(totalIncome), color: "hsl(var(--primary))", bg: "hsl(var(--primary-dim))" },
+            { label: "Total des entrées", value: formatCurrency(totalIncome), color: "hsl(var(--primary))", bg: "hsl(var(--primary-dim))" },
             { label: "Paiements carte", value: formatCurrency(cardTotal), color: "hsl(var(--info))", bg: "hsl(var(--info-dim))" },
             { label: "Paiements cash", value: formatCurrency(cashTotal), color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
           ].map((s) => (
@@ -511,7 +511,7 @@ export default function Incomes() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="stat-card lg:col-span-2">
             <p className="font-display font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
-              Revenus mensuels
+              Entrées mensuelles
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={incomeStats.monthlyData}>
@@ -519,7 +519,7 @@ export default function Incomes() {
                 <XAxis dataKey="month" tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "hsl(217,14%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                 <Tooltip {...CustomTooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-                <Bar dataKey="revenus" name="Revenus" fill="hsl(158,64%,52%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenus" name="Entrées" fill="hsl(158,64%,52%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -558,7 +558,7 @@ export default function Incomes() {
         <div className="stat-card">
           <div className="flex items-center justify-between mb-4">
             <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-              Tous les revenus{" "}
+              Toutes les entrées{" "}
               <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                 ({incomeTotal})
               </span>
@@ -824,14 +824,14 @@ export default function Incomes() {
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Supprimer le revenu"
-        description={`Supprimer "${deleteTarget?.description || "ce revenu"}" de ${deleteTarget ? formatCurrency(deleteTarget.amount) : ""} ?`}
+        title="Supprimer une entrée"
+        description={`Supprimer "${deleteTarget?.description || "cette entrée"}" de ${deleteTarget ? formatCurrency(deleteTarget.amount) : ""} ?`}
         onConfirm={confirmDelete}
       />
       <DeleteConfirmDialog
         open={recurringDeleteOpen}
         onOpenChange={setRecurringDeleteOpen}
-        title="Supprimer le revenu automatique"
+        title="Supprimer une entrée automatique"
         description={`Supprimer "${recurringDeleteTarget?.description || "cette regle"}" ?`}
         onConfirm={confirmDeleteRecurring}
       />
@@ -843,7 +843,7 @@ export default function Incomes() {
           } ?`}
         onConfirm={confirmCancelWithdrawal}
       />
-      <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier le revenu automatique">
+      <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier une entrée automatique">
         <form onSubmit={submitRecurringUpdate} className="space-y-4">
           <FormFieldInput label="Montant (MGA)" id="rec-inc-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
           <FormFieldInput label="Frais en especes (optionnel)" id="rec-inc-cash-fee" type="number" value={recurringCashFee} onChange={setRecurringCashFee} placeholder="0.00" step="0.01" min="0" />

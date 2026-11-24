@@ -90,7 +90,7 @@ export default function Expenses() {
       setExpenseList(remoteExpenses.items);
       setExpenseTotal(remoteExpenses.total);
     } catch (error) {
-      console.error("Impossible de charger les depenses depuis l'API.", error);
+      console.error("Impossible de charger les sorties depuis l'API.", error);
       setExpenseList([]);
       setExpenseTotal(0);
     }
@@ -101,7 +101,7 @@ export default function Expenses() {
       const data = await getRecurringExpenses();
       setRecurringList(data);
     } catch (error) {
-      console.error("Impossible de charger les depenses automatiques.", error);
+      console.error("Impossible de charger les sorties automatiques.", error);
       setRecurringList([]);
     }
   };
@@ -111,7 +111,7 @@ export default function Expenses() {
       const stats = await getExpenseStatistics({ activityId: selectedActivityId ?? undefined });
       setExpenseStats(stats);
     } catch (error) {
-      console.error("Impossible de charger les statistiques depenses depuis l'API.", error);
+      console.error("Impossible de charger les statistiques des sorties depuis l'API.", error);
       setExpenseStats(EMPTY_EXPENSE_STATS);
     }
   };
@@ -214,7 +214,7 @@ export default function Expenses() {
     }
     await refreshExpenseStats();
     await refreshActivityStats();
-    toast({ title: "Depense ajoutee", description: `-${formatCurrency(created.amount)}` });
+    toast({ title: "Sortie ajoutée", description: `-${formatCurrency(created.amount)}` });
   };
 
   const handleCreateRecurring = async (payload: RecurringExpensePayload) => {
@@ -224,7 +224,7 @@ export default function Expenses() {
     await refreshExpenseStats();
     await refreshActivityStats();
     toast({
-      title: "Depense automatique ajoutee",
+      title: "Sortie automatique ajoutée",
       description: `${result.createdOccurrences} occurrence(s) generee(s).`,
     });
   };
@@ -234,7 +234,7 @@ export default function Expenses() {
     await loadExpenses();
     await refreshExpenseStats();
     await refreshActivityStats();
-    toast({ title: "Depense modifiee", description: `-${formatCurrency(updated.amount)}` });
+    toast({ title: "Sortie modifiée", description: `-${formatCurrency(updated.amount)}` });
   };
 
   const confirmDelete = async () => {
@@ -251,11 +251,11 @@ export default function Expenses() {
       }
       await refreshExpenseStats();
       await refreshActivityStats();
-      toast({ title: "Depense supprimee" });
+      toast({ title: "Sortie supprimée" });
       setDeleteOpen(false);
       setDeleteTarget(null);
     } catch (error) {
-      console.error("Impossible de supprimer la depense.", error);
+      console.error("Impossible de supprimer la sortie.", error);
       toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     }
   };
@@ -370,9 +370,9 @@ export default function Expenses() {
       await refreshExpenseStats();
       await refreshActivityStats();
       setRecurringEditOpen(false);
-      toast({ title: "Depense automatique modifiee" });
+      toast({ title: "Sortie automatique modifiée" });
     } catch (error) {
-      console.error("Impossible de modifier la depense automatique.", error);
+      console.error("Impossible de modifier la sortie automatique.", error);
       toast({ title: "Erreur", description: error instanceof Error ? error.message : "Modification impossible pour le moment." });
     } finally {
       setIsRecurringSubmitting(false);
@@ -385,22 +385,22 @@ export default function Expenses() {
       await deleteRecurringExpense(recurringDeleteTarget.id);
       await loadRecurringExpenses();
       await refreshActivityStats();
-      toast({ title: "Depense automatique supprimee" });
+      toast({ title: "Sortie automatique supprimée" });
       setRecurringDeleteOpen(false);
       setRecurringDeleteTarget(null);
     } catch (error) {
-      console.error("Impossible de supprimer la depense automatique.", error);
+      console.error("Impossible de supprimer la sortie automatique.", error);
       toast({ title: "Erreur", description: "Suppression impossible pour le moment." });
     }
   };
 
   return (
     <div className="animate-fade-in">
-      <Header title="Depenses" subtitle="Suivi et analyse de vos depenses" />
+      <Header title="Sorties" subtitle="Suivi et analyse de vos sorties" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: "Total depenses", value: formatCurrency(expenseStats.totalExpenses), color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
+            { label: "Total des sorties", value: formatCurrency(expenseStats.totalExpenses), color: "hsl(var(--destructive))", bg: "hsl(var(--destructive-dim))" },
             { label: "Categorie principale", value: maxCatLabel, color: "hsl(var(--warning))", bg: "hsl(var(--warning-dim))" },
             { label: "Nombre transactions", value: expenseStats.transactionCount.toString(), color: "hsl(var(--info))", bg: "hsl(var(--info-dim))" },
           ].map((stat) => (
@@ -457,7 +457,7 @@ export default function Expenses() {
             <div className="stat-card lg:absolute lg:inset-0 flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <p className="font-display font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                  Toutes les depenses{" "}
+                  Toutes les sorties{" "}
                   <span className="text-sm font-normal ml-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                     ({expenseTotal})
                   </span>
@@ -563,18 +563,18 @@ export default function Expenses() {
       <DeleteConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Supprimer la depense"
-        description={`Supprimer "${deleteTarget?.description || "cette depense"}" ?`}
+        title="Supprimer une sortie"
+        description={`Supprimer "${deleteTarget?.description || "cette sortie"}" ?`}
         onConfirm={confirmDelete}
       />
       <DeleteConfirmDialog
         open={recurringDeleteOpen}
         onOpenChange={setRecurringDeleteOpen}
-        title="Supprimer la depense automatique"
+        title="Supprimer une sortie automatique"
         description={`Supprimer "${recurringDeleteTarget?.description || "cette regle"}" ?`}
         onConfirm={confirmDeleteRecurring}
       />
-      <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier la depense automatique">
+      <FormDialog open={recurringEditOpen} onOpenChange={setRecurringEditOpen} title="Modifier une sortie automatique">
         <form onSubmit={submitRecurringUpdate} className="space-y-4">
           <FormFieldInput label="Montant (MGA)" id="rec-exp-amount" type="number" value={recurringAmount} onChange={setRecurringAmount} required step="0.01" min="0" />
           <FormFieldInput label="Description" id="rec-exp-desc" value={recurringDescription} onChange={setRecurringDescription} />

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity as ActivityIcon,
   ArrowLeftRight,
@@ -499,7 +499,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* MIDDLE: proportion revenus / dépenses */}
+                {/* MIDDLE: proportion entrées / sorties */}
                 <div className="space-y-2">
                   <div className="flex h-2 w-full overflow-hidden rounded-full bg-border">
                     <div
@@ -519,8 +519,8 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>💵 Revenus {expenseBarWidth.income}%</span>
-                    <span>💸 Dépenses {expenseBarWidth.expense}%</span>
+                    <span>💵 Entrées {expenseBarWidth.income}%</span>
+                    <span>💸 Sorties {expenseBarWidth.expense}%</span>
                   </div>
                 </div>
 
@@ -642,7 +642,7 @@ export default function Dashboard() {
           {/* Stat cards 2×2 */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <StatCard
-              label="Revenus totaux"
+              label="Entrées totales"
               value={formatCurrency(dashboard.totals.income)}
               icon={TrendingUp}
               variant="income"
@@ -650,11 +650,11 @@ export default function Dashboard() {
               delay={40}
             />
             <StatCard
-              label="Depenses totales"
+              label="Sorties totales"
               value={formatCurrency(dashboard.totals.expense)}
               icon={TrendingDown}
               variant="expense"
-              hint="Sorties cumulees"
+              hint="Sorties cumulées"
               delay={90}
             />
             <StatCard
@@ -679,14 +679,14 @@ export default function Dashboard() {
         {/* ── Charts Row ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
-          {/* Area chart — Revenus vs Dépenses */}
+          {/* Area chart — Entrées vs Sorties */}
           <div className="stat-card lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
               <p
                 className="font-display font-semibold"
                 style={{ color: "hsl(var(--foreground))" }}
               >
-                Revenus &amp; Dépenses
+                Entrées &amp; Sorties
               </p>
               <span className="badge-info">Tendance mensuelle</span>
             </div>
@@ -724,7 +724,7 @@ export default function Dashboard() {
                 <Area
                   type="monotone"
                   dataKey="revenus"
-                  name="Revenus"
+                  name="Entrées"
                   stroke="hsl(158,64%,52%)"
                   fill="url(#colorRev)"
                   strokeWidth={2}
@@ -732,7 +732,7 @@ export default function Dashboard() {
                 <Area
                   type="monotone"
                   dataKey="depenses"
-                  name="Depenses"
+                  name="Sorties"
                   stroke="hsl(351,75%,58%)"
                   fill="url(#colorDep)"
                   strokeWidth={2}
@@ -741,14 +741,14 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Pie chart — Dépenses par catégorie */}
+          {/* Pie chart — Sorties par catégorie */}
           <div className="stat-card">
             <div className="mb-4 flex items-center justify-between">
               <p
                 className="font-display font-semibold"
                 style={{ color: "hsl(var(--foreground))" }}
               >
-                Dépenses par catégorie
+                Sorties par catégorie
               </p>
               <span className="badge-warning">
                 {dashboard.expensesByCategory.length} postes
@@ -908,10 +908,10 @@ export default function Dashboard() {
                     title = `Paiement prêt · ${tx.lenderName}`;
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || "-"}${tx.note ? ` · ${tx.note}` : ""}`;
                   } else if (tx.kind === "income") {
-                    title = tx.description || "Revenu";
+                    title = tx.description || "Entrée";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "expense") {
-                    title = tx.description || "Dépense";
+                    title = tx.description || "Sortie";
                     subtitle = `${formatDate(tx.date)} · ${tx.activityName || tx.categoryName || "-"}`;
                   } else if (tx.kind === "loan") {
                     title = `${tx.direction === "LENT" ? "Prêt accordé" : "Emprunt"} · ${tx.lenderName}`;
@@ -1189,7 +1189,7 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-4">
-                {/* Revenus row */}
+                {/* Entrées row */}
                 <div>
                   <div
                     className="mb-1.5 flex items-center justify-between text-xs"
@@ -1197,7 +1197,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-1.5">
                       <TrendingUp size={11} style={{ color: "hsl(var(--primary))" }} />
-                      <span>Revenus</span>
+                      <span>Entrées</span>
                     </div>
                     <span
                       className="font-semibold"
@@ -1217,7 +1217,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Dépenses row */}
+                {/* Sorties row */}
                 <div>
                   <div
                     className="mb-1.5 flex items-center justify-between text-xs"
@@ -1225,7 +1225,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-1.5">
                       <TrendingDown size={11} style={{ color: "hsl(var(--destructive))" }} />
-                      <span>Dépenses</span>
+                      <span>Sorties</span>
                     </div>
                     <span
                       className="font-semibold"
@@ -1422,13 +1422,13 @@ export default function Dashboard() {
 
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-1 gap-2 text-[11px]">
                       <div className="flex items-center justify-between gap-2 rounded-md bg-muted/20 px-2 py-1">
-                        <span className="text-muted-foreground">Revenus</span>
+                        <span className="text-muted-foreground">Entrées</span>
                         <span className="font-medium">
                           {formatCurrency(activity.income)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2 rounded-md bg-muted/20 px-2 py-1">
-                        <span className="text-muted-foreground">Depenses</span>
+                        <span className="text-muted-foreground">Sorties</span>
                         <span className="font-medium">
                           {formatCurrency(activity.expense)}
                         </span>
