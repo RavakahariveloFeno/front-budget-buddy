@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import Header from "@/components/layout/Header";
 import { getDashboardStats, type DashboardStats } from "@/api/dashboardApi";
+import { getBalanceOverview, type BalanceOverview } from "@/api/balanceApi";
 import { getInvestments } from "@/api/investmentApi";
 import { getLoans, getLoanPaymentHistory } from "@/api/loanApi";
 import { formatCurrency, formatDate } from "@/data/staticData";
@@ -230,6 +231,7 @@ export default function Dashboard() {
   const selectedActivityId = useActivityFilterStore((state) => state.selectedActivityId);
   const isAllActivitiesSelected = !selectedActivityId || selectedActivityId === "all";
   const [dashboard, setDashboard] = useState<DashboardStats>(EMPTY_DASHBOARD);
+  const [balanceOverview, setBalanceOverview] = useState<BalanceOverview | null>(null);
   const [investmentList, setInvestmentList] = useState<Investment[]>([]);
   const [loanList, setLoanList] = useState<Loan[]>([]);
 
@@ -391,6 +393,22 @@ export default function Dashboard() {
     [dashboard.toRecoverLoans],
   );
 
+  const selectedBalanceBreakdown = balanceOverview && !isAllActivitiesSelected
+    ? balanceOverview.activities.find((activity) => activity.activityId === selectedActivityId)?.balances
+    : undefined;
+  const displayedBalanceBreakdown = selectedBalanceBreakdown ?? balanceOverview?.global;
+  const availablePaymentTotal = displayedBalanceBreakdown
+    ? displayedBalanceBreakdown.cash.available + displayedBalanceBreakdown.card.available + displayedBalanceBreakdown.mobile.available
+    : dashboard.paymentBalances.cash + dashboard.paymentBalances.card + dashboard.paymentBalances.mobile;
+  const totalAvailableBalance = displayedBalanceBreakdown
+    ? displayedBalanceBreakdown.card.available + displayedBalanceBreakdown.cash.available + displayedBalanceBreakdown.mobile.available
+    : dashboard.totals.balance;
+  const totalUnavailableBalance = displayedBalanceBreakdown
+    ? displayedBalanceBreakdown.card.unavailable + displayedBalanceBreakdown.cash.unavailable + displayedBalanceBreakdown.mobile.unavailable
+    : 0;
+  const totalTrackedBalance = displayedBalanceBreakdown
+    ? displayedBalanceBreakdown.card.total + displayedBalanceBreakdown.cash.total + displayedBalanceBreakdown.mobile.total
+    : dashboard.totals.balance;
   const savingsRate =
     dashboard.totals.income > 0
       ? Math.round((dashboard.totals.balance / dashboard.totals.income) * 100)
@@ -426,11 +444,12 @@ export default function Dashboard() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [stats, investments, remoteLoans, paymentHistory] = await Promise.all([
+        const [stats, investments, remoteLoans, paymentHistory, balances] = await Promise.all([
           getDashboardStats({ activityId: selectedActivityId ?? undefined }),
           getInvestments(),
           getLoans(),
           getLoanPaymentHistory(),
+          getBalanceOverview().catch(() => null),
         ]);
 
         const paymentsByLoanId = new Map(paymentHistory.map((item) => [item.loanId, item.payments]));
@@ -441,11 +460,13 @@ export default function Dashboard() {
         });
 
         setDashboard(stats);
+        setBalanceOverview(balances);
         setInvestmentList(investments);
         setLoanList(mergedLoans);
       } catch (error) {
         console.error("Impossible de charger les statistiques dashboard depuis l'API.", error);
         setDashboard(EMPTY_DASHBOARD);
+        setBalanceOverview(null);
         setInvestmentList([]);
         setLoanList([]);
       }
@@ -482,12 +503,13 @@ export default function Dashboard() {
                 {/* TOP: solde */}
                 <div>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Solde net disponible
+                    Solde disponible
                   </p>
 
                   <p className="text-5xl font-bold mt-2">
-                    {formatCurrency(dashboard.totals.balance)}
+                    {formatCurrency(totalAvailableBalance)}
                   </p>
+                  <p className="mt-1 text-xs text-muted-foreground">Total suivi : {formatCurrency(totalTrackedBalance)} · Non disponible : {formatCurrency(totalUnavailableBalance)}</p>
 
                   <div className="mt-4 flex gap-4 text-sm">
                     <span className="badge-income">
@@ -535,17 +557,17 @@ export default function Dashboard() {
                     </div>
 
                     <p className="text-lg font-semibold mt-2">
-                      {formatCurrency(dashboard.paymentBalances.cash)}
+                      {formatCurrency(displayedBalanceBreakdown?.cash.available ?? dashboard.paymentBalances.cash)}
                     </p>
+                    <p className="mt-1 text-[10px] text-emerald-400">Disponible</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Non disponible : {formatCurrency(displayedBalanceBreakdown?.cash.unavailable ?? 0)}</p>
 
                     <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
                       <div
                         className="h-full bg-green-500"
                         style={{
-                          width: `${(dashboard.paymentBalances.cash /
-                            (dashboard.paymentBalances.cash +
-                              dashboard.paymentBalances.card +
-                              dashboard.paymentBalances.mobile || 1)) *
+                          width: `${((displayedBalanceBreakdown?.cash.available ?? dashboard.paymentBalances.cash) /
+                            (availablePaymentTotal || 1)) *
                             100
                             }%`,
                         }}
@@ -561,17 +583,17 @@ export default function Dashboard() {
                     </div>
 
                     <p className="text-lg font-semibold mt-2">
-                      {formatCurrency(dashboard.paymentBalances.card)}
+                      {formatCurrency(displayedBalanceBreakdown?.card.available ?? dashboard.paymentBalances.card)}
                     </p>
+                    <p className="mt-1 text-[10px] text-emerald-400">Disponible</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Non disponible : {formatCurrency(displayedBalanceBreakdown?.card.unavailable ?? 0)}</p>
 
                     <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
                       <div
                         className="h-full bg-blue-500"
                         style={{
-                          width: `${(dashboard.paymentBalances.card /
-                            (dashboard.paymentBalances.cash +
-                              dashboard.paymentBalances.card +
-                              dashboard.paymentBalances.mobile || 1)) *
+                          width: `${((displayedBalanceBreakdown?.card.available ?? dashboard.paymentBalances.card) /
+                            (availablePaymentTotal || 1)) *
                             100
                             }%`,
                         }}
@@ -587,17 +609,17 @@ export default function Dashboard() {
                     </div>
 
                     <p className="text-lg font-semibold mt-2">
-                      {formatCurrency(dashboard.paymentBalances.mobile)}
+                      {formatCurrency(displayedBalanceBreakdown?.mobile.available ?? dashboard.paymentBalances.mobile)}
                     </p>
+                    <p className="mt-1 text-[10px] text-emerald-400">Disponible</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Non disponible : {formatCurrency(displayedBalanceBreakdown?.mobile.unavailable ?? 0)}</p>
 
                     <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
                       <div
                         className="h-full bg-violet-500"
                         style={{
-                          width: `${(dashboard.paymentBalances.mobile /
-                            (dashboard.paymentBalances.cash +
-                              dashboard.paymentBalances.card +
-                              dashboard.paymentBalances.mobile || 1)) *
+                          width: `${((displayedBalanceBreakdown?.mobile.available ?? dashboard.paymentBalances.mobile) /
+                            (availablePaymentTotal || 1)) *
                             100
                             }%`,
                         }}
@@ -1393,7 +1415,15 @@ export default function Dashboard() {
                 activity.receivedInvestment - activity.sentInvestment;
 
               const margin = activity.income - activity.expense;
-
+              const activityBalanceDetails = balanceOverview?.activities.find(
+                (entry) => entry.activityId === activity.activityId,
+              )?.balances;
+              const availableActivityBalance = activityBalanceDetails
+                ? activityBalanceDetails.cash.available + activityBalanceDetails.card.available + activityBalanceDetails.mobile.available
+                : activity.netAvailable;
+              const unavailableActivityBalance = activityBalanceDetails
+                ? activityBalanceDetails.cash.unavailable + activityBalanceDetails.card.unavailable + activityBalanceDetails.mobile.unavailable
+                : 0;
               return (
                 <div
                   key={activity.activityId}
@@ -1495,11 +1525,12 @@ export default function Dashboard() {
                       className={`text-sm font-semibold ${isPositive ? "text-primary" : "text-destructive"
                         }`}
                     >
-                      {formatCurrency(activity.netAvailable)}
+                      {formatCurrency(availableActivityBalance)}
                     </p>
+                    <p className="text-[10px] text-muted-foreground">Disponible</p>
 
                     <p className="text-[10px] text-muted-foreground">
-                      Net disponible
+                      Non disponible : {formatCurrency(unavailableActivityBalance)}
                     </p>
                   </div>
                 </div>

@@ -10,6 +10,7 @@ import { useActiveManagedProfile } from "@/hooks/useActiveManagedProfile";
 import { getFirstAllowedMenuPath, type MenuAccessKey } from "@/data/menuAccess";
 import GlobalTopLoader from "@/components/layout/GlobalTopLoader";
 import Dashboard from "./pages/Dashboard";
+import Balances from "./pages/Balances";
 import Activities from "./pages/Activities";
 import ActivityDetail from "./pages/ActivityDetail";
 import ModuleMenuPage from "./pages/ModuleMenuPage";
@@ -89,6 +90,7 @@ const App = () => (
         <Routes>
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<MenuRoute menuKey="dashboard"><Dashboard /></MenuRoute>} />
+            <Route path="/balances" element={<MenuRoute menuKey="balances"><Balances /></MenuRoute>} />
             <Route path="/activities" element={<MenuRoute menuKey="activities"><Activities /></MenuRoute>} />
             <Route path="/modules" element={<MenuRoute menuKey="modules"><Modules /></MenuRoute>} />
             <Route path="/activities/:activityId" element={<MenuRoute menuKey="activities"><ActivityDetail /></MenuRoute>} />

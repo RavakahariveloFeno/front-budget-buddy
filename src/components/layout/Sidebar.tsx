@@ -8,6 +8,7 @@ import {
   Tag,
   PiggyBank,
   CreditCard,
+  Wallet,
   ArrowLeftRight,
   Settings,
   Shield,
@@ -29,6 +30,7 @@ const superAdminNavItem = { key: "superadmin", to: "/superadmin", icon: Shield, 
 
 const navItems = [
   { key: "dashboard", to: "/", icon: LayoutDashboard, label: "Tableau de bord" },
+  { key: "balances", to: "/balances", icon: Wallet, label: "Soldes" },
   { key: "activities", to: "/activities", icon: Briefcase, label: "Activités" },
   { key: "modules", to: "/modules", icon: LayoutGrid, label: "Modules" },
   { key: "incomes", to: "/incomes", icon: TrendingUp, label: "Entrées" },
