@@ -34,6 +34,7 @@ import {
 } from "@/api/activityApi";
 import type { ActivityPayload, ActivityStats } from "@/api/activityApi";
 import { getInvestments } from "@/api/investmentApi";
+import { getBalanceOverview, type BalanceOverview } from "@/api/balanceApi";
 import ActivityForm from "@/components/forms/ActivityForm";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
@@ -137,6 +138,7 @@ export default function Activities() {
   const [investmentPage, setInvestmentPage] = useState(1);
   const [investmentTotal, setInvestmentTotal] = useState(0);
   const [statsByActivity, setStatsByActivity] = useState<Record<string, ActivityStats>>({});
+  const [balanceOverview, setBalanceOverview] = useState<BalanceOverview | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Activity | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -205,6 +207,22 @@ export default function Activities() {
     loadTableInvestments();
     refreshActivityStats();
   }, [investmentPage]);
+  useEffect(() => {
+    if (activityList.length === 0) {
+      setBalanceOverview(null);
+      return;
+    }
+
+    let cancelled = false;
+    getBalanceOverview()
+      .then((overview) => { if (!cancelled) setBalanceOverview(overview); })
+      .catch((error) => {
+        console.error("Impossible de charger les soldes des activites depuis l'API.", error);
+        if (!cancelled) setBalanceOverview(null);
+      });
+
+    return () => { cancelled = true; };
+  }, [activityList.length]);
 
   const handleEdit = (act: Activity) => { setEditItem(act); setFormOpen(true); };
   const handleDelete = (act: Activity) => { setDeleteTarget(act); setDeleteOpen(true); };
@@ -360,7 +378,14 @@ export default function Activities() {
             const remainingLoan = stats?.remainingLoan ?? 0;
             const remainingToRecover = stats?.remainingToRecover ?? 0;
             const netAvailable = cardBalance + cashBalance + mobileBalance;
-            const netPositive = netAvailable >= 0;
+            const activityBalances = balanceOverview?.activities.find((entry) => entry.activityId === act.id)?.balances;
+            const availableBalance = activityBalances
+              ? activityBalances.card.available + activityBalances.cash.available + activityBalances.mobile.available
+              : null;
+            const unavailableBalance = activityBalances
+              ? activityBalances.card.unavailable + activityBalances.cash.unavailable + activityBalances.mobile.unavailable
+              : null;
+            const netPositive = (availableBalance ?? netAvailable) >= 0;
 
             const expenseRatio =
               actIncome > 0 ? Math.min(100, Math.round((actExpenses / actIncome) * 100)) : 0;
@@ -462,19 +487,23 @@ export default function Activities() {
 
                   {/* Net balance + income/expense bar */}
                   <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p
-                        className="text-[10px] uppercase tracking-wide"
-                        style={{ color: "hsl(var(--muted-foreground))" }}
-                      >
-                        Solde net disponible
-                      </p>
-                      <p
-                        className="text-2xl font-bold font-display mt-0.5"
-                        style={{ color: netPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}
-                      >
-                        {formatCurrency(netAvailable)}
-                      </p>
+                    <div className="grid flex-1 grid-cols-2 gap-3 min-w-0">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          Disponible
+                        </p>
+                        <p className="text-xl font-bold font-display mt-0.5" style={{ color: netPositive ? "hsl(var(--primary))" : "hsl(var(--destructive))" }}>
+                          {availableBalance === null ? "—" : formatCurrency(availableBalance)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          Non disponible
+                        </p>
+                        <p className="text-xl font-bold font-display mt-0.5" style={{ color: "hsl(var(--warning))" }}>
+                          {unavailableBalance === null ? "—" : formatCurrency(unavailableBalance)}
+                        </p>
+                      </div>
                     </div>
                     {/* Income vs Expense ratio */}
                     <div className="flex-1 max-w-[120px] space-y-1.5">
